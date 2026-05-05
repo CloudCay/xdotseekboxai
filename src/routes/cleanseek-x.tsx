@@ -65,7 +65,21 @@ function normalizeBaseUrl(raw: string | undefined): string {
 }
 
 function CleanSeekLite() {
-  const BACKEND_URL = useMemo(() => normalizeBaseUrl(process.env.EXPO_PUBLIC_BACKEND_URL), [])
+  const backendUrlOrError = useMemo(() => {
+    // Vite only exposes client env vars prefixed with VITE_.
+    // Prefer VITE_BACKEND_URL in the browser, fall back to EXPO_PUBLIC_BACKEND_URL
+    // for server-side/edge rendering where process.env is available.
+    const viteUrl =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env
+      (import.meta as any)?.env?.VITE_BACKEND_URL as string | undefined
+    const raw = viteUrl ?? process.env.EXPO_PUBLIC_BACKEND_URL
+    try {
+      return { url: normalizeBaseUrl(raw), error: null as string | null }
+    } catch (e) {
+      return { url: null as string | null, error: e instanceof Error ? e.message : 'Backend URL not configured' }
+    }
+  }, [])
+  const BACKEND_URL = backendUrlOrError.url
   const [query, setQuery] = useState<string>('')
   const [useLatest, setUseLatest] = useState<boolean>(true)
   const [activePreset, setActivePreset] = useState<PresetId>('web')
@@ -81,6 +95,7 @@ function CleanSeekLite() {
   }, [query, useLatest])
 
   const run = async (opts?: { forceProvider?: string; deepDive?: boolean }) => {
+    if (!BACKEND_URL) return
     const q = finalQuery
     if (!q || isSearching) return
 
@@ -206,6 +221,13 @@ function CleanSeekLite() {
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {!BACKEND_URL ? (
+          <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {backendUrlOrError.error ?? 'Backend URL not configured.'} Set Netlify env var{' '}
+            <span className="font-mono">VITE_BACKEND_URL</span> (for browser) and redeploy.
+          </div>
+        ) : null}
+
         {/* Top bar */}
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-3 font-black text-lg">
@@ -272,7 +294,11 @@ function CleanSeekLite() {
                 Stop
               </button>
             ) : (
-              <button onClick={() => run()} className="rounded-2xl bg-cyan-500 text-[#050B14] px-5 py-2 text-sm font-black">
+              <button
+                onClick={() => run()}
+                disabled={!BACKEND_URL}
+                className="rounded-2xl bg-cyan-500 text-[#050B14] px-5 py-2 text-sm font-black disabled:opacity-60 disabled:cursor-not-allowed"
+              >
                 Search
               </button>
             )}
