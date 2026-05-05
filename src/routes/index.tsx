@@ -1,12 +1,86 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
 import { Search, Play, Zap, Check, Sparkles, Activity, Layers, Terminal, Cpu, Bot, Globe, Shield } from 'lucide-react'
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
+import { upsertAccount } from '../server/accounts.functions'
+import { createCheckoutSession } from '../server/stripe.functions'
+
+// Match SeekBox env naming so you can reuse the same Netlify var across sites.
+const TURNSTILE_SITE_KEY = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY ?? ''
+const CAPTCHA_REQUIRED = Boolean(TURNSTILE_SITE_KEY)
 
 export const Route = createFileRoute('/')({
   component: Home,
 })
 
 function Home() {
+  const [email, setEmail] = useState<string>('')
+  const [name, setName] = useState<string>('')
+  const [isStartingCheckout, setIsStartingCheckout] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance | null>(null)
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
+
+  const origin = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    return window.location.origin
+  }, [])
+
+  const startCheckout = async () => {
+    if (!email.trim()) {
+      setError('Please enter your email first.')
+      return
+    }
+    if (CAPTCHA_REQUIRED && !captchaToken) {
+      setError('Please complete the security check.')
+      return
+    }
+    setError(null)
+    setIsStartingCheckout(true)
+    try {
+      // Step 1 — register/find user in Supabase via backend
+      const { userId } = await upsertAccount({
+        data: {
+          google_id: 'web',
+          email: email.trim().toLowerCase(),
+          name: name.trim() || 'SeekBox User',
+          ...(captchaToken ? { turnstileToken: captchaToken } : {}),
+        },
+      })
+
+      // Step 2 — create Stripe checkout session via backend
+      const { url } = await createCheckoutSession({
+        data: {
+          userId,
+          priceId: 'price_1TTWUTAghz6CNDMATSskXYmY', // grokx_monthly
+          email: email.trim().toLowerCase(),
+          successUrl: `${origin}/success`,
+          cancelUrl: `${origin}/pricing`,
+        },
+      })
+
+      if (typeof window !== 'undefined') window.location.href = url
+    } catch (e) {
+      setCheckoutFailed(e)
+    } finally {
+      setIsStartingCheckout(false)
+    }
+  }
+
+  function setCheckoutFailed(e: unknown) {
+    setError(e instanceof Error ? e.message : 'Checkout failed. Please try again.')
+    if (CAPTCHA_REQUIRED) {
+      setCaptchaToken(null)
+      turnstileRef.current?.reset()
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50 relative overflow-hidden font-sans selection:bg-cyan-500/30">
       {/* Background Effects */}
@@ -151,11 +225,18 @@ function Home() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <button className="group relative w-full sm:w-auto px-10 py-5 rounded-2xl font-black text-lg bg-cyan-500 text-[#050B14] overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_40px_rgba(6,182,212,0.6)] border-none">
+            <button
+              onClick={startCheckout}
+              disabled={
+                isStartingCheckout || (CAPTCHA_REQUIRED && (!isHydrated || !captchaToken))
+              }
+              className="group relative w-full sm:w-auto px-10 py-5 rounded-2xl font-black text-lg bg-cyan-500 text-[#050B14] overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_40px_rgba(6,182,212,0.6)] border-none disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-300 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.4)_50%,transparent_75%)] bg-[length:250%_250%,100%_100%] bg-[position:200%_0,0_0] bg-no-repeat transition-[background-position_0s_ease] group-hover:bg-[position:-100%_0,0_0] group-hover:duration-[1500ms]"></div>
               <span className="relative flex items-center justify-center gap-3">
-                Get SeekBoxAi Power — $20/mo <Zap size={22} className="fill-[#050B14]" />
+                {isStartingCheckout ? 'Starting checkout…' : 'Get Grok X Live — monthly'}
+                <Zap size={22} className="fill-[#050B14]" />
               </span>
             </button>
             <button className="group relative w-full sm:w-auto px-10 py-5 rounded-2xl font-bold text-lg border-2 border-slate-700 bg-slate-900/40 text-white backdrop-blur-md transition-all hover:bg-slate-800/80 hover:border-slate-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
@@ -165,12 +246,47 @@ function Home() {
             </button>
           </div>
           
-          <div className="mt-8 max-w-md mx-auto relative group">
+          {isHydrated && CAPTCHA_REQUIRED ? (
+            <div className="mt-8 max-w-md mx-auto flex justify-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onError={() => setCaptchaToken(null)}
+                onExpire={() => {
+                  setCaptchaToken(null)
+                  turnstileRef.current?.reset()
+                }}
+                options={{ theme: 'auto', size: 'flexible' }}
+              />
+            </div>
+          ) : null}
+
+          <div className={`max-w-md mx-auto relative group ${isHydrated && CAPTCHA_REQUIRED ? 'mt-4' : 'mt-8'}`}>
             <input 
               type="email" 
               placeholder="Enter your email to get early access" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-[#0A1128]/80 border-2 border-slate-700 rounded-2xl px-6 py-4 text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all backdrop-blur-md text-lg"
             />
+          </div>
+          <div className="mt-3 max-w-md mx-auto">
+            <input
+              type="text"
+              placeholder="Name (optional)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-[#0A1128]/60 border border-slate-700 rounded-2xl px-6 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 transition-all backdrop-blur-md text-sm"
+            />
+            {error ? (
+              <div className="mt-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                {error}
+              </div>
+            ) : null}
+            <div className="mt-3 text-xs text-slate-400">
+              Submitting starts Stripe checkout. Your subscription will be saved automatically by the backend webhook.
+            </div>
           </div>
         </div>
 

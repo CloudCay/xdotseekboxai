@@ -5,6 +5,8 @@ export const upsertAccount = createServerFn({ method: 'POST' })
     google_id: string;
     email: string;
     name: string;
+    /** Cloudflare Turnstile token (same pattern as SeekBox web sign-in). */
+    turnstileToken?: string;
   }) => data)
   .handler(async ({ data }) => {
     // Determine the backend URL.
@@ -22,6 +24,7 @@ export const upsertAccount = createServerFn({ method: 'POST' })
         google_id: data.google_id,
         email: data.email,
         name: data.name,
+        ...(data.turnstileToken ? { turnstile_token: data.turnstileToken } : {}),
       }),
     });
 

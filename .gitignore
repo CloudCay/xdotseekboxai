@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.output/
+
+# Vite / tooling caches
+.vite/
+.turbo/
+
+# Logs / misc
+*.log
+.DS_Store
+
+# Env (never commit secrets)
+.env
+.env.*
+!.env.example
