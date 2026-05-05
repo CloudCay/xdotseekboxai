@@ -47,7 +47,7 @@ function CheckoutPage() {
           data: {
             userId,
             email,
-            priceId: 'price_1TTWUTAghz6CNDMATSskXYmY',
+            priceId: 'price_1TTf7OAghz6CNDMAjyhVsGkZ',
             successUrl: `${origin}/success`,
             cancelUrl: `${origin}/pricing`,
           },
