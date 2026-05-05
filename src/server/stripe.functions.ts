@@ -10,29 +10,29 @@ function normalizeBaseUrl(raw: string | undefined): string {
 }
 
 export const createCheckoutSession = createServerFn({ method: 'POST' })
-  .inputValidator((data: {
-    priceId: string
-    userId: string
-    email: string
-    successUrl: string
-    cancelUrl: string
-    trialDays?: number
-    referredBy?: string
-  }) => data)
+  .inputValidator((data: any) => data)
   .handler(async ({ data }) => {
+    const payload =
+      data && typeof data === 'object' && 'data' in (data as any) ? (data as any).data : data
+    if (!payload?.priceId) throw new Error('Invalid checkout payload (missing priceId)')
+    if (!payload?.userId) throw new Error('Invalid checkout payload (missing userId)')
+    if (!payload?.email) throw new Error('Invalid checkout payload (missing email)')
+    if (!payload?.successUrl) throw new Error('Invalid checkout payload (missing successUrl)')
+    if (!payload?.cancelUrl) throw new Error('Invalid checkout payload (missing cancelUrl)')
+
     const BACKEND_URL = normalizeBaseUrl(process.env.EXPO_PUBLIC_BACKEND_URL)
 
     const res = await fetch(`${BACKEND_URL}/api/stripe/create-checkout-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        priceId: data.priceId,
-        userId: data.userId,
-        email: data.email?.trim()?.toLowerCase(),
-        successUrl: data.successUrl,
-        cancelUrl: data.cancelUrl,
-        ...(data.trialDays ? { trialDays: data.trialDays } : {}),
-        ...(data.referredBy ? { referredBy: data.referredBy } : {}),
+        priceId: payload.priceId,
+        userId: payload.userId,
+        email: String(payload.email)?.trim()?.toLowerCase(),
+        successUrl: payload.successUrl,
+        cancelUrl: payload.cancelUrl,
+        ...(payload.trialDays ? { trialDays: payload.trialDays } : {}),
+        ...(payload.referredBy ? { referredBy: payload.referredBy } : {}),
       }),
     })
 
