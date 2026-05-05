@@ -142,11 +142,11 @@ function AccountPage() {
     (subscription?.status === 'active' || subscription?.status === 'trialing') && Boolean(subscription?.plan)
 
   const syncAccountRow = async () => {
-    if (!email) return
+    if (!email || !userId) return
     setIsSyncingAccount(true)
     try {
       await upsertAccount({
-        data: { google_id: 'supabase', email, name: 'SeekBox User' },
+        data: { google_id: userId, email, name: 'SeekBox User' },
       } as any)
       setRefreshTick((t) => t + 1)
     } catch (e) {
@@ -224,7 +224,7 @@ function AccountPage() {
           </button>
           <button
             onClick={syncAccountRow}
-            disabled={!email || isSyncingAccount}
+            disabled={!email || !userId || isSyncingAccount}
             className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/30 text-white font-bold px-6 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSyncingAccount ? 'Syncing…' : 'Create/Sync account row'}

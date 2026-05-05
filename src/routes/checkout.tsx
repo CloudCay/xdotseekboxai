@@ -46,17 +46,15 @@ function CheckoutPage() {
         setStatus('starting')
         // Ensure an `accounts` row exists so the Stripe webhook can update role_id.
         // (Some flows only create a Supabase Auth user; they don't create `accounts`.)
-        try {
-          await upsertAccount({
-            data: {
-              google_id: 'supabase',
-              email,
-              name: (user?.user_metadata?.full_name as string | undefined) ?? 'SeekBox User',
-            },
-          } as any)
-        } catch {
-          // Non-fatal: checkout can still proceed; webhook may or may not create it.
-        }
+        await upsertAccount({
+          data: {
+            // Backend expects a stable per-user identifier in `google_id`.
+            // For Supabase Auth, use the Supabase user UUID.
+            google_id: userId,
+            email,
+            name: (user?.user_metadata?.full_name as string | undefined) ?? 'SeekBox User',
+          },
+        } as any)
         const { url } = await createCheckoutSession({
           data: {
             userId,
