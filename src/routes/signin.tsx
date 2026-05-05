@@ -51,8 +51,13 @@ function SignInPage() {
 
   const redirectTo = useMemo(() => {
     if (typeof window === 'undefined') return undefined
-    // after auth, land on /checkout to start Stripe
-    return `${window.location.origin}/checkout`
+    // after auth, land on /checkout to start Stripe.
+    // Prefer a configured canonical site URL to avoid bouncing users to another
+    // app that shares the same Supabase project.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env access
+    const siteUrl = ((import.meta as any)?.env?.VITE_SITE_URL as string | undefined)?.trim()
+    const origin = siteUrl ? siteUrl.replace(/\/$/, '') : window.location.origin
+    return `${origin}/checkout`
   }, [])
 
   const signInWithGoogle = async () => {
