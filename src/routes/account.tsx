@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { upsertAccount } from '../server/accounts.functions'
+import { ensureAccount } from '../lib/ensureAccount'
 
 export const Route = createFileRoute('/account')({
   component: AccountPage,
@@ -142,12 +142,13 @@ function AccountPage() {
     (subscription?.status === 'active' || subscription?.status === 'trialing') && Boolean(subscription?.plan)
 
   const syncAccountRow = async () => {
-    if (!email || !userId) return
+    if (!email || !userId || !supabase) return
     setIsSyncingAccount(true)
     try {
-      await upsertAccount({
-        data: { google_id: userId, email, name: 'SeekBox User' },
-      } as any)
+      const { data } = await supabase.auth.getSession()
+      const u = data.session?.user ?? null
+      if (!u) throw new Error('Not signed in.')
+      await ensureAccount(u as any)
       setRefreshTick((t) => t + 1)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to sync account row.')

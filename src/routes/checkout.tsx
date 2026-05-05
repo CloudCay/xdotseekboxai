@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { upsertAccount } from '../server/accounts.functions'
+import { ensureAccount } from '../lib/ensureAccount'
 import { createCheckoutSession } from '../server/stripe.functions'
 
 export const Route = createFileRoute('/checkout')({
@@ -44,17 +44,8 @@ function CheckoutPage() {
 
       try {
         setStatus('starting')
-        // Ensure an `accounts` row exists so the Stripe webhook can update role_id.
-        // (Some flows only create a Supabase Auth user; they don't create `accounts`.)
-        await upsertAccount({
-          data: {
-            // Backend expects a stable per-user identifier in `google_id`.
-            // For Supabase Auth, use the Supabase user UUID.
-            google_id: userId,
-            email,
-            name: (user?.user_metadata?.full_name as string | undefined) ?? 'SeekBox User',
-          },
-        } as any)
+        // Ensure an `accounts` row exists BEFORE Stripe (via Supabase RPC).
+        await ensureAccount(user as any)
         const { url } = await createCheckoutSession({
           data: {
             userId,
