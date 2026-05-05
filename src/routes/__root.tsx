@@ -17,6 +17,10 @@ export const Route = createRootRoute({
         title: 'SeekBoxAi',
       },
     ],
+    links: [
+      { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+      { rel: 'icon', href: '/favicon.ico' },
+    ],
   }),
   shellComponent: RootDocument,
 })
