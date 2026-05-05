@@ -1,5 +1,14 @@
 import { createServerFn } from '@tanstack/react-start'
 
+function normalizeBaseUrl(raw: string | undefined): string {
+  const v = (raw ?? '').trim().replace(/\/$/, '')
+  if (!v) throw new Error('EXPO_PUBLIC_BACKEND_URL environment variable is not set')
+  if (!/^https?:\/\//i.test(v)) {
+    throw new Error(`EXPO_PUBLIC_BACKEND_URL must include https:// (got: ${v})`)
+  }
+  return v
+}
+
 export const createCheckoutSession = createServerFn({ method: 'POST' })
   .inputValidator((data: {
     priceId: string
@@ -11,10 +20,7 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     referredBy?: string
   }) => data)
   .handler(async ({ data }) => {
-    const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL
-    if (!BACKEND_URL) {
-      throw new Error('EXPO_PUBLIC_BACKEND_URL environment variable is not set')
-    }
+    const BACKEND_URL = normalizeBaseUrl(process.env.EXPO_PUBLIC_BACKEND_URL)
 
     const res = await fetch(`${BACKEND_URL}/api/stripe/create-checkout-session`, {
       method: 'POST',
@@ -22,7 +28,7 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       body: JSON.stringify({
         priceId: data.priceId,
         userId: data.userId,
-        email: data.email,
+        email: data.email?.trim()?.toLowerCase(),
         successUrl: data.successUrl,
         cancelUrl: data.cancelUrl,
         ...(data.trialDays ? { trialDays: data.trialDays } : {}),
