@@ -154,7 +154,7 @@ function Home() {
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <Link
               to="/cleanseek-x"
-              className="group relative w-full sm:w-auto px-10 py-5 rounded-2xl font-black text-lg bg-cyan-500 text-[#050B14] overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_40px_rgba(6,182,212,0.6)] border-none"
+              className="group relative w-full sm:w-auto px-10 py-5 rounded-2xl font-black text-lg bg-cyan-500 text-[#050B14] overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_40px_rgba(6,182,212,0.6)] border-none cursor-pointer"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-300 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.4)_50%,transparent_75%)] bg-[length:250%_250%,100%_100%] bg-[position:200%_0,0_0] bg-no-repeat transition-[background-position_0s_ease] group-hover:bg-[position:-100%_0,0_0] group-hover:duration-[1500ms]"></div>
@@ -163,7 +163,7 @@ function Home() {
                 <Zap size={22} className="fill-[#050B14]" />
               </span>
             </Link>
-            <button className="group relative w-full sm:w-auto px-10 py-5 rounded-2xl font-bold text-lg border-2 border-slate-700 bg-slate-900/40 text-white backdrop-blur-md transition-all hover:bg-slate-800/80 hover:border-slate-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+            <button className="group relative w-full sm:w-auto px-10 py-5 rounded-2xl font-bold text-lg border-2 border-slate-700 bg-slate-900/40 text-white backdrop-blur-md transition-all hover:bg-slate-800/80 hover:border-slate-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] cursor-pointer">
               <span className="relative flex items-center justify-center gap-3">
                 <Play size={22} className="text-cyan-400 group-hover:text-cyan-300 transition-colors fill-cyan-400/20" /> Watch Grok Live Demo
               </span>
