@@ -18,7 +18,9 @@ export const Route = createRootRoute({
       },
     ],
     links: [
-      { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+      // Cache-bust so browsers pick up changes quickly.
+      { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2' },
+      { rel: 'apple-touch-icon', href: '/favicon.png?v=2' },
       { rel: 'icon', href: '/favicon.ico' },
     ],
   }),
