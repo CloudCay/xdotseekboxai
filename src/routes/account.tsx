@@ -146,10 +146,8 @@ function AccountPage() {
     setIsSyncingAccount(true)
     try {
       await upsertAccount({
-        google_id: 'supabase',
-        email,
-        name: 'SeekBox User',
-      })
+        data: { google_id: 'supabase', email, name: 'SeekBox User' },
+      } as any)
       setRefreshTick((t) => t + 1)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to sync account row.')

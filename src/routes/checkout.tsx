@@ -48,22 +48,26 @@ function CheckoutPage() {
         // (Some flows only create a Supabase Auth user; they don't create `accounts`.)
         try {
           await upsertAccount({
-            google_id: 'supabase',
-            email,
-            name: (user?.user_metadata?.full_name as string | undefined) ?? 'SeekBox User',
-          })
+            data: {
+              google_id: 'supabase',
+              email,
+              name: (user?.user_metadata?.full_name as string | undefined) ?? 'SeekBox User',
+            },
+          } as any)
         } catch {
           // Non-fatal: checkout can still proceed; webhook may or may not create it.
         }
         const { url } = await createCheckoutSession({
-          userId,
-          email,
-          priceId: 'price_1TTf7OAghz6CNDMAjyhVsGkZ',
-          // Include the Stripe substitution token so the backend can pass it
-          // through to Stripe and we can confirm status on return.
-          successUrl: `${origin}/account?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${origin}/cleanseek-x`,
-        })
+          data: {
+            userId,
+            email,
+            priceId: 'price_1TTf7OAghz6CNDMAjyhVsGkZ',
+            // Include the Stripe substitution token so the backend can pass it
+            // through to Stripe and we can confirm status on return.
+            successUrl: `${origin}/account?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${origin}/cleanseek-x`,
+          },
+        } as any)
         if (cancelled) return
         if (typeof window !== 'undefined') window.location.href = url
       } catch (e) {
