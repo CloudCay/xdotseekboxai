@@ -25,7 +25,8 @@ async function callEnsureAccount(args: Record<string, unknown>): Promise<void> {
  * This avoids schema mismatches (e.g. no `accounts.google_id`) and bypasses RLS.
  *
  * Note: your DB has two `ensure_account` variants; we try the newer signature
- * (with optional TOS/cookie args) and fall back to the minimal signature.
+ * (with TOS/cookie args) and always pass explicit strings to avoid
+ * PostgREST overload ambiguity.
  */
 export async function ensureAccount(user: User): Promise<void> {
   const ref =
@@ -46,18 +47,16 @@ export async function ensureAccount(user: User): Promise<void> {
     p_created_via: user.email ? 'otp_email' : 'anonymous',
   }
 
-  try {
-    await callEnsureAccount({
-      ...baseArgs,
-      // Newer function variant (safe defaults).
-      p_cookie_consent: null,
-      p_tos_version: null,
-      p_tos_ip: null,
-      p_tos_country: null,
-    })
-  } catch (e) {
-    // Fallback to minimal variant if the above didn't match.
-    await callEnsureAccount(baseArgs)
-  }
+  // IMPORTANT: When `ensure_account` exists in multiple overloaded forms,
+  // PostgREST can’t pick “best candidate” if parameters are omitted or `null`
+  // (because `null` is an "unknown" type). We disambiguate by always calling
+  // the newer signature with explicit TEXT values.
+  await callEnsureAccount({
+    ...baseArgs,
+    p_tos_version: '',
+    p_tos_ip: '',
+    p_tos_country: '',
+    p_cookie_consent: '',
+  })
 }
 
