@@ -146,7 +146,9 @@ function AccountPage() {
     setIsSyncingAccount(true)
     try {
       await upsertAccount({
-        data: { google_id: 'supabase', email, name: 'SeekBox User' },
+        google_id: 'supabase',
+        email,
+        name: 'SeekBox User',
       })
       setRefreshTick((t) => t + 1)
     } catch (e) {

@@ -32,11 +32,11 @@ export const upsertAccount = createServerFn({ method: 'POST' })
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to upsert account: ${res.statusText}`);
+      const text = await res.text().catch(() => '')
+      throw new Error(`Failed to upsert account: ${res.status} ${res.statusText}${text ? ` — ${text}` : ''}`);
     }
 
     const { data: account } = await res.json();
-    const userId = account.id; // ← Supabase user ID (UUID)
-    
-    return { account, userId };
+
+    return { account };
   });
