@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
 import { Mic, Search } from 'lucide-react'
+import { isSupabaseConfigured } from '../lib/supabase'
 
 export const Route = createFileRoute('/cleanseek-x')({
   component: CleanSeekLite,
@@ -269,9 +270,18 @@ function CleanSeekLite() {
           <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Response length</span>
           <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Tone</span>
           <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Persona</span>
-          <span className="ml-auto px-3 py-1.5 rounded-full border border-slate-800 bg-slate-900/20 text-slate-500 font-bold">
-            Sign in (coming soon)
-          </span>
+          {isSupabaseConfigured ? (
+            <Link
+              to="/signin"
+              className="ml-auto px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 text-slate-200 font-bold"
+            >
+              Sign in
+            </Link>
+          ) : (
+            <span className="ml-auto px-3 py-1.5 rounded-full border border-slate-800 bg-slate-900/20 text-slate-500 font-bold">
+              Sign in (coming soon)
+            </span>
+          )}
         </div>
 
         {/* Presets + actions */}
