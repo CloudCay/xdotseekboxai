@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { upsertAccount } from '../server/accounts.functions'
 
 export const Route = createFileRoute('/account')({
   component: AccountPage,
@@ -22,11 +23,13 @@ type AccountRow = {
 function AccountPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'confirming' | 'error'>('loading')
   const [error, setError] = useState<string | null>(null)
+  const [accountLoadError, setAccountLoadError] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null)
   const [account, setAccount] = useState<AccountRow | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  const [isSyncingAccount, setIsSyncingAccount] = useState(false)
 
   const fromStripe = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -45,6 +48,7 @@ function AccountPage() {
     const loadOnce = async () => {
       setStatus(fromStripe ? 'confirming' : 'loading')
       setError(null)
+      setAccountLoadError(null)
       try {
         const { data } = await supabase.auth.getSession()
         const session = data.session
@@ -78,14 +82,23 @@ function AccountPage() {
         if (!cancelled) setSubscription((subRes.data as any) ?? null)
 
         // Pull account role info (owner_user_id pattern like SeekBox)
-        const acctRes = await supabase
-          .from('accounts')
-          .select('id,role_id,stripe_customer_id,stripe_subscription_id')
-          .eq('owner_user_id', uid)
-          .maybeSingle()
+        try {
+          const acctRes = await supabase
+            .from('accounts')
+            .select('id,role_id,stripe_customer_id,stripe_subscription_id')
+            .eq('owner_user_id', uid)
+            .maybeSingle()
 
-        if (acctRes.error) throw acctRes.error
-        if (!cancelled) setAccount((acctRes.data as any) ?? null)
+          if (acctRes.error) throw acctRes.error
+          if (!cancelled) setAccount((acctRes.data as any) ?? null)
+        } catch (e) {
+          // Non-fatal: subscription can still be shown even if accounts table
+          // is missing or blocked by RLS.
+          if (!cancelled) {
+            setAccount(null)
+            setAccountLoadError(e instanceof Error ? e.message : 'accounts lookup failed')
+          }
+        }
 
         if (!cancelled) setStatus('idle')
       } catch (e) {
@@ -127,6 +140,22 @@ function AccountPage() {
 
   const isPaid =
     (subscription?.status === 'active' || subscription?.status === 'trialing') && Boolean(subscription?.plan)
+
+  const syncAccountRow = async () => {
+    if (!email) return
+    setIsSyncingAccount(true)
+    try {
+      await upsertAccount({
+        data: { google_id: 'supabase', email, name: 'SeekBox User' },
+      })
+      setRefreshTick((t) => t + 1)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to sync account row.')
+      setStatus('error')
+    } finally {
+      setIsSyncingAccount(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
@@ -172,6 +201,11 @@ function AccountPage() {
             <div className="mt-1 text-xs text-slate-400">
               Stripe customer: {account?.stripe_customer_id ? `${String(account.stripe_customer_id).slice(0, 10)}…` : '—'}
             </div>
+            {accountLoadError ? (
+              <div className="mt-3 text-[11px] text-slate-400">
+                Couldn’t load <span className="font-mono">accounts</span>: {accountLoadError}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -187,6 +221,13 @@ function AccountPage() {
             className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/30 text-white font-bold px-6 py-4"
           >
             Refresh
+          </button>
+          <button
+            onClick={syncAccountRow}
+            disabled={!email || isSyncingAccount}
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/30 text-white font-bold px-6 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSyncingAccount ? 'Syncing…' : 'Create/Sync account row'}
           </button>
         </div>
 
