@@ -3,7 +3,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
-const TURNSTILE_SITE_KEY = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY ?? ''
+// Vite only exposes VITE_* vars to the browser bundle.
+// Support both so you can share naming with the main app, but use VITE_ on this site.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env access
+const TURNSTILE_SITE_KEY =
+  ((import.meta as any)?.env?.VITE_TURNSTILE_SITE_KEY as string | undefined)?.trim() ||
+  (process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY ?? '').trim()
 const CAPTCHA_REQUIRED = Boolean(TURNSTILE_SITE_KEY)
 
 export const Route = createFileRoute('/signin')({
@@ -93,7 +98,14 @@ function SignInPage() {
       if (authError) throw authError
       setStatus('sent')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send link. Please try again.')
+      const msg = err instanceof Error ? err.message : 'Failed to send link. Please try again.'
+      if (/captcha/i.test(msg) && !CAPTCHA_REQUIRED) {
+        setError(
+          'Captcha is required, but Turnstile is not configured on this site. Set VITE_TURNSTILE_SITE_KEY in Netlify and redeploy.',
+        )
+      } else {
+        setError(msg)
+      }
       if (CAPTCHA_REQUIRED) {
         setCaptchaToken(null)
         turnstileRef.current?.reset()
