@@ -20,12 +20,12 @@ function PricingPage() {
             >
               Try CleanSeek-X
             </Link>
-            <Link
-              to="/signin?returnTo=/pricing"
+            <a
+              href="/signin?returnTo=/pricing"
               className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800/50"
             >
               Sign in
-            </Link>
+            </a>
           </div>
         </div>
 

@@ -65,14 +65,12 @@ function SignInPage() {
     return '/cleanseek-x'
   }, [])
 
-  const redirectTo = useMemo(() => {
+  const getRedirectTo = () => {
     if (typeof window === 'undefined') return undefined
     // After auth, return to this /signin route so we can redirect to `returnTo`.
-    // IMPORTANT: do NOT use a "canonical" site URL override here. If it points
-    // at a different app (e.g. seekboxai.com), Supabase may fail to exchange
-    // the provider code and the user will see "Unable to exchange external code".
+    // IMPORTANT: derive from *current* window origin (not a hard-coded domain).
     return `${window.location.origin}/signin?returnTo=${encodeURIComponent(returnTo)}`
-  }, [returnTo])
+  }
 
   // If the Turnstile script/widget is blocked, onError may never fire.
   // Don't brick sign-in: after a short grace period, allow proceeding and let
@@ -112,6 +110,7 @@ function SignInPage() {
     setError(null)
     setIsGoogleLoading(true)
     try {
+      const redirectTo = getRedirectTo()
       const { error: authError } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -140,10 +139,11 @@ function SignInPage() {
     setError(null)
     setStatus('sending')
     try {
+      const emailRedirectTo = getRedirectTo()
       const { error: authError } = await sb.auth.signInWithOtp({
         email: e,
         options: {
-          emailRedirectTo: redirectTo,
+          emailRedirectTo,
           captchaToken: captchaToken ?? undefined,
           shouldCreateUser: true,
         },
