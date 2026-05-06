@@ -15,7 +15,9 @@ type SubscriptionRow = {
 
 type AccountRow = {
   id?: string | null
-  role_id?: string | number | null
+  role?: string | null
+  granted_role?: string | null
+  trial_ends_at?: string | null
   stripe_customer_id?: string | null
   stripe_subscription_id?: string | null
 }
@@ -85,7 +87,7 @@ function AccountPage() {
         try {
           const acctRes = await supabase
             .from('accounts')
-            .select('id,role_id,stripe_customer_id,stripe_subscription_id')
+            .select('id,role,granted_role,trial_ends_at,stripe_customer_id,stripe_subscription_id')
             .eq('owner_user_id', uid)
             .maybeSingle()
 
@@ -198,9 +200,12 @@ function AccountPage() {
           </div>
           <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-4">
             <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Role</div>
-            <div className="mt-2 text-lg font-black">{account?.role_id ?? '—'}</div>
+            <div className="mt-2 text-lg font-black">{account?.granted_role ?? account?.role ?? '—'}</div>
             <div className="mt-1 text-xs text-slate-400">
               Stripe customer: {account?.stripe_customer_id ? `${String(account.stripe_customer_id).slice(0, 10)}…` : '—'}
+            </div>
+            <div className="mt-1 text-xs text-slate-400">
+              Trial ends: {account?.trial_ends_at ? new Date(account.trial_ends_at).toLocaleDateString() : '—'}
             </div>
             {accountLoadError ? (
               <div className="mt-3 text-[11px] text-slate-400">
