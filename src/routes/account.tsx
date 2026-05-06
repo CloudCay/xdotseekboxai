@@ -40,6 +40,23 @@ function stringifyErr(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
+/** Postgres 42P17: RLS policies on `accounts` reference each other in a cycle — fix in Supabase SQL, not in this app. */
+function isAccountsRlsRecursion(msg: string): boolean {
+  return /42P17/i.test(msg) || /infinite recursion/i.test(msg)
+}
+
+function formatAccountsLoadError(e: unknown): string {
+  const raw = stringifyErr(e)
+  if (!isAccountsRlsRecursion(raw)) return raw
+  return [
+    raw,
+    '',
+    'This is a Supabase Row Level Security configuration issue: policies on the `accounts` table trigger each other in a loop.',
+    'Fix: open SQL Editor → review policies on `accounts` and remove the cycle (often a policy USING clause that queries `accounts` again).',
+    'Alternative: expose read-only fields via a SECURITY DEFINER RPC (e.g. `get_my_account()`) and call that from the app instead of selecting `accounts` directly.',
+  ].join('\n')
+}
+
 function AccountPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'confirming' | 'error'>('loading')
   const [error, setError] = useState<string | null>(null)
@@ -125,6 +142,7 @@ function AccountPage() {
               if (!res.error) return res
               lastErr = res.error
               const msg = stringifyErr(res.error)
+              if (isAccountsRlsRecursion(msg)) return res
               // If a selected column doesn't exist, try a reduced column set.
               if (/does not exist/i.test(msg) || /column/i.test(msg) || /42703/.test(msg) || /PGRST/i.test(msg)) {
                 continue
@@ -164,7 +182,7 @@ function AccountPage() {
           // is missing or blocked by RLS.
           if (!cancelled) {
             setAccount(null)
-            setAccountLoadError(stringifyErr(e))
+            setAccountLoadError(formatAccountsLoadError(e))
           }
         }
 
@@ -278,7 +296,7 @@ function AccountPage() {
               Trial ends: {account?.trial_ends_at ? new Date(account.trial_ends_at).toLocaleDateString() : '—'}
             </div>
             {accountLoadError ? (
-              <div className="mt-3 text-[11px] text-slate-400">
+              <div className="mt-3 text-[11px] text-slate-400 whitespace-pre-wrap">
                 Couldn’t load <span className="font-mono">accounts</span>: {accountLoadError}
               </div>
             ) : null}

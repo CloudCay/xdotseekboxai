@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
-import { Mic, Search } from 'lucide-react'
-import { isSupabaseConfigured } from '../lib/supabase'
+import { LogOut, Mic, Search, UserRound } from 'lucide-react'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 export const Route = createFileRoute('/cleanseek-x')({
   component: CleanSeekLite,
@@ -65,6 +65,32 @@ function normalizeBaseUrl(raw: string | undefined): string {
   return v
 }
 
+async function fetchAccountRoleLabel(uid: string): Promise<string | null> {
+  const sb = isSupabaseConfigured ? supabase : null
+  if (!sb) return null
+  const tryCols = async (col: 'owner_user_id' | 'user_id' | 'id') => {
+    const res = await sb.from('accounts').select('role,granted_role').eq(col, uid).maybeSingle()
+    return res
+  }
+  for (const col of ['owner_user_id', 'user_id', 'id'] as const) {
+    const res = await tryCols(col)
+    if (!res.error && res.data) {
+      const d = res.data as { role?: string | null; granted_role?: string | null }
+      return (d.granted_role ?? d.role ?? null)?.trim() || null
+    }
+    const msg = String(res.error?.message ?? '')
+    if (
+      /does not exist/i.test(msg) ||
+      /42703/i.test(msg) ||
+      (/column/i.test(msg) && /owner_user_id|user_id/i.test(msg))
+    ) {
+      continue
+    }
+    break
+  }
+  return null
+}
+
 function CleanSeekLite() {
   const backendUrlOrError = useMemo(() => {
     // Vite only exposes client env vars prefixed with VITE_.
@@ -87,6 +113,10 @@ function CleanSeekLite() {
   const [isSearching, setIsSearching] = useState<boolean>(false)
   const [results, setResults] = useState<Record<string, EngineResult>>({})
   const [isDeepDive, setIsDeepDive] = useState<boolean>(false)
+  const [streamError, setStreamError] = useState<string | null>(null)
+  const [authEmail, setAuthEmail] = useState<string | null>(null)
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
+  const [roleLabel, setRoleLabel] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const hydratedFromUrlRef = useRef<boolean>(false)
 
@@ -107,6 +137,49 @@ function CleanSeekLite() {
     }
   }, [])
 
+  useEffect(() => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb || typeof window === 'undefined') return
+
+    let cancelled = false
+
+    const refresh = async () => {
+      const { data } = await sb.auth.getSession()
+      const u = data.session?.user ?? null
+      if (cancelled) return
+      const email = u?.email ?? null
+      const uid = u?.id ?? null
+      setAuthEmail(email)
+      setAuthUserId(uid)
+      setRoleLabel(null)
+      if (uid) {
+        const role = await fetchAccountRoleLabel(uid)
+        if (!cancelled) setRoleLabel(role)
+      }
+    }
+
+    void refresh()
+
+    const { data: sub } = sb.auth.onAuthStateChange(() => {
+      void refresh()
+    })
+
+    return () => {
+      cancelled = true
+      sub.subscription.unsubscribe()
+    }
+  }, [])
+
+  const signOut = async () => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) return
+    await sb.auth.signOut()
+    setAuthEmail(null)
+    setAuthUserId(null)
+    setRoleLabel(null)
+    if (typeof window !== 'undefined') window.location.href = '/cleanseek-x'
+  }
+
   const finalQuery = useMemo(() => {
     const q = query.trim()
     if (!q) return ''
@@ -122,6 +195,7 @@ function CleanSeekLite() {
     const ac = new AbortController()
     abortRef.current = ac
 
+    setStreamError(null)
     setIsSearching(true)
     setResults({})
     setIsDeepDive(Boolean(opts?.deepDive))
@@ -143,33 +217,43 @@ function CleanSeekLite() {
     }
 
     const clientId = getClientId()
+    const streamUserId = authUserId ?? clientId
 
-    const res = await fetch(`${BACKEND_URL}/api/search/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: ac.signal,
-      body: JSON.stringify({
-        query:
-          opts?.deepDive && useLatest
-            ? `${q}\n\n[LIVE MODE: Deep Live Dive. Expand Top X posts to 6-10, include handles, timestamps, and a 3-bullet \"What it means\" summary. Never fabricate posts. If no X access, write \"No live X signals available\".]\n`
-            : q,
-        useLocation: false,
-        enabledProviders: enabledProviders.length ? enabledProviders : undefined,
-        sessionId: clientId,
-        clientId,
-        userId: clientId,
-        searchSource: 'xdot_cleanseek',
-        platform: 'web',
-        promptCharacterCount: q.length,
-        enabledEngineCount: enabledProviders.length || undefined,
-        liveDataMode: useLatest,
-        grokLive: useLatest,
-      }),
-    })
+    let res: Response
+    try {
+      res = await fetch(`${BACKEND_URL}/api/search/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ac.signal,
+        body: JSON.stringify({
+          query:
+            opts?.deepDive && useLatest
+              ? `${q}\n\n[LIVE MODE: Deep Live Dive. Expand Top X posts to 6-10, include handles, timestamps, and a 3-bullet \"What it means\" summary. Never fabricate posts. If no X access, write \"No live X signals available\".]\n`
+              : q,
+          useLocation: false,
+          enabledProviders: enabledProviders.length ? enabledProviders : undefined,
+          sessionId: clientId,
+          clientId,
+          userId: streamUserId,
+          searchSource: 'xdot_cleanseek',
+          platform: 'web',
+          promptCharacterCount: q.length,
+          enabledEngineCount: enabledProviders.length || undefined,
+          liveDataMode: useLatest,
+          grokLive: useLatest,
+        }),
+      })
+    } catch (e) {
+      setIsSearching(false)
+      if ((e as Error)?.name === 'AbortError') return
+      setStreamError(e instanceof Error ? e.message : 'Search failed.')
+      return
+    }
 
     if (!res.ok || !res.body) {
       setIsSearching(false)
-      throw new Error(`HTTP ${res.status}`)
+      setStreamError(`Search failed (HTTP ${res.status}).`)
+      return
     }
 
     const reader = res.body.getReader()
@@ -226,7 +310,26 @@ function CleanSeekLite() {
           }
         }
       }
+    } catch (e) {
+      if (!ac.signal.aborted) {
+        setStreamError(e instanceof Error ? e.message : 'Stream interrupted.')
+      }
     } finally {
+      if (ac.signal.aborted) {
+        setResults((prev) => {
+          const next = { ...prev }
+          for (const k of Object.keys(next)) {
+            if (next[k].status === 'loading') {
+              next[k] = {
+                ...next[k],
+                status: 'error',
+                content: next[k].content?.trim() ? next[k].content : 'Stopped.',
+              }
+            }
+          }
+          return next
+        })
+      }
       setIsSearching(false)
     }
   }
@@ -247,66 +350,134 @@ function CleanSeekLite() {
           </div>
         ) : null}
 
+        {streamError ? (
+          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <span className="flex-1 min-w-[200px]">{streamError}</span>
+            <button
+              type="button"
+              onClick={() => setStreamError(null)}
+              className="rounded-xl border border-amber-400/40 bg-black/20 px-3 py-1.5 text-xs font-black text-amber-50"
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
         {/* Top bar */}
-        <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-3 font-black text-lg">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-4">
+          <Link to="/" className="flex shrink-0 items-center gap-3 font-black text-lg">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-500/30">
               <Search className="h-4 w-4 text-cyan-300" />
             </span>
             SeekBoxAi
           </Link>
 
-          <div className="flex-1 flex items-center gap-2 rounded-2xl border border-slate-700/60 bg-[#0A1128]/70 px-4 py-3">
-            <Search className="h-4 w-4 text-slate-400" />
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-slate-700/60 bg-[#0A1128]/70 px-4 py-3">
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' || e.shiftKey) return
+                e.preventDefault()
+                if (!isSearching && BACKEND_URL && query.trim()) void run()
+              }}
               placeholder="Ask once… get all answers side-by-side"
-              className="w-full bg-transparent outline-none text-slate-100 placeholder-slate-500"
+              className="min-w-0 flex-1 bg-transparent outline-none text-slate-100 placeholder-slate-500"
+              aria-label="Search query"
             />
-            <button className="rounded-xl border border-slate-700 bg-slate-900/30 px-3 py-1.5 text-xs font-black text-slate-200">
+            <button
+              type="button"
+              disabled
+              title="Voice input coming soon"
+              className="shrink-0 rounded-xl border border-slate-800 bg-slate-900/20 px-3 py-1.5 text-xs font-black text-slate-500 cursor-not-allowed"
+            >
               <span className="inline-flex items-center gap-2">
                 <Mic className="h-3.5 w-3.5" /> Voice
               </span>
             </button>
           </div>
 
-          <Link
-            to="/cleanseek-x/history"
-            className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
-          >
-            History
-          </Link>
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+            <Link
+              to="/cleanseek-x/history"
+              className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
+            >
+              History
+            </Link>
 
-          <button
-            onClick={() => setUseLatest((v) => !v)}
-            className={`rounded-2xl px-5 py-3 text-sm font-black border ${
-              useLatest
-                ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.15)]'
-                : 'border-slate-700 bg-slate-900/30 text-slate-200'
-            }`}
-          >
-            {useLatest ? 'Grok Live' : 'Grok Live off'}
-          </button>
+            <button
+              type="button"
+              onClick={() => setUseLatest((v) => !v)}
+              className={`rounded-2xl px-5 py-3 text-sm font-black border ${
+                useLatest
+                  ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.15)]'
+                  : 'border-slate-700 bg-slate-900/30 text-slate-200'
+              }`}
+            >
+              {useLatest ? 'Grok Live' : 'Grok Live off'}
+            </button>
+
+            {authUserId && authEmail ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/80 bg-[#0A1128]/80 px-3 py-2">
+                <span
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-sm font-black text-cyan-100"
+                  title={authEmail}
+                >
+                  {(authEmail[0] ?? '?').toUpperCase()}
+                </span>
+                <div className="hidden min-w-0 max-w-[160px] sm:block">
+                  <div className="truncate text-xs font-bold text-slate-100" title={authEmail}>
+                    {authEmail}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-600 bg-black/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-300">
+                      <UserRound className="h-3 w-3 opacity-80" />
+                      {roleLabel ?? 'member'}
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  to="/account"
+                  className="rounded-xl border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs font-black text-slate-200 hover:bg-slate-800/60"
+                >
+                  Account
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-500/15"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Sign out
+                </button>
+              </div>
+            ) : isSupabaseConfigured ? (
+              <a
+                href="/signin?returnTo=/cleanseek-x"
+                className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
+              >
+                Sign in
+              </a>
+            ) : (
+              <span className="rounded-2xl border border-slate-800 bg-slate-900/20 px-4 py-3 text-sm font-black text-slate-500">
+                Sign in (soon)
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Quick filters (placeholders for reskin) */}
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Response length</span>
-          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Tone</span>
-          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Persona</span>
-          {isSupabaseConfigured ? (
-            <a
-              href="/signin?returnTo=/cleanseek-x"
-              className="ml-auto px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 text-slate-200 font-bold"
-            >
-              Sign in
-            </a>
-          ) : (
-            <span className="ml-auto px-3 py-1.5 rounded-full border border-slate-800 bg-slate-900/20 text-slate-500 font-bold">
-              Sign in (coming soon)
-            </span>
-          )}
+          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 opacity-60" title="Coming soon">
+            Response length
+          </span>
+          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 opacity-60" title="Coming soon">
+            Tone
+          </span>
+          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 opacity-60" title="Coming soon">
+            Persona
+          </span>
         </div>
 
         {/* Presets + actions */}
