@@ -81,7 +81,6 @@ function CleanSeekLite() {
     }
   }, [])
   const BACKEND_URL = backendUrlOrError.url
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [query, setQuery] = useState<string>('')
   const [useLatest, setUseLatest] = useState<boolean>(true)
   const [activePreset, setActivePreset] = useState<PresetId>('web')
@@ -105,7 +104,6 @@ function CleanSeekLite() {
     const ac = new AbortController()
     abortRef.current = ac
 
-    setErrorMsg(null)
     setIsSearching(true)
     setResults({})
     setIsDeepDive(Boolean(opts?.deepDive))
@@ -128,58 +126,32 @@ function CleanSeekLite() {
 
     const clientId = getClientId()
 
-    let res: Response
-    try {
-      res = await fetch(`${BACKEND_URL}/api/search/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: ac.signal,
-        body: JSON.stringify({
-          query:
-            opts?.deepDive && useLatest
-              ? `${q}\n\n[LIVE MODE: Deep Live Dive. Expand Top X posts to 6-10, include handles, timestamps, and a 3-bullet \"What it means\" summary. Never fabricate posts. If no X access, write \"No live X signals available\".]\n`
-              : q,
-          useLocation: false,
-          enabledProviders: enabledProviders.length ? enabledProviders : undefined,
-          sessionId: clientId,
-          clientId,
-          userId: clientId,
-          searchSource: 'xdot_cleanseek',
-          platform: 'web',
-          promptCharacterCount: q.length,
-          enabledEngineCount: enabledProviders.length || undefined,
-          liveDataMode: useLatest,
-          grokLive: useLatest,
-        }),
-      })
-    } catch (e) {
-      setIsSearching(false)
-      setErrorMsg(e instanceof Error ? e.message : 'Network error')
-      return
-    }
+    const res = await fetch(`${BACKEND_URL}/api/search/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ac.signal,
+      body: JSON.stringify({
+        query:
+          opts?.deepDive && useLatest
+            ? `${q}\n\n[LIVE MODE: Deep Live Dive. Expand Top X posts to 6-10, include handles, timestamps, and a 3-bullet \"What it means\" summary. Never fabricate posts. If no X access, write \"No live X signals available\".]\n`
+            : q,
+        useLocation: false,
+        enabledProviders: enabledProviders.length ? enabledProviders : undefined,
+        sessionId: clientId,
+        clientId,
+        userId: clientId,
+        searchSource: 'xdot_cleanseek',
+        platform: 'web',
+        promptCharacterCount: q.length,
+        enabledEngineCount: enabledProviders.length || undefined,
+        liveDataMode: useLatest,
+        grokLive: useLatest,
+      }),
+    })
 
     if (!res.ok || !res.body) {
       setIsSearching(false)
-      let msg = `HTTP ${res.status}`
-      try {
-        const json = (await res.json()) as any
-        const apiMsg = json?.error?.message ?? json?.message
-        const retry = json?.error?.retryAfterSeconds
-        if (apiMsg) msg = String(apiMsg)
-        if (res.status === 429 && retry) msg = `${msg} (try again in ${retry}s)`
-      } catch {
-        // ignore
-      }
-      setErrorMsg(msg)
-      // Mark any pre-created cards as errors so the UI doesn't look stuck.
-      setResults((prev) => {
-        const out: Record<string, EngineResult> = { ...prev }
-        for (const k of Object.keys(out)) {
-          out[k] = { ...out[k], status: 'error', content: `Error: ${msg}` }
-        }
-        return out
-      })
-      return
+      throw new Error(`HTTP ${res.status}`)
     }
 
     const reader = res.body.getReader()
@@ -256,11 +228,6 @@ function CleanSeekLite() {
             <span className="font-mono">VITE_BACKEND_URL</span> (for browser) and redeploy.
           </div>
         ) : null}
-        {errorMsg ? (
-          <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            {errorMsg}
-          </div>
-        ) : null}
 
         {/* Top bar */}
         <div className="flex items-center gap-4">
@@ -278,7 +245,6 @@ function CleanSeekLite() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ask once… get all answers side-by-side"
               className="w-full bg-transparent outline-none text-slate-100 placeholder-slate-500"
-              data-testid="cleanseek-x-query-input"
             />
             <button className="rounded-xl border border-slate-700 bg-slate-900/30 px-3 py-1.5 text-xs font-black text-slate-200">
               <span className="inline-flex items-center gap-2">
@@ -342,7 +308,6 @@ function CleanSeekLite() {
                 onClick={() => run()}
                 disabled={!BACKEND_URL}
                 className="rounded-2xl bg-cyan-500 text-[#050B14] px-5 py-2 text-sm font-black disabled:opacity-60 disabled:cursor-not-allowed"
-                data-testid="cleanseek-x-search-button"
               >
                 Search
               </button>
