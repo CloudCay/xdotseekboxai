@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
@@ -30,7 +30,8 @@ function CheckoutPage() {
   }, [])
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) {
       setStatus('error')
       setError('Sign-in isn’t enabled on this site yet.')
       return
@@ -40,7 +41,7 @@ function CheckoutPage() {
       setStatus('loading')
       setError(null)
 
-      const { data } = await supabase.auth.getSession()
+      const { data } = await sb.auth.getSession()
       const session = data.session
       const user = session?.user ?? null
       const email = user?.email ?? null
@@ -95,12 +96,12 @@ function CheckoutPage() {
           <>
             <div className="mt-4 text-red-300">{error ?? 'Something went wrong.'}</div>
             <div className="mt-6 flex gap-3">
-              <Link
-                to="/signin?returnTo=/checkout"
+              <a
+                href="/signin?returnTo=/checkout"
                 className="inline-flex items-center justify-center rounded-2xl bg-cyan-500 text-[#050B14] font-black px-5 py-3"
               >
                 Sign in
-              </Link>
+              </a>
               <Link
                 to="/"
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/40 text-white font-bold px-5 py-3"

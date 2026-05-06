@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
@@ -40,7 +40,8 @@ function AccountPage() {
   }, [])
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) {
       setStatus('error')
       setError('Supabase is not configured on this site yet.')
       return
@@ -52,7 +53,7 @@ function AccountPage() {
       setError(null)
       setAccountLoadError(null)
       try {
-        const { data } = await supabase.auth.getSession()
+        const { data } = await sb.auth.getSession()
         const session = data.session
         const u = session?.user ?? null
         const uid = u?.id ?? null
@@ -72,7 +73,7 @@ function AccountPage() {
         }
 
         // Pull latest subscription row (active/trialing preferred)
-        const subRes = await supabase
+        const subRes = await sb
           .from('user_subscriptions')
           .select('plan,status,created_at')
           .eq('user_id', uid)
@@ -85,7 +86,7 @@ function AccountPage() {
 
         // Pull account role info (owner_user_id pattern like SeekBox)
         try {
-          const acctRes = await supabase
+          const acctRes = await sb
             .from('accounts')
             .select('id,role,granted_role,trial_ends_at,stripe_customer_id,stripe_subscription_id')
             .eq('owner_user_id', uid)
@@ -144,10 +145,11 @@ function AccountPage() {
     (subscription?.status === 'active' || subscription?.status === 'trialing') && Boolean(subscription?.plan)
 
   const syncAccountRow = async () => {
-    if (!email || !userId || !supabase) return
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!email || !userId || !sb) return
     setIsSyncingAccount(true)
     try {
-      const { data } = await supabase.auth.getSession()
+      const { data } = await sb.auth.getSession()
       const u = data.session?.user ?? null
       if (!u) throw new Error('Not signed in.')
       await ensureAccount(u as any)

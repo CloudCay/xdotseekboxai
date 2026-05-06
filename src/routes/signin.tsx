@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
@@ -16,7 +16,8 @@ export const Route = createFileRoute('/signin')({
 })
 
 function SignInPage() {
-  if (!isSupabaseConfigured || !supabase) {
+  const sb = isSupabaseConfigured ? supabase : null
+  if (!sb) {
     return (
       <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
         <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
@@ -47,6 +48,8 @@ function SignInPage() {
   const [isHydrated, setIsHydrated] = useState(false)
   const turnstileRef = useRef<TurnstileInstance | null>(null)
   const [isAuthed, setIsAuthed] = useState<boolean>(false)
+  const [turnstileFailed, setTurnstileFailed] = useState<boolean>(false)
+  const [turnstileWidgetLoaded, setTurnstileWidgetLoaded] = useState<boolean>(false)
 
   useEffect(() => setIsHydrated(true), [])
 
@@ -71,11 +74,26 @@ function SignInPage() {
     return `${window.location.origin}/signin?returnTo=${encodeURIComponent(returnTo)}`
   }, [returnTo])
 
+  // If the Turnstile script/widget is blocked, onError may never fire.
+  // Don't brick sign-in: after a short grace period, allow proceeding and let
+  // Supabase enforce captcha server-side if required.
+  useEffect(() => {
+    if (!CAPTCHA_REQUIRED) return
+    if (captchaToken) return
+    if (turnstileFailed) return
+
+    const t = setTimeout(() => {
+      if (!captchaToken) setTurnstileFailed(true)
+    }, 8000)
+
+    return () => clearTimeout(t)
+  }, [captchaToken, turnstileFailed])
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const { data } = await supabase.auth.getSession()
+        const { data } = await sb.auth.getSession()
         const has = Boolean(data.session?.user?.id)
         if (!cancelled) setIsAuthed(has)
         if (has && typeof window !== 'undefined') {
@@ -94,7 +112,7 @@ function SignInPage() {
     setError(null)
     setIsGoogleLoading(true)
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
+      const { error: authError } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
@@ -115,14 +133,14 @@ function SignInPage() {
       setError('Please enter your email.')
       return
     }
-    if (CAPTCHA_REQUIRED && !captchaToken) {
+    if (CAPTCHA_REQUIRED && !captchaToken && !turnstileFailed) {
       setError('Please complete the security check.')
       return
     }
     setError(null)
     setStatus('sending')
     try {
-      const { error: authError } = await supabase.auth.signInWithOtp({
+      const { error: authError } = await sb.auth.signInWithOtp({
         email: e,
         options: {
           emailRedirectTo: redirectTo,
@@ -185,15 +203,48 @@ function SignInPage() {
             <Turnstile
               ref={turnstileRef}
               siteKey={TURNSTILE_SITE_KEY}
-              onSuccess={(token) => setCaptchaToken(token)}
-              onError={() => setCaptchaToken(null)}
+              onWidgetLoad={() => setTurnstileWidgetLoaded(true)}
+              onLoadScript={() => setTurnstileWidgetLoaded(true)}
+              onSuccess={(token) => {
+                setCaptchaToken(token)
+                setTurnstileFailed(false)
+              }}
+              onError={() => {
+                setCaptchaToken(null)
+                setTurnstileFailed(true)
+              }}
+              onTimeout={() => {
+                setCaptchaToken(null)
+                setTurnstileFailed(true)
+              }}
+              onUnsupported={() => {
+                setCaptchaToken(null)
+                setTurnstileFailed(true)
+              }}
               onExpire={() => {
                 setCaptchaToken(null)
                 turnstileRef.current?.reset()
               }}
               options={{ theme: 'auto', size: 'flexible' }}
+              scriptOptions={{
+                onError: () => {
+                  setCaptchaToken(null)
+                  setTurnstileFailed(true)
+                },
+              }}
             />
           </div>
+        ) : null}
+
+        {CAPTCHA_REQUIRED && turnstileFailed ? (
+          <div className="mt-4 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+            Verification isn’t loading on this browser/network. You can still try to sign in — if verification is required for your
+            account, we’ll show the exact error.
+          </div>
+        ) : null}
+
+        {CAPTCHA_REQUIRED && !turnstileFailed && turnstileWidgetLoaded && !captchaToken ? (
+          <div className="mt-4 text-xs text-slate-400">Verifying…</div>
         ) : null}
 
         <div className="mt-6">
@@ -219,7 +270,7 @@ function SignInPage() {
         ) : (
           <button
             onClick={sendLink}
-            disabled={status === 'sending' || (CAPTCHA_REQUIRED && !captchaToken)}
+            disabled={status === 'sending' || (CAPTCHA_REQUIRED && !captchaToken && !turnstileFailed)}
             className="mt-6 w-full rounded-2xl bg-cyan-500 text-[#050B14] font-black px-6 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {status === 'sending' ? 'Sending…' : 'Send magic link'}

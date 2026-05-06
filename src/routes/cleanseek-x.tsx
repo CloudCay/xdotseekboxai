@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
 import { Mic, Search } from 'lucide-react'
@@ -296,12 +296,12 @@ function CleanSeekLite() {
           <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Tone</span>
           <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Persona</span>
           {isSupabaseConfigured ? (
-            <Link
-              to="/signin?returnTo=/cleanseek-x"
+            <a
+              href="/signin?returnTo=/cleanseek-x"
               className="ml-auto px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 text-slate-200 font-bold"
             >
               Sign in
-            </Link>
+            </a>
           ) : (
             <span className="ml-auto px-3 py-1.5 rounded-full border border-slate-800 bg-slate-900/20 text-slate-500 font-bold">
               Sign in (coming soon)

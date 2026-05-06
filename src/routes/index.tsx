@@ -1,7 +1,6 @@
-import React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
-import { Search, Play, Zap, Check, Sparkles, Activity, Layers, Terminal, Cpu, Bot, Globe, Shield } from 'lucide-react'
+import { Search, Play, Zap, Check, Sparkles, Activity, Layers, Cpu, Bot, Globe, Shield } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -95,7 +94,7 @@ function Home() {
         <div className="hidden md:flex items-center gap-8 text-sm font-semibold tracking-wide">
           <Link to="/" className="text-slate-300 hover:text-cyan-400 transition-colors drop-shadow-sm">Platform</Link>
           <Link to="/faq" className="text-slate-300 hover:text-cyan-400 transition-colors drop-shadow-sm">Models</Link>
-          <Link to="/faq" className="text-slate-300 hover:text-cyan-400 transition-colors drop-shadow-sm">Pricing</Link>
+          <Link to="/pricing" className="text-slate-300 hover:text-cyan-400 transition-colors drop-shadow-sm">Pricing</Link>
         </div>
       </header>
 

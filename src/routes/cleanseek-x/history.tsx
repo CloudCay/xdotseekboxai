@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Link2, Play, RefreshCw, Trash2 } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
@@ -33,7 +33,8 @@ function CleanSeekXHistoryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) {
       setLoading(false)
       setErr('Supabase is not configured on this site yet.')
       return
@@ -41,7 +42,7 @@ function CleanSeekXHistoryPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const { data } = await supabase.auth.getSession()
+        const { data } = await sb.auth.getSession()
         const u = data.session?.user ?? null
         if (cancelled) return
         setUserId(u?.id ?? null)
@@ -65,7 +66,8 @@ function CleanSeekXHistoryPage() {
   }, [])
 
   const load = useCallback(async () => {
-    if (!supabase) return
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) return
     if (!userId) {
       setRows([])
       return
@@ -73,7 +75,7 @@ function CleanSeekXHistoryPage() {
     setErr(null)
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('search_sessions')
         .select('id, query, created_at, search_mode')
         .eq('user_id', userId)
@@ -106,11 +108,12 @@ function CleanSeekXHistoryPage() {
   }, [userId, loading, rows.length])
 
   const onDelete = async (id: string) => {
-    if (!supabase || !userId) return
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb || !userId) return
     setDeletingId(id)
     setErr(null)
     try {
-      const { error } = await supabase.from('search_sessions').delete().eq('id', id).eq('user_id', userId)
+      const { error } = await sb.from('search_sessions').delete().eq('id', id).eq('user_id', userId)
       if (error) throw error
       setRows((prev) => prev.filter((r) => r.id !== id))
     } catch (e) {
@@ -225,14 +228,14 @@ function CleanSeekXHistoryPage() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Link
+                      <a
                         data-testid={`history-open-${r.id}`}
-                        to={to}
+                        href={to}
                         className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-800/50"
                       >
                         <Play className="h-4 w-4" />
                         Open
-                      </Link>
+                      </a>
 
                       <button
                         data-testid={`history-share-${r.id}`}
