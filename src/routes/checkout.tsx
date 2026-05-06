@@ -4,6 +4,9 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
 import { createCheckoutSession } from '../server/stripe.functions'
 
+// Stripe TEST MODE — SeekBoxAi Power with Grok X Live (monthly)
+const STRIPE_PRICE_GROK_X_MONTHLY = 'price_1TTWUTAghz6CNDMATSskXYmY'
+
 export const Route = createFileRoute('/checkout')({
   component: CheckoutPage,
 })
@@ -50,7 +53,7 @@ function CheckoutPage() {
           data: {
             userId,
             email,
-            priceId: 'price_1TTf7OAghz6CNDMAjyhVsGkZ',
+            priceId: STRIPE_PRICE_GROK_X_MONTHLY,
             // Include the Stripe substitution token so the backend can pass it
             // through to Stripe and we can confirm status on return.
             successUrl: `${origin}/account?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
