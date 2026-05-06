@@ -22,6 +22,24 @@ type AccountRow = {
   stripe_subscription_id?: string | null
 }
 
+function stringifyErr(e: unknown): string {
+  if (e && typeof e === 'object') {
+    const anyE = e as any
+    const parts: string[] = []
+    if (typeof anyE.message === 'string' && anyE.message.trim()) parts.push(anyE.message.trim())
+    if (typeof anyE.details === 'string' && anyE.details.trim()) parts.push(anyE.details.trim())
+    if (typeof anyE.hint === 'string' && anyE.hint.trim()) parts.push(anyE.hint.trim())
+    if (typeof anyE.code === 'string' && anyE.code.trim()) parts.push(`code=${anyE.code.trim()}`)
+    if (parts.length) return parts.join(' · ')
+    try {
+      return JSON.stringify(e)
+    } catch {
+      return String(e)
+    }
+  }
+  return e instanceof Error ? e.message : String(e)
+}
+
 function AccountPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'confirming' | 'error'>('loading')
   const [error, setError] = useState<string | null>(null)
@@ -84,22 +102,46 @@ function AccountPage() {
         if (subRes.error) throw subRes.error
         if (!cancelled) setSubscription((subRes.data as any) ?? null)
 
-        // Pull account role info (owner_user_id pattern like SeekBox)
+        // Pull account role info.
+        // DB schemas vary: some use `owner_user_id`, others use `user_id`, or even `id = auth.uid()`.
         try {
-          const acctRes = await sb
-            .from('accounts')
-            .select('id,role,granted_role,trial_ends_at,stripe_customer_id,stripe_subscription_id')
-            .eq('owner_user_id', uid)
-            .maybeSingle()
+          const selectCols = 'id,role,granted_role,trial_ends_at,stripe_customer_id,stripe_subscription_id' as const
 
-          if (acctRes.error) throw acctRes.error
-          if (!cancelled) setAccount((acctRes.data as any) ?? null)
+          const tryBy = async (col: 'owner_user_id' | 'user_id' | 'id') => {
+            const res = await sb.from('accounts').select(selectCols).eq(col, uid).maybeSingle()
+            return res
+          }
+
+          const first = await tryBy('owner_user_id')
+          if (!first.error) {
+            if (!cancelled) setAccount((first.data as any) ?? null)
+          } else {
+            const msg = stringifyErr(first.error)
+            // If the column doesn't exist (or schema differs), try fallbacks.
+            const shouldFallback =
+              /owner_user_id/i.test(msg) ||
+              /column/i.test(msg) ||
+              /does not exist/i.test(msg) ||
+              /schema/i.test(msg) ||
+              /PGRST/i.test(msg)
+
+            if (!shouldFallback) throw first.error
+
+            const second = await tryBy('user_id')
+            if (!second.error) {
+              if (!cancelled) setAccount((second.data as any) ?? null)
+            } else {
+              const third = await tryBy('id')
+              if (third.error) throw third.error
+              if (!cancelled) setAccount((third.data as any) ?? null)
+            }
+          }
         } catch (e) {
           // Non-fatal: subscription can still be shown even if accounts table
           // is missing or blocked by RLS.
           if (!cancelled) {
             setAccount(null)
-            setAccountLoadError(e instanceof Error ? e.message : 'accounts lookup failed')
+            setAccountLoadError(stringifyErr(e))
           }
         }
 
