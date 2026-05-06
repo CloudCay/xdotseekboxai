@@ -18,6 +18,7 @@ import { Route as CleanseekRouteImport } from './routes/cleanseek'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
 
 const SuccessRoute = SuccessRouteImport.update({
   id: '/success',
@@ -64,28 +65,35 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CleanseekXHistoryRoute = CleanseekXHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => CleanseekXRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
-  '/cleanseek-x': typeof CleanseekXRoute
+  '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
-  '/cleanseek-x': typeof CleanseekXRoute
+  '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -93,11 +101,12 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
-  '/cleanseek-x': typeof CleanseekXRoute
+  '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/cleanseek-x/history'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/cleanseek-x/history'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/cleanseek-x/history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -140,7 +152,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   CheckoutRoute: typeof CheckoutRoute
   CleanseekRoute: typeof CleanseekRoute
-  CleanseekXRoute: typeof CleanseekXRoute
+  CleanseekXRoute: typeof CleanseekXRouteWithChildren
   FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
   SigninRoute: typeof SigninRoute
@@ -212,15 +224,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cleanseek-x/history': {
+      id: '/cleanseek-x/history'
+      path: '/history'
+      fullPath: '/cleanseek-x/history'
+      preLoaderRoute: typeof CleanseekXHistoryRouteImport
+      parentRoute: typeof CleanseekXRoute
+    }
   }
 }
+
+interface CleanseekXRouteChildren {
+  CleanseekXHistoryRoute: typeof CleanseekXHistoryRoute
+}
+
+const CleanseekXRouteChildren: CleanseekXRouteChildren = {
+  CleanseekXHistoryRoute: CleanseekXHistoryRoute,
+}
+
+const CleanseekXRouteWithChildren = CleanseekXRoute._addFileChildren(
+  CleanseekXRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   CheckoutRoute: CheckoutRoute,
   CleanseekRoute: CleanseekRoute,
-  CleanseekXRoute: CleanseekXRoute,
+  CleanseekXRoute: CleanseekXRouteWithChildren,
   FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
   SigninRoute: SigninRoute,

@@ -174,6 +174,9 @@ function AccountPage() {
             <Link to="/cleanseek-x" className="rounded-xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold">
               CleanSeek-X
             </Link>
+          <Link to="/cleanseek-x/history" className="rounded-xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold">
+            History
+          </Link>
             <Link to="/" className="rounded-xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold">
               Home
             </Link>

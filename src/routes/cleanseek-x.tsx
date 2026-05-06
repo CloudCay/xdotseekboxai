@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
 import { Mic, Search } from 'lucide-react'
@@ -88,6 +88,24 @@ function CleanSeekLite() {
   const [results, setResults] = useState<Record<string, EngineResult>>({})
   const [isDeepDive, setIsDeepDive] = useState<boolean>(false)
   const abortRef = useRef<AbortController | null>(null)
+  const hydratedFromUrlRef = useRef<boolean>(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (hydratedFromUrlRef.current) return
+    hydratedFromUrlRef.current = true
+    try {
+      const sp = new URLSearchParams(window.location.search)
+      const q = sp.get('q')
+      const latest = sp.get('latest')
+      const preset = sp.get('preset') as PresetId | null
+      if (q != null && q.trim()) setQuery(q.trim())
+      if (latest != null) setUseLatest(latest !== '0' && latest.toLowerCase() !== 'false')
+      if (preset && PRESETS.some((p) => p.id === preset)) setActivePreset(preset)
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const finalQuery = useMemo(() => {
     const q = query.trim()
@@ -252,6 +270,13 @@ function CleanSeekLite() {
               </span>
             </button>
           </div>
+
+          <Link
+            to="/cleanseek-x/history"
+            className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
+          >
+            History
+          </Link>
 
           <button
             onClick={() => setUseLatest((v) => !v)}
