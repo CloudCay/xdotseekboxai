@@ -297,7 +297,7 @@ function CleanSeekLite() {
           <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30">Persona</span>
           {isSupabaseConfigured ? (
             <Link
-              to="/signin"
+              to="/signin?returnTo=/cleanseek-x"
               className="ml-auto px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 text-slate-200 font-bold"
             >
               Sign in
