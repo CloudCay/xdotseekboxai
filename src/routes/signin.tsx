@@ -46,19 +46,51 @@ function SignInPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
   const turnstileRef = useRef<TurnstileInstance | null>(null)
+  const [isAuthed, setIsAuthed] = useState<boolean>(false)
 
   useEffect(() => setIsHydrated(true), [])
 
+  const returnTo = useMemo(() => {
+    if (typeof window === 'undefined') return '/cleanseek-x'
+    try {
+      const sp = new URLSearchParams(window.location.search)
+      const rt = (sp.get('returnTo') ?? '').trim()
+      if (rt.startsWith('/') && !rt.startsWith('//')) return rt
+    } catch {
+      // ignore
+    }
+    return '/cleanseek-x'
+  }, [])
+
   const redirectTo = useMemo(() => {
     if (typeof window === 'undefined') return undefined
-    // after auth, land on /checkout to start Stripe.
+    // After auth, return to this /signin route so we can redirect to `returnTo`.
     // Prefer a configured canonical site URL to avoid bouncing users to another
     // app that shares the same Supabase project.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env access
     const siteUrl = ((import.meta as any)?.env?.VITE_SITE_URL as string | undefined)?.trim()
     const origin = siteUrl ? siteUrl.replace(/\/$/, '') : window.location.origin
-    return `${origin}/checkout`
-  }, [])
+    return `${origin}/signin?returnTo=${encodeURIComponent(returnTo)}`
+  }, [returnTo])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        const has = Boolean(data.session?.user?.id)
+        if (!cancelled) setIsAuthed(has)
+        if (has && typeof window !== 'undefined') {
+          window.location.href = returnTo
+        }
+      } catch {
+        if (!cancelled) setIsAuthed(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [returnTo])
 
   const signInWithGoogle = async () => {
     setError(null)
@@ -126,6 +158,15 @@ function SignInPage() {
         <div className="mt-2 text-slate-300">
           Enter your email and we’ll send a secure magic link.
         </div>
+        <div className="mt-2 text-xs text-slate-500">
+          After signing in you’ll return to <span className="font-mono">{returnTo}</span>.
+        </div>
+
+        {isAuthed ? (
+          <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            You’re signed in. Redirecting…
+          </div>
+        ) : null}
 
         <button
           onClick={signInWithGoogle}
@@ -186,6 +227,13 @@ function SignInPage() {
             {status === 'sending' ? 'Sending…' : 'Send magic link'}
           </button>
         )}
+
+        <a
+          href={returnTo}
+          className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/30 px-6 py-4 text-sm font-bold text-slate-200"
+        >
+          Back
+        </a>
       </div>
     </div>
   )

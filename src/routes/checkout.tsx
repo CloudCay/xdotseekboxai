@@ -96,7 +96,7 @@ function CheckoutPage() {
             <div className="mt-4 text-red-300">{error ?? 'Something went wrong.'}</div>
             <div className="mt-6 flex gap-3">
               <Link
-                to="/signin"
+                to="/signin?returnTo=/checkout"
                 className="inline-flex items-center justify-center rounded-2xl bg-cyan-500 text-[#050B14] font-black px-5 py-3"
               >
                 Sign in
