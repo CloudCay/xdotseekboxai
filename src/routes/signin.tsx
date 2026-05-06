@@ -67,9 +67,9 @@ function SignInPage() {
 
   const getRedirectTo = () => {
     if (typeof window === 'undefined') return undefined
-    // After auth, return to this /signin route so we can redirect to `returnTo`.
-    // IMPORTANT: derive from *current* window origin (not a hard-coded domain).
-    return `${window.location.origin}/signin?returnTo=${encodeURIComponent(returnTo)}`
+    // Return directly to the intended in-app destination on the *current* origin.
+    // This avoids relying on Supabase "Site URL" fallback and reduces allowlist complexity.
+    return `${window.location.origin}${returnTo}`
   }
 
   // If the Turnstile script/widget is blocked, onError may never fire.
