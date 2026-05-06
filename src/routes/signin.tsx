@@ -65,12 +65,10 @@ function SignInPage() {
   const redirectTo = useMemo(() => {
     if (typeof window === 'undefined') return undefined
     // After auth, return to this /signin route so we can redirect to `returnTo`.
-    // Prefer a configured canonical site URL to avoid bouncing users to another
-    // app that shares the same Supabase project.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env access
-    const siteUrl = ((import.meta as any)?.env?.VITE_SITE_URL as string | undefined)?.trim()
-    const origin = siteUrl ? siteUrl.replace(/\/$/, '') : window.location.origin
-    return `${origin}/signin?returnTo=${encodeURIComponent(returnTo)}`
+    // IMPORTANT: do NOT use a "canonical" site URL override here. If it points
+    // at a different app (e.g. seekboxai.com), Supabase may fail to exchange
+    // the provider code and the user will see "Unable to exchange external code".
+    return `${window.location.origin}/signin?returnTo=${encodeURIComponent(returnTo)}`
   }, [returnTo])
 
   useEffect(() => {
