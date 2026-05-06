@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
-import { LogOut, Mic, Search, UserRound } from 'lucide-react'
+import { LogOut, Mic, Play, Search, Sparkles, UserRound } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 export const Route = createFileRoute('/cleanseek-x')({
@@ -20,6 +20,119 @@ const PRESETS: Preset[] = [
   { id: 'web', label: 'Web', emoji: '🌐', engineIds: ['tavily', 'chatgptsearch', 'brave', 'groksearch'] },
   { id: 'allin', label: 'All In', emoji: '🚀', engineIds: [] }, // backend interprets [] as "use defaults" (if supported)
 ]
+
+type ShowcasePrompt = { text: string; featured?: boolean; hint?: string }
+
+/** Copy-paste demos tuned for Grok Live + side-by-side engines (CleanSeek-X niche path). */
+const GROK_SHOWCASE_SECTIONS: { category: string; prompts: ShowcasePrompt[] }[] = [
+  {
+    category: 'Market & investing',
+    prompts: [
+      {
+        text: "What is the real market reaction to Nvidia's latest earnings?",
+        featured: true,
+        hint: 'Great with Grok Live — fresh sentiment',
+      },
+      {
+        text: 'Compare Tesla FSD v13 vs Waymo current performance and public sentiment',
+        featured: true,
+      },
+      {
+        text: 'Impact of solid-state batteries on EV stocks and market sentiment today',
+        featured: true,
+        hint: 'Matches landing-page narrative',
+      },
+      {
+        text: 'Is Bitcoin overvalued right now? Show latest analyst and X opinions',
+      },
+    ],
+  },
+  {
+    category: 'Tech & product launches',
+    prompts: [
+      {
+        text: 'Compare Grok-4 vs Claude Sonnet 4 vs GPT-5.2 — which is best for coding?',
+        featured: true,
+        hint: 'Side-by-side model compare',
+      },
+      {
+        text: 'What are developers actually saying about the new iOS 19 features on X?',
+      },
+      {
+        text: 'Expo Router 5 vs Next.js App Router — pros, cons, and real user feedback',
+      },
+    ],
+  },
+  {
+    category: 'News & current events',
+    prompts: [
+      {
+        text:
+          "What's the latest on today's biggest headline — compare all AI perspectives plus live X reaction",
+      },
+      {
+        text: "Public sentiment on Trump's latest policy announcement",
+      },
+      {
+        text: 'Did OpenAI just announce something big? Show real reactions',
+      },
+    ],
+  },
+  {
+    category: 'Personal & professional',
+    prompts: [
+      {
+        text: 'Best career advice for a mid-level software engineer in 2026',
+      },
+      {
+        text: 'Should I buy a house in Austin, TX right now? Market plus sentiment analysis',
+      },
+      {
+        text: 'Compare health risks of Ozempic vs natural alternatives',
+      },
+    ],
+  },
+  {
+    category: 'Creative & fun',
+    prompts: [
+      {
+        text: "Write a viral LinkedIn post about AI agents — then show what's actually working on X",
+      },
+      {
+        text: 'Rank the top 5 sci-fi movies of 2026 so far with audience sentiment',
+      },
+      {
+        text: "Explain quantum computing like I'm 15, then show expert discussions on X",
+      },
+    ],
+  },
+  {
+    category: 'Deep analysis',
+    prompts: [
+      {
+        text: 'CRAAP test the latest claims about AI replacing programmers',
+      },
+      {
+        text: 'Triangulate: What do multiple sources say about climate change acceleration?',
+      },
+      {
+        text: 'Debate: Is remote work dying in 2026?',
+      },
+      {
+        text: 'What are the biggest risks and opportunities in AI investing right now?',
+      },
+    ],
+  },
+]
+
+function syncCleanseekUrl(q: string, useLatest: boolean, preset: PresetId) {
+  if (typeof window === 'undefined') return
+  const sp = new URLSearchParams()
+  if (q.trim()) sp.set('q', q.trim())
+  sp.set('latest', useLatest ? '1' : '0')
+  sp.set('preset', preset)
+  window.history.replaceState({}, '', `${window.location.pathname}?${sp.toString()}`)
+}
 
 type EngineResult = {
   provider: string
@@ -118,6 +231,7 @@ function CleanSeekLite() {
   const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [roleLabel, setRoleLabel] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const queryInputRef = useRef<HTMLInputElement | null>(null)
   const hydratedFromUrlRef = useRef<boolean>(false)
 
   useEffect(() => {
@@ -180,16 +294,15 @@ function CleanSeekLite() {
     if (typeof window !== 'undefined') window.location.href = '/cleanseek-x'
   }
 
-  const finalQuery = useMemo(() => {
-    const q = query.trim()
-    if (!q) return ''
-    return useLatest ? q + RECENCY_INSTRUCTION : q
-  }, [query, useLatest])
-
-  const run = async (opts?: { forceProvider?: string; deepDive?: boolean }) => {
+  const run = async (opts?: { forceProvider?: string; deepDive?: boolean; queryOverride?: string }) => {
     if (!BACKEND_URL) return
-    const q = finalQuery
-    if (!q || isSearching) return
+    const raw = (opts?.queryOverride ?? query).trim()
+    if (!raw || isSearching) return
+
+    if (opts?.queryOverride != null) setQuery(raw)
+    syncCleanseekUrl(raw, useLatest, activePreset)
+
+    const qBuilt = useLatest ? raw + RECENCY_INSTRUCTION : raw
 
     abortRef.current?.abort()
     const ac = new AbortController()
@@ -228,8 +341,8 @@ function CleanSeekLite() {
         body: JSON.stringify({
           query:
             opts?.deepDive && useLatest
-              ? `${q}\n\n[LIVE MODE: Deep Live Dive. Expand Top X posts to 6-10, include handles, timestamps, and a 3-bullet \"What it means\" summary. Never fabricate posts. If no X access, write \"No live X signals available\".]\n`
-              : q,
+              ? `${qBuilt}\n\n[LIVE MODE: Deep Live Dive. Expand Top X posts to 6-10, include handles, timestamps, and a 3-bullet \"What it means\" summary. Never fabricate posts. If no X access, write \"No live X signals available\".]\n`
+              : qBuilt,
           useLocation: false,
           enabledProviders: enabledProviders.length ? enabledProviders : undefined,
           sessionId: clientId,
@@ -237,7 +350,7 @@ function CleanSeekLite() {
           userId: streamUserId,
           searchSource: 'xdot_cleanseek',
           platform: 'web',
-          promptCharacterCount: q.length,
+          promptCharacterCount: raw.length,
           enabledEngineCount: enabledProviders.length || undefined,
           liveDataMode: useLatest,
           grokLive: useLatest,
@@ -340,6 +453,18 @@ function CleanSeekLite() {
     setIsSearching(false)
   }
 
+  const featuredPrompts = useMemo(
+    () => GROK_SHOWCASE_SECTIONS.flatMap((s) => s.prompts).filter((p) => p.featured),
+    [],
+  )
+
+  const fillSamplePrompt = (text: string) => {
+    setQuery(text)
+    syncCleanseekUrl(text, useLatest, activePreset)
+    queryInputRef.current?.focus()
+    queryInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
       <div className="max-w-6xl mx-auto px-6 py-8">
@@ -375,6 +500,7 @@ function CleanSeekLite() {
           <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-slate-700/60 bg-[#0A1128]/70 px-4 py-3">
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
             <input
+              ref={queryInputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -508,6 +634,88 @@ function CleanSeekLite() {
                 Search
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Grok Live showcase — 20 demo prompts */}
+        <div className="mt-8 rounded-3xl border border-emerald-500/25 bg-gradient-to-b from-emerald-500/[0.06] to-transparent p-5 sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 text-emerald-100">
+                <Sparkles className="h-5 w-5 shrink-0 text-emerald-300" />
+                <span className="text-lg font-black tracking-tight">Grok Live showcase</span>
+              </div>
+              <p className="mt-2 max-w-2xl text-sm text-slate-400 leading-relaxed">
+                Twenty copy-paste demos built for side-by-side answers plus live X verification.{' '}
+                <span className="text-slate-300 font-semibold">Featured</span> runs instantly (keep Grok Live on). Others fill the
+                search box — tap Search when ready.
+              </p>
+            </div>
+            <div className="shrink-0 rounded-2xl border border-slate-700/80 bg-black/25 px-4 py-3 text-[11px] font-semibold text-slate-400 leading-snug max-w-xs">
+              Tip: Use <span className="text-slate-200">Web</span> preset for Tavily + Grok search breadth;{' '}
+              <span className="text-slate-200">Research</span> for pure model compare.
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Featured demos</div>
+            <div className="mt-3 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+              {featuredPrompts.map((p) => (
+                <div
+                  key={p.text}
+                  className="snap-start shrink-0 w-[min(100%,320px)] rounded-2xl border border-emerald-400/35 bg-[#0A1128]/90 p-4 shadow-[0_0_28px_rgba(16,185,129,0.12)]"
+                >
+                  <p className="text-sm font-bold text-slate-100 leading-snug">{p.text}</p>
+                  {p.hint ? <p className="mt-2 text-[11px] text-emerald-200/80">{p.hint}</p> : null}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={!BACKEND_URL || isSearching}
+                      onClick={() => void run({ queryOverride: p.text })}
+                      className="inline-flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded-xl bg-emerald-500 text-[#050B14] px-4 py-2.5 text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Play className="h-3.5 w-3.5 fill-[#050B14]" />
+                      Run now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillSamplePrompt(p.text)}
+                      className="rounded-xl border border-slate-600 bg-slate-900/40 px-4 py-2.5 text-xs font-black text-slate-200 hover:bg-slate-800/60"
+                    >
+                      Fill only
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-5">
+            <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">All prompts (tap to fill)</div>
+            {GROK_SHOWCASE_SECTIONS.map((section) => (
+              <details
+                key={section.category}
+                className="group rounded-2xl border border-slate-700/70 bg-black/20 open:bg-black/30 [&_summary::-webkit-details-marker]:hidden"
+                open={section.category === 'Market & investing'}
+              >
+                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-black text-slate-100 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                  <span>{section.category}</span>
+                  <span className="text-[10px] font-bold text-slate-500 group-open:text-emerald-400">▼</span>
+                </summary>
+                <div className="flex flex-wrap gap-2 border-t border-slate-800/80 px-4 py-4">
+                  {section.prompts.map((p) => (
+                    <button
+                      key={p.text}
+                      type="button"
+                      onClick={() => fillSamplePrompt(p.text)}
+                      className="max-w-full rounded-xl border border-slate-700 bg-slate-900/35 px-3 py-2 text-left text-[13px] leading-snug text-slate-200 hover:border-cyan-500/40 hover:bg-cyan-500/5"
+                    >
+                      {p.text}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            ))}
           </div>
         </div>
 
