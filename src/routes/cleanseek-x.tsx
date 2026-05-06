@@ -448,7 +448,7 @@ function CleanSeekLite() {
           sessionId: clientId,
           clientId,
           userId: streamUserId,
-          searchSource: 'xdot_cleanseek',
+          searchSource: 'cleanseek',
           platform: 'web',
           promptCharacterCount: raw.length,
           enabledEngineCount: enabledProviders.length || undefined,
