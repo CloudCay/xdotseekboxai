@@ -134,6 +134,106 @@ function syncCleanseekUrl(q: string, useLatest: boolean, preset: PresetId) {
   window.history.replaceState({}, '', `${window.location.pathname}?${sp.toString()}`)
 }
 
+/** Product narrative — Grok’s differentiated native X access + how SeekBox exploits it */
+const GROK_WHY_LIVE = {
+  headline: 'Why Grok Live is different',
+  sub:
+    'Grok pulls fresh posts, trends, sentiment, and context from X minutes after they surface — not just crawl-delayed web pages or training snapshots.',
+  bullets: [
+    'Native real-time X signal alongside classic models → consensus vs contradiction in one run.',
+    'Ideal every time “what people are saying *right now*” beats yesterday’s SEO summaries.',
+    'SeekBoxAi stacks Grok search next to Tavily / GPT / Claude / Gemini so you verify narratives fast.',
+  ],
+}
+
+/** One-shot “modes” — product framing, not generic demos (Grok Live + Web preset recommended). */
+const GROK_SEARCH_MODES: { id: string; label: string; prompt: string }[] = [
+  {
+    id: 'earnings-reaction',
+    label: 'Earnings reaction',
+    prompt: 'Real-time market and X sentiment on Nvidia earnings right now',
+  },
+  {
+    id: 'stock-deep-dive',
+    label: 'Stock deep dive',
+    prompt: 'Current trader sentiment on TSLA stock + key narratives on X',
+  },
+  {
+    id: 'breaking-news',
+    label: 'Breaking news',
+    prompt: 'How is the market reacting to the latest Fed decision live on X?',
+  },
+  {
+    id: 'sector-trend',
+    label: 'Sector trend',
+    prompt: 'Emerging narratives around solid-state batteries and EV stocks this week',
+  },
+  {
+    id: 'meme-high-vol',
+    label: 'Meme / high volatility',
+    prompt: "What's the current hype level and risk on new Solana memecoins?",
+  },
+  {
+    id: 'competitor-comparison',
+    label: 'Competitor comparison',
+    prompt: 'Trader reactions to Grok-4 vs Claude Sonnet 4 announcements',
+  },
+  {
+    id: 'post-trade-validation',
+    label: 'Post-trade validation',
+    prompt: 'Current X sentiment and counter-narratives on my recent $AMD position',
+  },
+  {
+    id: 'macro-event',
+    label: 'Macro event',
+    prompt: 'Live X pulse on Bitcoin after the latest ETF news',
+  },
+]
+
+/** Five strategic angles — tap prompts to fill (keep Grok Live on). */
+const GROK_USE_CASE_PLAYS: { title: string; audience: string; prompts: string[] }[] = [
+  {
+    title: 'Live market & sentiment',
+    audience: 'Day traders · crypto · hedge/analyst workflows',
+    prompts: [
+      "What's the actual trader sentiment on Nvidia earnings right now?",
+      'How is Bitcoin reacting on X in the last few hours — bullish or exhausted?',
+    ],
+  },
+  {
+    title: 'Breaking news & verification',
+    audience: 'Journalists · crisis comms · political analysts',
+    prompts: [
+      "What's really happening with today's biggest headline — confirm vs rumor mill on X",
+      'Debunk or contextualize this viral claim — cite opposing narratives seen on X',
+    ],
+  },
+  {
+    title: 'Product & brand pulse',
+    audience: 'Founders · PMs · marketing / rapid iteration',
+    prompts: [
+      'What are developers saying about the latest Expo Router release on X?',
+      'Public reaction to OpenAI’s most talked-about announcement today — sentiment snapshot',
+    ],
+  },
+  {
+    title: 'Emerging narratives',
+    audience: 'VC · newsletters · futurists',
+    prompts: [
+      'What conversations around AI agents are bubbling on X this week beyond mainstream headlines?',
+      'Early signals on a niche tech wave — what is X arguing about before it hits TechCrunch?',
+    ],
+  },
+  {
+    title: 'Niche community pulse',
+    audience: 'Indie hackers · creators · hyper-target cohorts',
+    prompts: [
+      'Current vibe and debates among indie hackers on X — product-building sentiment',
+      'What is the retro gaming community on X fired up about this month?',
+    ],
+  },
+]
+
 type EngineResult = {
   provider: string
   providerName?: string
@@ -657,7 +757,89 @@ function CleanSeekLite() {
             </div>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-6 rounded-2xl border border-slate-700/60 bg-black/25 px-4 py-4 sm:px-5">
+            <div className="text-sm font-black text-emerald-100/95">{GROK_WHY_LIVE.headline}</div>
+            <p className="mt-2 text-xs text-slate-400 leading-relaxed">{GROK_WHY_LIVE.sub}</p>
+            <ul className="mt-3 space-y-2 text-xs text-slate-300 leading-relaxed list-disc pl-4 marker:text-emerald-500/80">
+              {GROK_WHY_LIVE.bullets.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-8">
+            <div className="text-[11px] font-black uppercase tracking-widest text-cyan-400/90">Eight search modes</div>
+            <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
+              Not just demos — <span className="text-slate-300 font-semibold">modes</span> you can drop users into. Each card loads a tuned prompt;
+              keep <span className="text-emerald-300 font-semibold">Grok Live</span> on and use <span className="text-slate-200 font-semibold">Web</span>{' '}
+              for breadth.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {GROK_SEARCH_MODES.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex flex-col rounded-2xl border border-cyan-500/25 bg-gradient-to-b from-cyan-500/[0.06] to-[#0A1128]/90 p-4"
+                >
+                  <div className="text-[13px] font-black text-cyan-100 tracking-tight">{m.label}</div>
+                  <p className="mt-2 flex-1 text-[11px] leading-snug text-slate-400">
+                    <span className="text-slate-600">&ldquo;</span>
+                    {m.prompt}
+                    <span className="text-slate-600">&rdquo;</span>
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={!BACKEND_URL || isSearching}
+                      onClick={() => void run({ queryOverride: m.prompt })}
+                      className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-xl bg-cyan-500 text-[#050B14] px-3 py-2 text-[11px] font-black disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Play className="h-3 w-3 fill-[#050B14]" />
+                      Run
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillSamplePrompt(m.prompt)}
+                      className="rounded-xl border border-slate-600 bg-slate-900/40 px-3 py-2 text-[11px] font-black text-slate-200 hover:bg-slate-800/60"
+                    >
+                      Fill
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Five plays to exploit Grok X</div>
+            <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
+              Starter prompts mapped to high-leverage workflows — tap one to fill, then Search (or use Run now on featured cards below).
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {GROK_USE_CASE_PLAYS.map((play) => (
+                <div
+                  key={play.title}
+                  className="flex flex-col rounded-2xl border border-slate-700/70 bg-[#0A1128]/60 p-4 shadow-inner"
+                >
+                  <div className="text-[13px] font-black text-slate-100 leading-tight">{play.title}</div>
+                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{play.audience}</div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {play.prompts.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => fillSamplePrompt(t)}
+                        className="rounded-xl border border-slate-600/90 bg-black/30 px-2.5 py-2 text-left text-[11px] leading-snug text-slate-200 hover:border-emerald-500/35 hover:bg-emerald-500/[0.07]"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8">
             <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Featured demos</div>
             <div className="mt-3 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
               {featuredPrompts.map((p) => (
