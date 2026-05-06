@@ -567,7 +567,7 @@ function CleanSeekLite() {
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="w-full max-w-none px-3 sm:px-5 xl:px-10 2xl:px-14 py-8">
         {!BACKEND_URL ? (
           <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {backendUrlOrError.error ?? 'Backend URL not configured.'} Set Netlify env var{' '}
@@ -737,174 +737,16 @@ function CleanSeekLite() {
           </div>
         </div>
 
-        {/* Grok Live showcase — 20 demo prompts */}
-        <div className="mt-8 rounded-3xl border border-emerald-500/25 bg-gradient-to-b from-emerald-500/[0.06] to-transparent p-5 sm:p-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 text-emerald-100">
-                <Sparkles className="h-5 w-5 shrink-0 text-emerald-300" />
-                <span className="text-lg font-black tracking-tight">Grok Live showcase</span>
-              </div>
-              <p className="mt-2 max-w-2xl text-sm text-slate-400 leading-relaxed">
-                Twenty copy-paste demos built for side-by-side answers plus live X verification.{' '}
-                <span className="text-slate-300 font-semibold">Featured</span> runs instantly (keep Grok Live on). Others fill the
-                search box — tap Search when ready.
-              </p>
-            </div>
-            <div className="shrink-0 rounded-2xl border border-slate-700/80 bg-black/25 px-4 py-3 text-[11px] font-semibold text-slate-400 leading-snug max-w-xs">
-              Tip: Use <span className="text-slate-200">Web</span> preset for Tavily + Grok search breadth;{' '}
-              <span className="text-slate-200">Research</span> for pure model compare.
-            </div>
+        {/* Results — above demos; full-width responsive grid */}
+        <section className="mt-6 w-full min-w-0" aria-label="Search results">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Results</span>
           </div>
-
-          <div className="mt-6 rounded-2xl border border-slate-700/60 bg-black/25 px-4 py-4 sm:px-5">
-            <div className="text-sm font-black text-emerald-100/95">{GROK_WHY_LIVE.headline}</div>
-            <p className="mt-2 text-xs text-slate-400 leading-relaxed">{GROK_WHY_LIVE.sub}</p>
-            <ul className="mt-3 space-y-2 text-xs text-slate-300 leading-relaxed list-disc pl-4 marker:text-emerald-500/80">
-              {GROK_WHY_LIVE.bullets.map((b) => (
-                <li key={b}>{b}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="mt-8">
-            <div className="text-[11px] font-black uppercase tracking-widest text-cyan-400/90">Eight search modes</div>
-            <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
-              Not just demos — <span className="text-slate-300 font-semibold">modes</span> you can drop users into. Each card loads a tuned prompt;
-              keep <span className="text-emerald-300 font-semibold">Grok Live</span> on and use <span className="text-slate-200 font-semibold">Web</span>{' '}
-              for breadth.
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {GROK_SEARCH_MODES.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex flex-col rounded-2xl border border-cyan-500/25 bg-gradient-to-b from-cyan-500/[0.06] to-[#0A1128]/90 p-4"
-                >
-                  <div className="text-[13px] font-black text-cyan-100 tracking-tight">{m.label}</div>
-                  <p className="mt-2 flex-1 text-[11px] leading-snug text-slate-400">
-                    <span className="text-slate-600">&ldquo;</span>
-                    {m.prompt}
-                    <span className="text-slate-600">&rdquo;</span>
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={!BACKEND_URL || isSearching}
-                      onClick={() => void run({ queryOverride: m.prompt })}
-                      className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-xl bg-cyan-500 text-[#050B14] px-3 py-2 text-[11px] font-black disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Play className="h-3 w-3 fill-[#050B14]" />
-                      Run
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillSamplePrompt(m.prompt)}
-                      className="rounded-xl border border-slate-600 bg-slate-900/40 px-3 py-2 text-[11px] font-black text-slate-200 hover:bg-slate-800/60"
-                    >
-                      Fill
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Five plays to exploit Grok X</div>
-            <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
-              Starter prompts mapped to high-leverage workflows — tap one to fill, then Search (or use Run now on featured cards below).
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {GROK_USE_CASE_PLAYS.map((play) => (
-                <div
-                  key={play.title}
-                  className="flex flex-col rounded-2xl border border-slate-700/70 bg-[#0A1128]/60 p-4 shadow-inner"
-                >
-                  <div className="text-[13px] font-black text-slate-100 leading-tight">{play.title}</div>
-                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{play.audience}</div>
-                  <div className="mt-3 flex flex-col gap-2">
-                    {play.prompts.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => fillSamplePrompt(t)}
-                        className="rounded-xl border border-slate-600/90 bg-black/30 px-2.5 py-2 text-left text-[11px] leading-snug text-slate-200 hover:border-emerald-500/35 hover:bg-emerald-500/[0.07]"
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Featured demos</div>
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
-              {featuredPrompts.map((p) => (
-                <div
-                  key={p.text}
-                  className="snap-start shrink-0 w-[min(100%,320px)] rounded-2xl border border-emerald-400/35 bg-[#0A1128]/90 p-4 shadow-[0_0_28px_rgba(16,185,129,0.12)]"
-                >
-                  <p className="text-sm font-bold text-slate-100 leading-snug">{p.text}</p>
-                  {p.hint ? <p className="mt-2 text-[11px] text-emerald-200/80">{p.hint}</p> : null}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={!BACKEND_URL || isSearching}
-                      onClick={() => void run({ queryOverride: p.text })}
-                      className="inline-flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded-xl bg-emerald-500 text-[#050B14] px-4 py-2.5 text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Play className="h-3.5 w-3.5 fill-[#050B14]" />
-                      Run now
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillSamplePrompt(p.text)}
-                      className="rounded-xl border border-slate-600 bg-slate-900/40 px-4 py-2.5 text-xs font-black text-slate-200 hover:bg-slate-800/60"
-                    >
-                      Fill only
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8 space-y-5">
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">All prompts (tap to fill)</div>
-            {GROK_SHOWCASE_SECTIONS.map((section) => (
-              <details
-                key={section.category}
-                className="group rounded-2xl border border-slate-700/70 bg-black/20 open:bg-black/30 [&_summary::-webkit-details-marker]:hidden"
-                open={section.category === 'Market & investing'}
-              >
-                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-black text-slate-100 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                  <span>{section.category}</span>
-                  <span className="text-[10px] font-bold text-slate-500 group-open:text-emerald-400">▼</span>
-                </summary>
-                <div className="flex flex-wrap gap-2 border-t border-slate-800/80 px-4 py-4">
-                  {section.prompts.map((p) => (
-                    <button
-                      key={p.text}
-                      type="button"
-                      onClick={() => fillSamplePrompt(p.text)}
-                      className="max-w-full rounded-xl border border-slate-700 bg-slate-900/35 px-3 py-2 text-left text-[13px] leading-snug text-slate-200 hover:border-cyan-500/40 hover:bg-cyan-500/5"
-                    >
-                      {p.text}
-                    </button>
-                  ))}
-                </div>
-              </details>
-            ))}
-          </div>
-        </div>
-
-        {/* Engine cards */}
-        <div className="mt-8 flex gap-4 overflow-x-auto pb-4">
+          <div className="grid w-full min-w-0 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
           {Object.keys(results).length === 0 ? (
-            <div className="text-slate-400 text-sm">No results yet.</div>
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-700/80 bg-[#0A1128]/40 px-6 py-14 text-center text-sm text-slate-400">
+              No results yet — run Search above, or open the demo library below.
+            </div>
           ) : (
             (() => {
               const order = useLatest
@@ -921,7 +763,7 @@ function CleanSeekLite() {
                 return (
                   <div
                     key={r.provider}
-                    className={`min-w-[340px] max-w-[340px] rounded-3xl border bg-[#0A1128]/70 backdrop-blur-2xl p-5 ${
+                    className={`min-w-0 w-full rounded-3xl border bg-[#0A1128]/70 backdrop-blur-2xl p-5 ${
                       isGrokLive
                         ? 'border-emerald-400/40 shadow-[0_0_35px_rgba(16,185,129,0.18)]'
                         : 'border-slate-700/60'
@@ -990,7 +832,182 @@ function CleanSeekLite() {
               })
             })()
           )}
-        </div>
+          </div>
+        </section>
+
+        <details className="mt-10 rounded-2xl border border-slate-700/60 bg-[#050B14]/90 open:border-emerald-500/40 shadow-[0_-12px_40px_rgba(0,0,0,0.35)]">
+          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-t-2xl px-4 py-4 text-sm font-black text-slate-100 hover:bg-white/[0.03] sm:px-6 [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" />
+              Ideas, modes & demo prompt library
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Expand</span>
+          </summary>
+          <div className="border-t border-slate-800/90 px-3 pb-6 pt-4 sm:px-5">
+            <div className="rounded-3xl border border-emerald-500/25 bg-gradient-to-b from-emerald-500/[0.06] to-transparent p-5 sm:p-6">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="inline-flex items-center gap-2 text-emerald-100">
+                              <Sparkles className="h-5 w-5 shrink-0 text-emerald-300" />
+                              <span className="text-lg font-black tracking-tight">Grok Live showcase</span>
+                            </div>
+                            <p className="mt-2 max-w-2xl text-sm text-slate-400 leading-relaxed">
+                              Twenty copy-paste demos built for side-by-side answers plus live X verification.{' '}
+                              <span className="text-slate-300 font-semibold">Featured</span> runs instantly (keep Grok Live on). Others fill the
+                              search box — tap Search when ready.
+                            </p>
+                          </div>
+                          <div className="shrink-0 rounded-2xl border border-slate-700/80 bg-black/25 px-4 py-3 text-[11px] font-semibold text-slate-400 leading-snug max-w-xs">
+                            Tip: Use <span className="text-slate-200">Web</span> preset for Tavily + Grok search breadth;{' '}
+                            <span className="text-slate-200">Research</span> for pure model compare.
+                          </div>
+                        </div>
+
+                        <div className="mt-6 rounded-2xl border border-slate-700/60 bg-black/25 px-4 py-4 sm:px-5">
+                          <div className="text-sm font-black text-emerald-100/95">{GROK_WHY_LIVE.headline}</div>
+                          <p className="mt-2 text-xs text-slate-400 leading-relaxed">{GROK_WHY_LIVE.sub}</p>
+                          <ul className="mt-3 space-y-2 text-xs text-slate-300 leading-relaxed list-disc pl-4 marker:text-emerald-500/80">
+                            {GROK_WHY_LIVE.bullets.map((b) => (
+                              <li key={b}>{b}</li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="mt-8">
+                          <div className="text-[11px] font-black uppercase tracking-widest text-cyan-400/90">Eight search modes</div>
+                          <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
+                            Not just demos — <span className="text-slate-300 font-semibold">modes</span> you can drop users into. Each card loads a tuned prompt;
+                            keep <span className="text-emerald-300 font-semibold">Grok Live</span> on and use <span className="text-slate-200 font-semibold">Web</span>{' '}
+                            for breadth.
+                          </p>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {GROK_SEARCH_MODES.map((m) => (
+                              <div
+                                key={m.id}
+                                className="flex flex-col rounded-2xl border border-cyan-500/25 bg-gradient-to-b from-cyan-500/[0.06] to-[#0A1128]/90 p-4"
+                              >
+                                <div className="text-[13px] font-black text-cyan-100 tracking-tight">{m.label}</div>
+                                <p className="mt-2 flex-1 text-[11px] leading-snug text-slate-400">
+                                  <span className="text-slate-600">&ldquo;</span>
+                                  {m.prompt}
+                                  <span className="text-slate-600">&rdquo;</span>
+                                </p>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={!BACKEND_URL || isSearching}
+                                    onClick={() => void run({ queryOverride: m.prompt })}
+                                    className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-xl bg-cyan-500 text-[#050B14] px-3 py-2 text-[11px] font-black disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <Play className="h-3 w-3 fill-[#050B14]" />
+                                    Run
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => fillSamplePrompt(m.prompt)}
+                                    className="rounded-xl border border-slate-600 bg-slate-900/40 px-3 py-2 text-[11px] font-black text-slate-200 hover:bg-slate-800/60"
+                                  >
+                                    Fill
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mt-8">
+                          <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Five plays to exploit Grok X</div>
+                          <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
+                            Starter prompts mapped to high-leverage workflows — tap one to fill, then Search (or use Run now on featured cards below).
+                          </p>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                            {GROK_USE_CASE_PLAYS.map((play) => (
+                              <div
+                                key={play.title}
+                                className="flex flex-col rounded-2xl border border-slate-700/70 bg-[#0A1128]/60 p-4 shadow-inner"
+                              >
+                                <div className="text-[13px] font-black text-slate-100 leading-tight">{play.title}</div>
+                                <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{play.audience}</div>
+                                <div className="mt-3 flex flex-col gap-2">
+                                  {play.prompts.map((t) => (
+                                    <button
+                                      key={t}
+                                      type="button"
+                                      onClick={() => fillSamplePrompt(t)}
+                                      className="rounded-xl border border-slate-600/90 bg-black/30 px-2.5 py-2 text-left text-[11px] leading-snug text-slate-200 hover:border-emerald-500/35 hover:bg-emerald-500/[0.07]"
+                                    >
+                                      {t}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mt-8">
+                          <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Featured demos</div>
+                          <div className="mt-3 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+                            {featuredPrompts.map((p) => (
+                              <div
+                                key={p.text}
+                                className="snap-start shrink-0 w-[min(100%,320px)] rounded-2xl border border-emerald-400/35 bg-[#0A1128]/90 p-4 shadow-[0_0_28px_rgba(16,185,129,0.12)]"
+                              >
+                                <p className="text-sm font-bold text-slate-100 leading-snug">{p.text}</p>
+                                {p.hint ? <p className="mt-2 text-[11px] text-emerald-200/80">{p.hint}</p> : null}
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={!BACKEND_URL || isSearching}
+                                    onClick={() => void run({ queryOverride: p.text })}
+                                    className="inline-flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded-xl bg-emerald-500 text-[#050B14] px-4 py-2.5 text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <Play className="h-3.5 w-3.5 fill-[#050B14]" />
+                                    Run now
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => fillSamplePrompt(p.text)}
+                                    className="rounded-xl border border-slate-600 bg-slate-900/40 px-4 py-2.5 text-xs font-black text-slate-200 hover:bg-slate-800/60"
+                                  >
+                                    Fill only
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mt-8 space-y-5">
+                          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">All prompts (tap to fill)</div>
+                          {GROK_SHOWCASE_SECTIONS.map((section) => (
+                            <details
+                              key={section.category}
+                              className="group rounded-2xl border border-slate-700/70 bg-black/20 open:bg-black/30 [&_summary::-webkit-details-marker]:hidden"
+                              open={section.category === 'Market & investing'}
+                            >
+                              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-black text-slate-100 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                                <span>{section.category}</span>
+                                <span className="text-[10px] font-bold text-slate-500 group-open:text-emerald-400">▼</span>
+                              </summary>
+                              <div className="flex flex-wrap gap-2 border-t border-slate-800/80 px-4 py-4">
+                                {section.prompts.map((p) => (
+                                  <button
+                                    key={p.text}
+                                    type="button"
+                                    onClick={() => fillSamplePrompt(p.text)}
+                                    className="max-w-full rounded-xl border border-slate-700 bg-slate-900/35 px-3 py-2 text-left text-[13px] leading-snug text-slate-200 hover:border-cyan-500/40 hover:bg-cyan-500/5"
+                                  >
+                                    {p.text}
+                                  </button>
+                                ))}
+                              </div>
+                            </details>
+                          ))}
+                        </div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   )
