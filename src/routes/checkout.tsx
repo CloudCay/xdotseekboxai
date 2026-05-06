@@ -5,7 +5,16 @@ import { ensureAccount } from '../lib/ensureAccount'
 import { createCheckoutSession } from '../server/stripe.functions'
 
 // Stripe TEST MODE — SeekBoxAi Power with Grok X Live (monthly)
-const STRIPE_PRICE_GROK_X_MONTHLY = 'price_1TTWUTAghz6CNDMATSskXYmY'
+// NOTE: Test-mode price IDs have changed more than once. This site defaults
+// to the legacy test price so checkout works with sk_test keys; override with
+// VITE_STRIPE_PRICESET=test_current when the backend/test catalog is updated.
+const GROKX_PRICE_BY_SET: Record<'test_legacy' | 'test_current', string> = {
+  test_legacy: 'price_1TTf7OAghz6CNDMAjyhVsGkZ',
+  test_current: 'price_1TTWUTAghz6CNDMATSskXYmY',
+}
+const STRIPE_PRICE_GROK_X_MONTHLY =
+  GROKX_PRICE_BY_SET[((import.meta as any).env?.VITE_STRIPE_PRICESET as 'test_legacy' | 'test_current') ?? 'test_legacy'] ??
+  GROKX_PRICE_BY_SET.test_legacy
 
 export const Route = createFileRoute('/checkout')({
   component: CheckoutPage,
