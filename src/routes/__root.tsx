@@ -21,7 +21,9 @@ export const Route = createRootRoute({
       // Cache-bust so browsers pick up changes quickly.
       { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2' },
       { rel: 'apple-touch-icon', href: '/favicon.png?v=2' },
-      { rel: 'icon', href: '/favicon.ico' },
+      // Many browsers still prefer .ico; cache-bust it too.
+      { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico?v=2' },
+      { rel: 'shortcut icon', href: '/favicon.ico?v=2' },
     ],
   }),
   shellComponent: RootDocument,
