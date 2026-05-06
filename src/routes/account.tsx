@@ -105,11 +105,34 @@ function AccountPage() {
         // Pull account role info.
         // DB schemas vary: some use `owner_user_id`, others use `user_id`, or even `id = auth.uid()`.
         try {
-          const selectCols = 'id,role,granted_role,trial_ends_at,stripe_customer_id,stripe_subscription_id' as const
+          const selectCandidates = [
+            // "full" set (some DBs)
+            'id,role,granted_role,trial_ends_at,stripe_customer_id,stripe_subscription_id',
+            // no stripe_subscription_id
+            'id,role,granted_role,trial_ends_at,stripe_customer_id',
+            // minimal role/trial
+            'id,role,granted_role,trial_ends_at',
+            // absolute minimal
+            'id,role,granted_role',
+            'id,role',
+            'id',
+          ] as const
 
           const tryBy = async (col: 'owner_user_id' | 'user_id' | 'id') => {
-            const res = await sb.from('accounts').select(selectCols).eq(col, uid).maybeSingle()
-            return res
+            let lastErr: unknown = null
+            for (const cols of selectCandidates) {
+              const res = await sb.from('accounts').select(cols).eq(col, uid).maybeSingle()
+              if (!res.error) return res
+              lastErr = res.error
+              const msg = stringifyErr(res.error)
+              // If a selected column doesn't exist, try a reduced column set.
+              if (/does not exist/i.test(msg) || /column/i.test(msg) || /42703/.test(msg) || /PGRST/i.test(msg)) {
+                continue
+              }
+              // Otherwise, stop (likely RLS / permission / table missing).
+              return res
+            }
+            return { data: null, error: lastErr } as any
           }
 
           const first = await tryBy('owner_user_id')

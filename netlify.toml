@@ -1,6 +1,20 @@
 [build]
   command = "vite build"
   publish = "dist/client"
+
+# Ensure static favicons are served directly (not rewritten to SSR).
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon.ico"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/favicon.png"
+  to = "/favicon.png"
+  status = 200
+  force = true
+
 [dev]
   command = "npm run dev"
   targetPort = 3000
