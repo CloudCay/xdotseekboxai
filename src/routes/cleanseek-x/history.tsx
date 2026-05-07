@@ -15,6 +15,14 @@ type SessionRow = {
   search_mode?: string | null
 }
 
+type EngineRow = {
+  id: string
+  engine: string | null
+  result_text: string | null
+  is_error: boolean | null
+  created_at?: string
+}
+
 function fmtWhen(iso: string): string {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return iso
@@ -31,6 +39,9 @@ function CleanSeekXHistoryPage() {
   const [err, setErr] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [engineRowsBySession, setEngineRowsBySession] = useState<Record<string, EngineRow[]>>({})
+  const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     const sb = isSupabaseConfigured ? supabase : null
@@ -122,6 +133,30 @@ function CleanSeekXHistoryPage() {
       setDeletingId(null)
     }
   }
+
+  const loadEngineRows = useCallback(
+    async (sessionId: string) => {
+      const sb = isSupabaseConfigured ? supabase : null
+      if (!sb || !userId) return
+      if (engineRowsBySession[sessionId]) return
+      setLoadingSessionId(sessionId)
+      try {
+        const { data, error } = await sb
+          .from('engine_results')
+          .select('id, engine, result_text, is_error, created_at')
+          .eq('search_session_id', sessionId)
+          .order('created_at', { ascending: true })
+          .limit(50)
+        if (error) throw error
+        setEngineRowsBySession((prev) => ({ ...prev, [sessionId]: ((data as any) ?? []) as EngineRow[] }))
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Failed to load results.')
+      } finally {
+        setLoadingSessionId(null)
+      }
+    },
+    [engineRowsBySession, userId],
+  )
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
@@ -238,6 +273,18 @@ function CleanSeekXHistoryPage() {
                         Open
                       </a>
 
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = expandedId === r.id ? null : r.id
+                          setExpandedId(next)
+                          if (next) void loadEngineRows(r.id)
+                        }}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-800/50"
+                      >
+                        View results
+                      </button>
+
                       <a
                         data-testid={`history-run-${r.id}`}
                         href={runTo}
@@ -273,6 +320,39 @@ function CleanSeekXHistoryPage() {
                         {deletingId === r.id ? 'Deleting…' : 'Delete'}
                       </button>
                     </div>
+
+                    {expandedId === r.id ? (
+                      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/30 p-4">
+                        {loadingSessionId === r.id ? (
+                          <div className="text-sm text-slate-400">Loading results…</div>
+                        ) : (engineRowsBySession[r.id]?.length ?? 0) === 0 ? (
+                          <div className="text-sm text-slate-400">No saved results for this session yet.</div>
+                        ) : (
+                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {engineRowsBySession[r.id]!.map((er) => (
+                              <div
+                                key={er.id}
+                                className={`rounded-2xl border p-4 ${
+                                  er.is_error
+                                    ? 'border-red-500/30 bg-red-500/[0.06]'
+                                    : 'border-slate-700/60 bg-black/20'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-xs font-black text-slate-200">{er.engine ?? 'engine'}</div>
+                                  <div className={`text-[11px] font-bold ${er.is_error ? 'text-red-200' : 'text-slate-500'}`}>
+                                    {er.is_error ? 'error' : 'ok'}
+                                  </div>
+                                </div>
+                                <pre className="mt-3 whitespace-pre-wrap text-[11px] leading-relaxed text-slate-200/90 max-h-[220px] overflow-auto">
+{(er.result_text ?? '').trim() || '—'}
+                                </pre>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 )
               })}

@@ -11,6 +11,8 @@ import {
   type PromptModifierSnapshot,
   type ReasoningStyle,
 } from '../lib/cleanseekPromptModifiers'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { LogOut, Mic, Play, Search, Sparkles, UserRound } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
@@ -419,6 +421,15 @@ type EngineResult = {
   status: 'loading' | 'success' | 'error'
 }
 
+type SavedEngineRow = {
+  engine: string
+  result_text: string
+  is_error: boolean
+  error_message: string | null
+  word_count: number | null
+  result_type: 'engine'
+}
+
 type LiveXContext = {
   hasNoSignal: boolean
   livePulse: string | null
@@ -686,7 +697,7 @@ function CleanSeekLite() {
   }, [])
 
   const saveHistory = useCallback(
-    async (queryText: string, enabledProviders: string[]) => {
+    async (queryText: string, enabledProviders: string[], finalResults: Record<string, EngineResult>) => {
       const sb = isSupabaseConfigured ? supabase : null
       if (!sb) return
       try {
@@ -697,7 +708,7 @@ function CleanSeekLite() {
         const clientId = getClientId()
         const searchMode = `cleanseekx_${activePreset}_${enginePickMode}_${useLatest ? 'latest1' : 'latest0'}_${enabledProviders.length}`
 
-        await sb
+        const { data: sess, error: sessErr } = await sb
           .from('search_sessions')
           .insert({
             client_id: clientId,
@@ -708,6 +719,36 @@ function CleanSeekLite() {
             search_source: 'web',
             user_id: u.id,
           } as any)
+          .select('id')
+          .single()
+
+        if (sessErr || !sess?.id) return
+
+        const sessionId = String(sess.id)
+        const rows: SavedEngineRow[] = []
+        for (const prov of enabledProviders) {
+          const r = finalResults[prov]
+          const txt = (r?.content ?? '').toString()
+          if (!txt.trim() && r?.status !== 'error') continue
+          const words = txt.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean)
+          rows.push({
+            engine: prov,
+            result_text: txt,
+            is_error: r?.status === 'error',
+            error_message: r?.status === 'error' ? (txt || 'error') : null,
+            word_count: words.length || null,
+            result_type: 'engine',
+          })
+        }
+
+        if (rows.length) {
+          await sb.from('engine_results').insert(
+            rows.map((r) => ({
+              search_session_id: sessionId,
+              ...r,
+            })) as any,
+          )
+        }
       } catch {
         // history is best-effort
       }
@@ -976,7 +1017,7 @@ function CleanSeekLite() {
       setIsSearching(false)
 
       if (!ac.signal.aborted && raw.trim()) {
-        void saveHistory(raw.trim(), enabledProviders)
+        void saveHistory(raw.trim(), enabledProviders, streamAccRef.current)
       }
     }
   }
@@ -1579,7 +1620,39 @@ function CleanSeekLite() {
                     </div>
 
                     <div className={`mt-3 text-sm leading-relaxed ${isGrokLive ? 'text-slate-100' : 'text-slate-200/90'}`}>
-                      <pre className="whitespace-pre-wrap">{r.content || (r.status === 'loading' ? '…' : '')}</pre>
+                      {r.content || r.status === 'loading' ? (
+                        <div className="prose prose-invert prose-sm max-w-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-slate-800 prose-pre:rounded-xl prose-pre:p-3 prose-code:text-slate-100 prose-code:bg-black/20 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-md prose-a:text-cyan-300 prose-a:underline-offset-4 prose-strong:text-slate-100 prose-h1:text-slate-100 prose-h2:text-slate-100 prose-h3:text-slate-100 prose-li:marker:text-slate-500">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              a: ({ href, children, ...props }) => (
+                                <a href={href} target="_blank" rel="noreferrer" {...props}>
+                                  {children}
+                                </a>
+                              ),
+                              code: ({ className, children, ...props }) => {
+                                const isBlock = /\blanguage-/.test(className ?? '')
+                                if (isBlock) {
+                                  return (
+                                    <pre className="overflow-x-auto">
+                                      <code className={className} {...props}>
+                                        {String(children).replace(/\n$/, '')}
+                                      </code>
+                                    </pre>
+                                  )
+                                }
+                                return (
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                )
+                              },
+                            }}
+                          >
+                            {r.content || '…'}
+                          </ReactMarkdown>
+                        </div>
+                      ) : null}
                     </div>
 
                     {isGrokLive && ctx ? (
