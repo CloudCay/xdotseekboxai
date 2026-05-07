@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
 import { LogOut, Mic, Play, Search, Sparkles, UserRound } from 'lucide-react'
@@ -278,6 +278,17 @@ function normalizeBaseUrl(raw: string | undefined): string {
   return v
 }
 
+/** Backend sometimes emits `groksearch`; CleanSeek-X UI keys engines by preset ids — normalize aliases here only when merging streams. */
+function normalizeStreamProviderId(raw: string): string {
+  const id = raw.trim()
+  if (!id) return 'unknown'
+  return id === 'grokx' ? 'groksearch' : id
+}
+
+function snapshotResults(init: Record<string, EngineResult>): Record<string, EngineResult> {
+  return Object.fromEntries(Object.entries(init).map(([k, v]) => [k, { ...v }]))
+}
+
 async function fetchAccountRoleLabel(uid: string): Promise<string | null> {
   const sb = isSupabaseConfigured ? supabase : null
   if (!sb) return null
@@ -333,6 +344,31 @@ function CleanSeekLite() {
   const abortRef = useRef<AbortController | null>(null)
   const queryInputRef = useRef<HTMLInputElement | null>(null)
   const hydratedFromUrlRef = useRef<boolean>(false)
+  /** Accumulate streamed deltas without triggering a React render per token (aligned with mobile `useStreamingSearch`). */
+  const streamAccRef = useRef<Record<string, EngineResult>>({})
+  const streamRafRef = useRef<number | null>(null)
+
+  const flushStreamFrame = useCallback(() => {
+    streamRafRef.current = null
+    setResults(snapshotResults(streamAccRef.current))
+  }, [])
+
+  const scheduleStreamFlush = useCallback(() => {
+    if (typeof requestAnimationFrame === 'undefined') {
+      flushStreamFrame()
+      return
+    }
+    if (streamRafRef.current === null) {
+      streamRafRef.current = requestAnimationFrame(flushStreamFrame)
+    }
+  }, [flushStreamFrame])
+
+  useEffect(() => {
+    return () => {
+      if (streamRafRef.current !== null) cancelAnimationFrame(streamRafRef.current)
+      streamRafRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -410,6 +446,7 @@ function CleanSeekLite() {
 
     setStreamError(null)
     setIsSearching(true)
+    streamAccRef.current = {}
     setResults({})
     setIsDeepDive(Boolean(opts?.deepDive))
 
@@ -420,13 +457,15 @@ function CleanSeekLite() {
       enabledProviders = [...enabledProviders, 'groksearch']
     }
 
-    // Pre-create loading cards
+    // Pre-create loading cards — mirror into stream accumulator for RAF-batched streaming updates.
     if (enabledProviders.length) {
       const init: Record<string, EngineResult> = {}
       for (const p of enabledProviders) {
         init[p] = { provider: p, providerName: p, content: '', status: 'loading' }
       }
-      setResults(init)
+      const snap = snapshotResults(init)
+      streamAccRef.current = snap
+      setResults(snap)
     }
 
     const clientId = getClientId()
@@ -436,7 +475,10 @@ function CleanSeekLite() {
     try {
       res = await fetch(`${BACKEND_URL}/api/search/stream`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
         signal: ac.signal,
         body: JSON.stringify({
           query:
@@ -463,9 +505,32 @@ function CleanSeekLite() {
       return
     }
 
-    if (!res.ok || !res.body) {
+    if (!res.ok) {
       setIsSearching(false)
-      setStreamError(`Search failed (HTTP ${res.status}).`)
+      let detail = ''
+      try {
+        const t = await res.text()
+        if (t) {
+          try {
+            const j = JSON.parse(t) as Record<string, unknown>
+            detail =
+              (typeof j.error === 'string' && j.error) ||
+              (typeof j.message === 'string' && j.message) ||
+              t.slice(0, 400)
+          } catch {
+            detail = t.slice(0, 400)
+          }
+        }
+      } catch {
+        /* noop */
+      }
+      setStreamError(detail ? `Search failed (HTTP ${res.status}): ${detail}` : `Search failed (HTTP ${res.status}).`)
+      return
+    }
+
+    if (!res.body) {
+      setIsSearching(false)
+      setStreamError('Search failed: empty response body.')
       return
     }
 
@@ -474,25 +539,53 @@ function CleanSeekLite() {
     let buf = ''
     let evt = ''
 
-    const append = (provider: string, delta: string) => {
-      setResults((prev) => {
-        const cur = prev[provider] ?? { provider, providerName: provider, content: '', status: 'loading' as const }
-        return { ...prev, [provider]: { ...cur, content: (cur.content ?? '') + delta, status: 'loading' } }
-      })
+    const mergeProvider = (pid: string, patch: Partial<EngineResult>) => {
+      const cur =
+        streamAccRef.current[pid] ??
+        ({ provider: pid, providerName: pid, content: '', status: 'loading' as const })
+      streamAccRef.current = { ...streamAccRef.current, [pid]: { ...cur, ...patch } }
+      scheduleStreamFlush()
     }
 
-    const done = (provider: string, content: string) => {
-      setResults((prev) => {
-        const cur = prev[provider] ?? { provider, providerName: provider, content: '', status: 'loading' as const }
-        return { ...prev, [provider]: { ...cur, content: content || cur.content, status: 'success' } }
-      })
-    }
+    const dispatchPayload = (eventName: string, rawPayload: string) => {
+      const trimmed = rawPayload.trim()
+      if (!trimmed) return
+      let d: Record<string, unknown>
+      try {
+        d = JSON.parse(trimmed)
+      } catch {
+        return
+      }
 
-    const error = (provider: string, msg: string) => {
-      setResults((prev) => {
-        const cur = prev[provider] ?? { provider, providerName: provider, content: '', status: 'loading' as const }
-        return { ...prev, [provider]: { ...cur, content: msg, status: 'error' } }
-      })
+      let kind = eventName.trim()
+      if (!kind && typeof d.event === 'string') kind = String(d.event).trim()
+      if (!kind && typeof d.type === 'string') kind = String(d.type).trim()
+
+      const pid = normalizeStreamProviderId(String(d.provider ?? d.engine ?? d.providerId ?? 'unknown'))
+
+      if (kind === 'result-chunk') {
+        const prev = streamAccRef.current[pid]?.content ?? ''
+        mergeProvider(pid, {
+          content: prev + String(d.delta ?? d.content ?? ''),
+          status: 'loading',
+        })
+        return
+      }
+      if (kind === 'result-done') {
+        const cur = streamAccRef.current[pid]
+        const doneContent = d.content !== undefined ? String(d.content) : undefined
+        mergeProvider(pid, {
+          content: doneContent !== undefined ? doneContent : cur?.content ?? '',
+          status: 'success',
+        })
+        return
+      }
+      if (kind === 'result-error') {
+        mergeProvider(pid, {
+          content: `Error: ${String(d.error ?? 'failed')}`,
+          status: 'error',
+        })
+      }
     }
 
     try {
@@ -502,25 +595,24 @@ function CleanSeekLite() {
         buf += decoder.decode(value, { stream: true })
         const lines = buf.split('\n')
         buf = lines.pop() ?? ''
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            evt = line.slice(7).trim()
+        for (let line of lines) {
+          line = line.replace(/\r$/, '')
+          if (!line) continue
+          if (line.startsWith(':')) continue
+          if (line.startsWith('event:')) {
+            evt = line.slice(6).trim()
             continue
           }
-          if (!line.startsWith('data: ')) continue
-          try {
-            const d = JSON.parse(line.slice(6)) as any
-            const provider = String(d.provider ?? d.engine ?? d.providerId ?? 'unknown')
-            if (evt === 'result-chunk') {
-              append(provider, String(d.delta ?? d.content ?? ''))
-            } else if (evt === 'result-done') {
-              done(provider, String(d.content ?? ''))
-            } else if (evt === 'result-error') {
-              error(provider, `Error: ${String(d.error ?? 'failed')}`)
-            }
-          } catch {
-            // ignore malformed
-          }
+          if (!line.startsWith('data:')) continue
+          const payload = line.slice(5).trimStart()
+          dispatchPayload(evt, payload)
+        }
+      }
+      if (buf.trim()) {
+        for (let line of buf.split('\n')) {
+          line = line.replace(/\r$/, '')
+          if (!line.startsWith('data:')) continue
+          dispatchPayload(evt, line.slice(5).trimStart())
         }
       }
     } catch (e) {
@@ -528,21 +620,24 @@ function CleanSeekLite() {
         setStreamError(e instanceof Error ? e.message : 'Stream interrupted.')
       }
     } finally {
+      if (streamRafRef.current !== null) {
+        cancelAnimationFrame(streamRafRef.current)
+        streamRafRef.current = null
+      }
       if (ac.signal.aborted) {
-        setResults((prev) => {
-          const next = { ...prev }
-          for (const k of Object.keys(next)) {
-            if (next[k].status === 'loading') {
-              next[k] = {
-                ...next[k],
-                status: 'error',
-                content: next[k].content?.trim() ? next[k].content : 'Stopped.',
-              }
+        const next = { ...streamAccRef.current }
+        for (const k of Object.keys(next)) {
+          if (next[k].status === 'loading') {
+            next[k] = {
+              ...next[k],
+              status: 'error',
+              content: next[k].content?.trim() ? next[k].content : 'Stopped.',
             }
           }
-          return next
-        })
+        }
+        streamAccRef.current = next
       }
+      flushStreamFrame()
       setIsSearching(false)
     }
   }
