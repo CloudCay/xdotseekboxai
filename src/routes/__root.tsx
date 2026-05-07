@@ -97,15 +97,36 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-white text-slate-900 antialiased dark:bg-black dark:text-white">
-        <div className="fixed top-3 right-3 z-50 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/85 px-2.5 py-2 text-xs font-black text-slate-900 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-black/40 dark:text-slate-100">
-          <button
-            type="button"
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            className="rounded-xl border border-slate-200 bg-white/70 px-3 py-1.5 hover:bg-white dark:border-slate-700 dark:bg-slate-900/40 dark:hover:bg-slate-800/60"
-            aria-label="Toggle light/dark"
-          >
-            {theme === 'dark' ? 'Dark' : 'Light'}
-          </button>
+        <div className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur dark:border-slate-800/70 dark:bg-black/40">
+          <div className="mx-auto flex max-w-7xl items-center justify-end gap-2 px-3 py-2 sm:px-5">
+          <div className="inline-flex overflow-hidden rounded-xl border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950/40">
+            <button
+              type="button"
+              onClick={() => setTheme('light')}
+              className={`px-3 py-1.5 text-xs font-black transition-colors ${
+                theme === 'light'
+                  ? 'bg-black text-white'
+                  : 'bg-transparent text-slate-700 hover:bg-slate-100'
+              } dark:${theme === 'light' ? '' : 'text-slate-300 hover:bg-slate-900/40'}`}
+              aria-pressed={theme === 'light'}
+              aria-label="Light theme"
+            >
+              Light
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme('dark')}
+              className={`px-3 py-1.5 text-xs font-black transition-colors ${
+                theme === 'dark'
+                  ? 'bg-black text-white'
+                  : 'bg-transparent text-slate-700 hover:bg-slate-100'
+              } dark:${theme === 'dark' ? '' : 'text-slate-300 hover:bg-slate-900/40'}`}
+              aria-pressed={theme === 'dark'}
+              aria-label="Dark theme"
+            >
+              Dark
+            </button>
+          </div>
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
           <button
             type="button"
@@ -133,6 +154,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           >
             A+
           </button>
+          </div>
         </div>
         {children}
         <Scripts />
