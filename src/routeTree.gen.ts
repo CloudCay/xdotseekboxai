@@ -18,6 +18,7 @@ import { Route as CleanseekRouteImport } from './routes/cleanseek'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CleanseekXRabbitholexRouteImport } from './routes/cleanseek-x/rabbitholex'
 import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
 import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desktop'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
@@ -67,6 +68,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CleanseekXRabbitholexRoute = CleanseekXRabbitholexRouteImport.update({
+  id: '/rabbitholex',
+  path: '/rabbitholex',
+  getParentRoute: () => CleanseekXRoute,
+} as any)
 const CleanseekXHistoryRoute = CleanseekXHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
+  '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
+  '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
+  '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
+    | '/cleanseek-x/rabbitholex'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
+    | '/cleanseek-x/rabbitholex'
   id:
     | '__root__'
     | '/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
+    | '/cleanseek-x/rabbitholex'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -249,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cleanseek-x/rabbitholex': {
+      id: '/cleanseek-x/rabbitholex'
+      path: '/rabbitholex'
+      fullPath: '/cleanseek-x/rabbitholex'
+      preLoaderRoute: typeof CleanseekXRabbitholexRouteImport
+      parentRoute: typeof CleanseekXRoute
+    }
     '/cleanseek-x/history': {
       id: '/cleanseek-x/history'
       path: '/history'
@@ -276,11 +295,13 @@ declare module '@tanstack/react-router' {
 interface CleanseekXRouteChildren {
   CleanseekXDesktopRoute: typeof CleanseekXDesktopRoute
   CleanseekXHistoryRoute: typeof CleanseekXHistoryRoute
+  CleanseekXRabbitholexRoute: typeof CleanseekXRabbitholexRoute
 }
 
 const CleanseekXRouteChildren: CleanseekXRouteChildren = {
   CleanseekXDesktopRoute: CleanseekXDesktopRoute,
   CleanseekXHistoryRoute: CleanseekXHistoryRoute,
+  CleanseekXRabbitholexRoute: CleanseekXRabbitholexRoute,
 }
 
 const CleanseekXRouteWithChildren = CleanseekXRoute._addFileChildren(

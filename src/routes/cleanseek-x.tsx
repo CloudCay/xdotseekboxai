@@ -902,7 +902,9 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
     }
     const includesWebEngine = enabledProvidersPreview.some((id) => id === 'tavily' || id === 'brave' || id === 'chatgptsearch' || id === 'groksearch')
     const liveInstr = useLatest ? (includesWebEngine ? RECENCY_INSTRUCTION_COMPACT : RECENCY_INSTRUCTION) : ''
-    const qBuilt = composeCleanseekPrompt(augmentedRaw, promptMods, liveInstr)
+    // Live mode should never be constrained by the response-length cap.
+    const modsForThisRun = useLatest ? { ...promptMods, responseLengthEnabled: false } : promptMods
+    const qBuilt = composeCleanseekPrompt(augmentedRaw, modsForThisRun, liveInstr)
 
     setStreamError(null)
     setIsSearching(true)
@@ -1176,6 +1178,7 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
   }, [variant])
 
   const isMobile = variant === 'mobile'
+  const isRabbitHole = typeof window !== 'undefined' && window.location.pathname.endsWith('/rabbitholex')
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
@@ -1271,6 +1274,13 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
             >
               History
             </a>
+            <a
+              href={`/cleanseek-x/rabbitholex?q=${encodeURIComponent(query.trim())}&latest=${useLatest ? '1' : '0'}&autorun=1`}
+              className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
+              title="Open a dedicated page that prints all results."
+            >
+              RabbitHoleX
+            </a>
 
             <button
               type="button"
@@ -1339,11 +1349,12 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
           </div>
         </div>
 
-        {/* Prompt modifiers — interactive parity with main `/cleanseek` (ResponseLengthSlider + tone + persona + comprehension + reasoning). */}
-        <details
-          className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30"
-          defaultOpen={!isMobile}
-        >
+        {/* Prompt modifiers — hidden in RabbitHole view (results-only). */}
+        {!isRabbitHole ? (
+          <details
+            className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30"
+            defaultOpen={!isMobile}
+          >
           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2">
               {promptModifierActiveCount > 0 ? (
@@ -1619,10 +1630,12 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
               </div>
             </div>
           </div>
-        </details>
+          </details>
+        ) : null}
 
-        {/* Engines — interactive picks; optional “My picks only” overrides preset bundles for every search. */}
-        {(() => {
+        {/* Engines — hidden in RabbitHole view (results-only). */}
+        {!isRabbitHole
+          ? (() => {
           const inner = (
             <>
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1722,10 +1735,12 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
           }
 
           return <div className="mt-6 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 px-4 py-4">{inner}</div>
-        })()}
+        })()
+          : null}
 
-        {/* Presets */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        {/* Presets — hidden in RabbitHole view (results-only). */}
+        {!isRabbitHole ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
           {PRESETS.map((p) => {
             const n = enginesRunningCount(p, enabledEngineIds, enginePickMode)
             return (
@@ -1755,7 +1770,8 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
               </button>
             )
           })}
-        </div>
+          </div>
+        ) : null}
 
         {/* Results — above demos; full-width responsive grid */}
         <section className="mt-6 w-full min-w-0" aria-label="Search results">
