@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
+import {
+  composeCleanseekPrompt,
+  MODIFIER_FLAGS,
+  REASONING_STYLES,
+  RESPONSE_LENGTH_LEVELS,
+  TONE_LEVELS,
+  type ModifierFlag,
+  type PromptModifierSnapshot,
+  type ReasoningStyle,
+} from '../lib/cleanseekPromptModifiers'
 import { LogOut, Mic, Play, Search, Sparkles, UserRound } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
@@ -37,6 +47,28 @@ const ENGINE_CATALOG: { id: string; label: string }[] = [
 ]
 
 const ENABLED_ENGINES_STORAGE_KEY = 'seekbox_cleanseek_x_enabled_engines_v1'
+const ENGINE_PICK_MODE_KEY = 'seekbox_cleanseek_x_engine_pick_mode_v1'
+
+/** `preset`: Quick/Web/Research use fixed lists; All In uses toggles. `custom`: always use toggles. */
+type EnginePickMode = 'preset' | 'custom'
+
+function loadEnginePickMode(): EnginePickMode {
+  if (typeof window === 'undefined') return 'preset'
+  try {
+    return window.localStorage.getItem(ENGINE_PICK_MODE_KEY) === 'custom' ? 'custom' : 'preset'
+  } catch {
+    return 'preset'
+  }
+}
+
+function saveEnginePickMode(m: EnginePickMode) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(ENGINE_PICK_MODE_KEY, m)
+  } catch {
+    /* noop */
+  }
+}
 
 function defaultEnabledEngineIds(): string[] {
   return ENGINE_CATALOG.map((e) => e.id)
@@ -68,6 +100,84 @@ function saveEnabledEngines(ids: string[]) {
 
 function engineCountForPreset(preset: Preset, allInPool: string[]): number {
   return preset.engineIds.length > 0 ? preset.engineIds.length : allInPool.length
+}
+
+/** How many engines will run for this preset pill label (matches `run()` resolution). */
+function enginesRunningCount(preset: Preset, pickIds: string[], mode: EnginePickMode): number {
+  if (mode === 'custom') return pickIds.length
+  return engineCountForPreset(preset, pickIds)
+}
+
+const PROMPT_MODIFIERS_STORAGE_KEY = 'seekbox_cleanseek_x_prompt_modifiers_v1'
+
+const DEFAULT_PROMPT_MODS: PromptModifierSnapshot = {
+  responseLengthEnabled: false,
+  responseLength: 2,
+  toneEnabled: false,
+  toneLevel: 2,
+  comprehensionEnabled: false,
+  comprehensionLevel: 3,
+  personaEnabled: false,
+  personaText: '',
+  reasoningStyle: null,
+  modifierFlags: [],
+}
+
+const COMPREHENSION_LABELS = [
+  { label: '5 Year Old', emoji: '👶' },
+  { label: 'Middle School', emoji: '📚' },
+  { label: 'College', emoji: '🎓' },
+  { label: 'Adult', emoji: '🧑' },
+  { label: 'Genius', emoji: '🧠' },
+] as const
+
+function loadPromptMods(): PromptModifierSnapshot {
+  if (typeof window === 'undefined') return { ...DEFAULT_PROMPT_MODS }
+  try {
+    const raw = window.localStorage.getItem(PROMPT_MODIFIERS_STORAGE_KEY)
+    if (!raw) return { ...DEFAULT_PROMPT_MODS }
+    const p = JSON.parse(raw) as Record<string, unknown>
+    const flagsRaw = p.modifierFlags
+    const flags = Array.isArray(flagsRaw)
+      ? flagsRaw.filter((x): x is ModifierFlag =>
+          x === 'tldr' || x === 'nextsteps' || x === 'counterargs' || x === 'list',
+        )
+      : []
+    const rs = p.reasoningStyle
+    const reasoningStyle: ReasoningStyle | null =
+      rs === 'concise' || rs === 'stepbystep' || rs === 'exploratory' || rs === 'skeptical' ? rs : null
+    return {
+      ...DEFAULT_PROMPT_MODS,
+      responseLengthEnabled: Boolean(p.responseLengthEnabled),
+      responseLength:
+        typeof p.responseLength === 'number'
+          ? Math.max(0, Math.min(4, Math.round(p.responseLength)))
+          : DEFAULT_PROMPT_MODS.responseLength,
+      toneEnabled: Boolean(p.toneEnabled),
+      toneLevel:
+        typeof p.toneLevel === 'number' ? Math.max(0, Math.min(5, Math.round(p.toneLevel))) : DEFAULT_PROMPT_MODS.toneLevel,
+      comprehensionEnabled: Boolean(p.comprehensionEnabled),
+      comprehensionLevel:
+        typeof p.comprehensionLevel === 'number'
+          ? Math.max(0, Math.min(4, Math.round(p.comprehensionLevel)))
+          : DEFAULT_PROMPT_MODS.comprehensionLevel,
+      personaEnabled: Boolean(p.personaEnabled),
+      personaText: typeof p.personaText === 'string' ? p.personaText : '',
+      reasoningStyle,
+      modifierFlags: flags,
+    }
+  } catch {
+    return { ...DEFAULT_PROMPT_MODS }
+  }
+}
+
+function savePromptMods(m: PromptModifierSnapshot) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(PROMPT_MODIFIERS_STORAGE_KEY, JSON.stringify(m))
+  } catch {
+    /* noop */
+  }
 }
 
 type ShowcasePrompt = { text: string; featured?: boolean; hint?: string }
@@ -385,6 +495,10 @@ function CleanSeekLite() {
   const [activePreset, setActivePreset] = useState<PresetId>('web')
   /** Engines included when preset is All In — persisted like main CleanSeek’s settings engines. */
   const [enabledEngineIds, setEnabledEngineIds] = useState<string[]>(() => loadEnabledEngines())
+  /** When `custom`, every search uses `enabledEngineIds`; when `preset`, only All In does. */
+  const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => loadEnginePickMode())
+  /** Response length, tone, persona, comprehension, reasoning — persisted; appended to query like `/cleanseek`. */
+  const [promptMods, setPromptMods] = useState<PromptModifierSnapshot>(() => loadPromptMods())
   /** Order providers for the results grid (matches last request). */
   const resultOrderRef = useRef<string[]>([])
   const [isSearching, setIsSearching] = useState<boolean>(false)
@@ -436,14 +550,35 @@ function CleanSeekLite() {
       if (latest != null) setUseLatest(latest !== '0' && latest.toLowerCase() !== 'false')
       if (preset && PRESETS.some((p) => p.id === preset)) setActivePreset(preset)
       setEnabledEngineIds(loadEnabledEngines())
+      setEnginePickMode(loadEnginePickMode())
+      setPromptMods(loadPromptMods())
     } catch {
       // ignore
     }
   }, [])
 
   useEffect(() => {
+    savePromptMods(promptMods)
+  }, [promptMods])
+
+  useEffect(() => {
     saveEnabledEngines(enabledEngineIds)
   }, [enabledEngineIds])
+
+  useEffect(() => {
+    saveEnginePickMode(enginePickMode)
+  }, [enginePickMode])
+
+  const promptModifierActiveCount = useMemo(() => {
+    let n = 0
+    if (promptMods.responseLengthEnabled) n++
+    if (promptMods.toneEnabled) n++
+    if (promptMods.comprehensionEnabled) n++
+    if (promptMods.personaEnabled && promptMods.personaText.trim()) n++
+    if (promptMods.reasoningStyle) n++
+    n += promptMods.modifierFlags.length
+    return n
+  }, [promptMods])
 
   const toggleEngineEnabled = useCallback((id: string) => {
     setEnabledEngineIds((prev) => {
@@ -505,7 +640,8 @@ function CleanSeekLite() {
     if (opts?.queryOverride != null) setQuery(raw)
     syncCleanseekUrl(raw, useLatest, activePreset)
 
-    const qBuilt = useLatest ? raw + RECENCY_INSTRUCTION : raw
+    const liveInstr = useLatest ? RECENCY_INSTRUCTION : ''
+    const qBuilt = composeCleanseekPrompt(raw, promptMods, liveInstr)
 
     abortRef.current?.abort()
     const ac = new AbortController()
@@ -521,6 +657,7 @@ function CleanSeekLite() {
 
     let enabledProviders: string[]
     if (opts?.forceProvider) enabledProviders = [opts.forceProvider]
+    else if (enginePickMode === 'custom') enabledProviders = [...enabledEngineIds]
     else if (preset.engineIds.length > 0) enabledProviders = [...preset.engineIds]
     else enabledProviders = [...enabledEngineIds]
 
@@ -530,7 +667,11 @@ function CleanSeekLite() {
 
     if (!opts?.forceProvider && enabledProviders.length === 0) {
       setIsSearching(false)
-      setStreamError('Turn on at least one engine below for All In, or select Quick / Research / Web.')
+      setStreamError(
+        enginePickMode === 'custom'
+          ? 'Pick at least one engine below (My picks only), then Search.'
+          : 'Turn on at least one engine for All In, switch to My picks only, or select Quick / Research / Web.',
+      )
       return
     }
 
@@ -575,6 +716,11 @@ function CleanSeekLite() {
           enabledEngineCount: enabledProviders.length || undefined,
           liveDataMode: useLatest,
           grokLive: useLatest,
+          responseLengthSetting: promptMods.responseLength,
+          persona:
+            promptMods.personaEnabled && promptMods.personaText.trim() ? promptMods.personaText.trim() : undefined,
+          comprehensionEnabled: promptMods.comprehensionEnabled,
+          comprehensionLevel: promptMods.comprehensionEnabled ? promptMods.comprehensionLevel : undefined,
         }),
       })
     } catch (e) {
@@ -873,23 +1019,307 @@ function CleanSeekLite() {
           </div>
         </div>
 
-        {/* Quick filters (placeholders for reskin) */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 opacity-60" title="Coming soon">
-            Response length
-          </span>
-          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 opacity-60" title="Coming soon">
-            Tone
-          </span>
-          <span className="px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/30 opacity-60" title="Coming soon">
-            Persona
-          </span>
+        {/* Prompt modifiers — interactive parity with main `/cleanseek` (ResponseLengthSlider + tone + persona + comprehension + reasoning). */}
+        <details className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30" defaultOpen>
+          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              {promptModifierActiveCount > 0 ? (
+                <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-cyan-400" aria-hidden />
+              ) : null}
+              Prompt modifiers
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                {promptModifierActiveCount > 0 ? `${promptModifierActiveCount} active` : 'optional'}
+              </span>
+            </span>
+            <span className="text-[11px] font-black text-slate-500">Tap to expand ▾</span>
+          </summary>
+
+          <div className="space-y-5 border-t border-slate-800/90 px-4 pb-4 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="max-w-3xl text-xs leading-snug text-slate-400">
+                Response length, tone, persona, and comprehension append the same instruction suffixes as the main CleanSeek page; sliders and checkboxes persist locally.
+              </p>
+              <button
+                type="button"
+                className="shrink-0 rounded-xl border border-slate-600 bg-slate-950/50 px-3 py-1.5 text-[11px] font-black text-slate-300 hover:border-slate-500 hover:text-slate-100"
+                onClick={() => setPromptMods({ ...DEFAULT_PROMPT_MODS })}
+              >
+                Reset all
+              </button>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-xl border border-slate-700/60 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-black text-slate-100">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-cyan-500"
+                      checked={promptMods.responseLengthEnabled}
+                      onChange={(e) =>
+                        setPromptMods((m) => ({ ...m, responseLengthEnabled: e.target.checked }))
+                      }
+                    />
+                    Response length
+                  </label>
+                  <span className="text-[11px] font-bold tabular-nums text-cyan-400/90">
+                    {RESPONSE_LENGTH_LEVELS[promptMods.responseLength]?.label ?? '—'}
+                  </span>
+                </div>
+                <div
+                  className={
+                    promptMods.responseLengthEnabled ? 'mt-3 space-y-2' : 'pointer-events-none mt-3 space-y-2 opacity-40'
+                  }
+                >
+                  <input
+                    type="range"
+                    min={0}
+                    max={4}
+                    step={1}
+                    value={promptMods.responseLength}
+                    disabled={!promptMods.responseLengthEnabled}
+                    onChange={(e) =>
+                      setPromptMods((m) => ({ ...m, responseLength: Number(e.target.value) }))
+                    }
+                    className="w-full accent-cyan-500"
+                    aria-label="Response length level"
+                  />
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <span>Brief</span>
+                    <span>Standard</span>
+                    <span>In-depth</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">{RESPONSE_LENGTH_LEVELS[promptMods.responseLength]?.hint}</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-700/60 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-black text-slate-100">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-cyan-500"
+                      checked={promptMods.toneEnabled}
+                      onChange={(e) => setPromptMods((m) => ({ ...m, toneEnabled: e.target.checked }))}
+                    />
+                    Tone
+                  </label>
+                  <span className="text-[11px] font-bold text-cyan-400/90">
+                    {TONE_LEVELS[promptMods.toneLevel]?.emoji} {TONE_LEVELS[promptMods.toneLevel]?.label}
+                  </span>
+                </div>
+                <div
+                  className={
+                    promptMods.toneEnabled ? 'mt-3 space-y-2' : 'pointer-events-none mt-3 space-y-2 opacity-40'
+                  }
+                >
+                  <input
+                    type="range"
+                    min={0}
+                    max={5}
+                    step={1}
+                    value={promptMods.toneLevel}
+                    disabled={!promptMods.toneEnabled}
+                    onChange={(e) =>
+                      setPromptMods((m) => ({ ...m, toneLevel: Number(e.target.value) }))
+                    }
+                    className="w-full accent-cyan-500"
+                    aria-label="Tone level"
+                  />
+                  <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                    <span>Sensitive</span>
+                    <span>Angry</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-700/60 bg-black/20 p-4 lg:col-span-2 xl:col-span-1">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-black text-slate-100">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-cyan-500"
+                    checked={promptMods.personaEnabled}
+                    onChange={(e) => setPromptMods((m) => ({ ...m, personaEnabled: e.target.checked }))}
+                  />
+                  Persona
+                </label>
+                <textarea
+                  value={promptMods.personaText}
+                  disabled={!promptMods.personaEnabled}
+                  onChange={(e) => setPromptMods((m) => ({ ...m, personaText: e.target.value }))}
+                  placeholder="Describe yourself so answers stay relevant (same field as main CleanSeek)."
+                  rows={3}
+                  className="mt-3 w-full resize-y rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-cyan-500/40 disabled:opacity-40"
+                  aria-label="Persona description"
+                />
+              </div>
+
+              <div className="rounded-xl border border-slate-700/60 bg-black/20 p-4 lg:col-span-2 xl:col-span-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-black text-slate-100">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-cyan-500"
+                      checked={promptMods.comprehensionEnabled}
+                      onChange={(e) =>
+                        setPromptMods((m) => ({ ...m, comprehensionEnabled: e.target.checked }))
+                      }
+                    />
+                    Comprehension level
+                  </label>
+                  <span className="text-[11px] font-bold text-cyan-400/90">
+                    {COMPREHENSION_LABELS[promptMods.comprehensionLevel]?.emoji}{' '}
+                    {COMPREHENSION_LABELS[promptMods.comprehensionLevel]?.label}
+                  </span>
+                </div>
+                <div
+                  className={
+                    promptMods.comprehensionEnabled
+                      ? 'mt-3 space-y-2'
+                      : 'pointer-events-none mt-3 space-y-2 opacity-40'
+                  }
+                >
+                  <input
+                    type="range"
+                    min={0}
+                    max={4}
+                    step={1}
+                    value={promptMods.comprehensionLevel}
+                    disabled={!promptMods.comprehensionEnabled}
+                    onChange={(e) =>
+                      setPromptMods((m) => ({ ...m, comprehensionLevel: Number(e.target.value) }))
+                    }
+                    className="w-full accent-cyan-500"
+                    aria-label="Comprehension level"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-slate-700/60 bg-black/20 p-4">
+              <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Reasoning style</div>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(REASONING_STYLES) as ReasoningStyle[]).map((id) => {
+                  const cfg = REASONING_STYLES[id]
+                  const on = promptMods.reasoningStyle === id
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() =>
+                        setPromptMods((m) => ({
+                          ...m,
+                          reasoningStyle: m.reasoningStyle === id ? null : id,
+                        }))
+                      }
+                      className={`rounded-xl border px-3 py-1.5 text-xs font-black ${
+                        on
+                          ? 'border-cyan-500/45 bg-cyan-500/15 text-cyan-50'
+                          : 'border-slate-700 bg-slate-950/40 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      {cfg.emoji} {cfg.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="pt-1 text-[11px] font-black uppercase tracking-widest text-slate-500">Format</div>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(MODIFIER_FLAGS) as ModifierFlag[]).map((id) => {
+                  const cfg = MODIFIER_FLAGS[id]
+                  const on = promptMods.modifierFlags.includes(id)
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() =>
+                        setPromptMods((m) => ({
+                          ...m,
+                          modifierFlags: on ? m.modifierFlags.filter((x) => x !== id) : [...m.modifierFlags, id],
+                        }))
+                      }
+                      className={`rounded-xl border px-3 py-1.5 text-xs font-black ${
+                        on
+                          ? 'border-violet-500/45 bg-violet-500/15 text-violet-50'
+                          : 'border-slate-700 bg-slate-950/40 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      {cfg.emoji} {cfg.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </details>
+
+        {/* Engines — interactive picks; optional “My picks only” overrides preset bundles for every search. */}
+        <div className="mt-6 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 px-4 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Engines to run</div>
+              <p className="mt-1 max-w-2xl text-xs leading-snug text-slate-400">
+                Toggle who participates in the next stream. Use{' '}
+                <span className="font-semibold text-slate-300">My picks only</span> when you want full control on every search;
+                use <span className="font-semibold text-slate-300">Preset bundles</span> to match main CleanSeek (Quick / Research /
+                Web keep fixed sets; All In uses your toggles).
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2 rounded-xl border border-slate-700/50 bg-black/25 p-1">
+            <button
+              type="button"
+              onClick={() => setEnginePickMode('preset')}
+              className={`flex-1 min-w-[140px] rounded-lg px-3 py-2 text-center text-xs font-black transition-colors sm:flex-none ${
+                enginePickMode === 'preset'
+                  ? 'bg-cyan-500/20 text-cyan-50 ring-1 ring-cyan-500/40'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              }`}
+              aria-pressed={enginePickMode === 'preset'}
+            >
+              Preset bundles
+            </button>
+            <button
+              type="button"
+              onClick={() => setEnginePickMode('custom')}
+              className={`flex-1 min-w-[140px] rounded-lg px-3 py-2 text-center text-xs font-black transition-colors sm:flex-none ${
+                enginePickMode === 'custom'
+                  ? 'bg-cyan-500/20 text-cyan-50 ring-1 ring-cyan-500/40'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              }`}
+              aria-pressed={enginePickMode === 'custom'}
+            >
+              My picks only
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ENGINE_CATALOG.map((eng) => {
+              const on = enabledEngineIds.includes(eng.id)
+              return (
+                <button
+                  key={eng.id}
+                  type="button"
+                  onClick={() => toggleEngineEnabled(eng.id)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-black border transition-colors ${
+                    on
+                      ? 'border-cyan-500/45 bg-cyan-500/15 text-cyan-50'
+                      : 'border-slate-700 bg-slate-950/40 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                  }`}
+                  aria-pressed={on}
+                >
+                  {eng.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        {/* Presets + actions — presets mirror main CleanSeek; All In uses the checked engines row below. */}
-        <div className="mt-6 flex flex-wrap items-center gap-2">
+        {/* Presets + Search */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {PRESETS.map((p) => {
-            const n = engineCountForPreset(p, enabledEngineIds)
+            const n = enginesRunningCount(p, enabledEngineIds, enginePickMode)
             return (
               <button
                 key={p.id}
@@ -924,41 +1354,16 @@ function CleanSeekLite() {
               <button
                 type="button"
                 onClick={() => void run()}
-                disabled={!BACKEND_URL || (activePreset === 'allin' && enabledEngineIds.length === 0)}
+                disabled={
+                  !BACKEND_URL ||
+                  (enginePickMode === 'custom' && enabledEngineIds.length === 0) ||
+                  (enginePickMode === 'preset' && activePreset === 'allin' && enabledEngineIds.length === 0)
+                }
                 className="rounded-2xl bg-cyan-500 text-[#050B14] px-5 py-2 text-sm font-black disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Search
               </button>
             )}
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 px-4 py-3">
-          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-            Engines for All In
-          </div>
-          <p className="mt-1 text-xs text-slate-400 leading-snug">
-            Quick / Research / Web always use their fixed sets above. All In runs whichever engines you check here — same idea as the main CleanSeek page.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {ENGINE_CATALOG.map((eng) => {
-              const on = enabledEngineIds.includes(eng.id)
-              return (
-                <button
-                  key={eng.id}
-                  type="button"
-                  onClick={() => toggleEngineEnabled(eng.id)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-black border transition-colors ${
-                    on
-                      ? 'border-cyan-500/45 bg-cyan-500/15 text-cyan-50'
-                      : 'border-slate-700 bg-slate-950/40 text-slate-500 hover:border-slate-600 hover:text-slate-300'
-                  }`}
-                  aria-pressed={on}
-                >
-                  {eng.label}
-                </button>
-              )
-            })}
           </div>
         </div>
 
