@@ -19,6 +19,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
+import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desktop'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
 
 const SuccessRoute = SuccessRouteImport.update({
@@ -71,6 +72,11 @@ const CleanseekXHistoryRoute = CleanseekXHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => CleanseekXRoute,
 } as any)
+const CleanseekXDesktopRoute = CleanseekXDesktopRouteImport.update({
+  id: '/desktop',
+  path: '/desktop',
+  getParentRoute: () => CleanseekXRoute,
+} as any)
 const ApiSupplementaryRoute = ApiSupplementaryRouteImport.update({
   id: '/api/supplementary',
   path: '/api/supplementary',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
+  '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
+  '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRoutesById {
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
+  '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/success'
     | '/api/supplementary'
+    | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/success'
     | '/api/supplementary'
+    | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
   id:
     | '__root__'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/success'
     | '/api/supplementary'
+    | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
   fileRoutesById: FileRoutesById
 }
@@ -244,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CleanseekXHistoryRouteImport
       parentRoute: typeof CleanseekXRoute
     }
+    '/cleanseek-x/desktop': {
+      id: '/cleanseek-x/desktop'
+      path: '/desktop'
+      fullPath: '/cleanseek-x/desktop'
+      preLoaderRoute: typeof CleanseekXDesktopRouteImport
+      parentRoute: typeof CleanseekXRoute
+    }
     '/api/supplementary': {
       id: '/api/supplementary'
       path: '/api/supplementary'
@@ -255,10 +274,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface CleanseekXRouteChildren {
+  CleanseekXDesktopRoute: typeof CleanseekXDesktopRoute
   CleanseekXHistoryRoute: typeof CleanseekXHistoryRoute
 }
 
 const CleanseekXRouteChildren: CleanseekXRouteChildren = {
+  CleanseekXDesktopRoute: CleanseekXDesktopRoute,
   CleanseekXHistoryRoute: CleanseekXHistoryRoute,
 }
 

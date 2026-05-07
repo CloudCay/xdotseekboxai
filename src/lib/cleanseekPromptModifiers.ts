@@ -2,8 +2,8 @@
 
 export const RESPONSE_LENGTH_LEVELS = [
   { label: 'Brief', hint: '~75 words', instruction: ' [Respond in 75 words or fewer. Be very concise.]' },
+  { label: 'Standard', hint: '~100 words', instruction: ' [Respond in roughly 100 words. Be concise but clear.]' },
   { label: 'Short', hint: '~150 words', instruction: ' [Respond in roughly 150 words. Be concise but clear.]' },
-  { label: 'Standard', hint: 'default', instruction: '' },
   { label: 'Detailed', hint: '~400 words', instruction: ' [Respond in roughly 400 words with clear explanations.]' },
   { label: 'In-depth', hint: '600+ words', instruction: ' [Provide a comprehensive response of 600+ words with depth, examples, and nuance.]' },
 ] as const

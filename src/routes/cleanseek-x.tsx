@@ -18,11 +18,13 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
 
 export const Route = createFileRoute('/cleanseek-x')({
-  component: CleanSeekLite,
+  component: CleanSeekXMobileRoute,
 })
 
 const RECENCY_INSTRUCTION =
   ' [LIVE MODE: Prioritize information from the past 7 days. If you have live web or X (Twitter) access, format your response with the sections below. If you do not have live X access, write the literal text \"No live X signals available\" at the top, then answer normally.\n\n**Live pulse:** one sentence summarizing the current state.\n\n**Top X posts:** quote 2-3 recent posts in the format `> @handle - timestamp: post text` (only real posts, never fabricate).\n\n**Sentiment:** one word — Positive, Negative, Mixed, or Neutral.\n\n**Trending:** 1-3 hashtags or short phrases dominating the conversation.\n\nAfter those sections, answer the user\'s question normally.]'
+const RECENCY_INSTRUCTION_COMPACT =
+  ' [LIVE MODE: Prioritize information from the past 7 days. If live web/X access is unavailable, say \"No live X signals available\" and answer normally.]'
 
 type PresetId = 'quick' | 'research' | 'web' | 'allin'
 type Preset = { id: PresetId; label: string; emoji: string; engineIds: string[] }
@@ -132,8 +134,9 @@ function resolveSearchEngineIds(args: {
 const PROMPT_MODIFIERS_STORAGE_KEY = 'seekbox_cleanseek_x_prompt_modifiers_v1'
 
 const DEFAULT_PROMPT_MODS: PromptModifierSnapshot = {
-  responseLengthEnabled: false,
-  responseLength: 2,
+  responseLengthEnabled: true,
+  // Default page-wide target: ~100 words (see RESPONSE_LENGTH_LEVELS index 1).
+  responseLength: 1,
   toneEnabled: false,
   toneLevel: 2,
   comprehensionEnabled: false,
@@ -143,6 +146,25 @@ const DEFAULT_PROMPT_MODS: PromptModifierSnapshot = {
   reasoningStyle: null,
   modifierFlags: [],
 }
+
+type AnalysisModeRow = { id: string; label: string; description?: string | null }
+
+const FALLBACK_ANALYSIS_MODES: AnalysisModeRow[] = [
+  { id: 'factcheck', label: 'Fact Check' },
+  { id: 'nutshell', label: 'In a Nutshell' },
+  { id: 'takeaways', label: 'Key Takeaways' },
+  { id: 'craap', label: 'CRAAP Test' },
+  { id: 'lateral', label: 'Lateral Reading' },
+  { id: 'triangulation', label: 'Triangulation' },
+  { id: 'dedupe', label: 'De-duplication' },
+  { id: 'sift', label: 'SIFT' },
+  { id: 'pestle', label: 'PESTLE' },
+  { id: 'logicBias', label: 'Logic & Bias' },
+  { id: 'devilsAdvocate', label: "Devil's Advocate" },
+  { id: 'trends2026', label: 'Trends 2026' },
+  { id: 'steelMan', label: 'Steel Man' },
+  { id: 'rhetorical', label: 'Rhetorical' },
+]
 
 const COMPREHENSION_LABELS = [
   { label: '5 Year Old', emoji: '👶' },
@@ -504,7 +526,42 @@ async function fetchAccountRoleLabel(uid: string): Promise<string | null> {
   return null
 }
 
-function CleanSeekLite() {
+type CleanSeekVariant = 'mobile' | 'desktop'
+
+function isProbablyDesktopDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const w = window.innerWidth
+    const finePointer = typeof window.matchMedia === 'function' ? window.matchMedia('(pointer:fine)').matches : false
+    return w >= 1024 && finePointer
+  } catch {
+    return false
+  }
+}
+
+function isProbablyMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const w = window.innerWidth
+    const coarsePointer = typeof window.matchMedia === 'function' ? window.matchMedia('(pointer:coarse)').matches : false
+    return w < 900 || coarsePointer
+  } catch {
+    return false
+  }
+}
+
+function CleanSeekXMobileRoute() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.location.pathname.endsWith('/desktop')) return
+    if (isProbablyDesktopDevice()) {
+      window.location.href = `/cleanseek-x/desktop${window.location.search}`
+    }
+  }, [])
+  return <CleanSeekLite variant="mobile" />
+}
+
+export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVariant }) {
   const backendUrlOrError = useMemo(() => {
     // Vite only exposes client env vars prefixed with VITE_.
     // Prefer VITE_BACKEND_URL in the browser, fall back to EXPO_PUBLIC_BACKEND_URL
@@ -529,6 +586,10 @@ function CleanSeekLite() {
   const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => loadEnginePickMode())
   /** Response length, tone, persona, comprehension, reasoning — persisted; appended to query like `/cleanseek`. */
   const [promptMods, setPromptMods] = useState<PromptModifierSnapshot>(() => loadPromptMods())
+  /** Analysis modes: fetched from Supabase `analysis_modes` with a fallback. */
+  const [analysisModes, setAnalysisModes] = useState<AnalysisModeRow[]>(() => FALLBACK_ANALYSIS_MODES)
+  const [analysisMode, setAnalysisMode] = useState<string>('none')
+  const [analysisJudge, setAnalysisJudge] = useState<string>('chatgpt')
   /** Order providers for the results grid (matches last request). */
   const resultOrderRef = useRef<string[]>([])
   const [isSearching, setIsSearching] = useState<boolean>(false)
@@ -696,6 +757,39 @@ function CleanSeekLite() {
     }
   }, [])
 
+  useEffect(() => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        // Table-backed modes. We accept different column names defensively.
+        const { data, error } = await sb
+          .from('analysis_modes')
+          .select('id, label, name, mode, slug, description, enabled, sort_order')
+          .order('sort_order', { ascending: true })
+          .limit(100)
+        if (cancelled) return
+        if (error) throw error
+        const rows = ((data as any) ?? []) as Array<Record<string, unknown>>
+        const normalized: AnalysisModeRow[] = rows
+          .filter((r) => (r.enabled == null ? true : Boolean(r.enabled)))
+          .map((r) => ({
+            id: String(r.slug ?? r.mode ?? r.id ?? ''),
+            label: String(r.label ?? r.name ?? r.slug ?? r.mode ?? r.id ?? '').trim(),
+            description: typeof r.description === 'string' ? r.description : null,
+          }))
+          .filter((r) => r.id && r.label)
+        if (normalized.length) setAnalysisModes(normalized)
+      } catch {
+        // fallback is fine
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const saveHistory = useCallback(
     async (queryText: string, enabledProviders: string[], finalResults: Record<string, EngineResult>) => {
       const sb = isSupabaseConfigured ? supabase : null
@@ -779,7 +873,8 @@ function CleanSeekLite() {
     abortRef.current = ac
 
     let augmentedRaw = raw
-    if (typeof window !== 'undefined') {
+    const looksLikeTickerOnly = /^[A-Za-z]{1,6}$/.test(raw) && !/\s/.test(raw)
+    if (typeof window !== 'undefined' && !looksLikeTickerOnly) {
       try {
         const sr = await fetch(`${window.location.origin}/api/supplementary`, {
           method: 'POST',
@@ -796,7 +891,17 @@ function CleanSeekLite() {
       }
     }
 
-    const liveInstr = useLatest ? RECENCY_INSTRUCTION : ''
+    let enabledProvidersPreview = resolveSearchEngineIds({
+      enginePickMode,
+      activePreset,
+      enabledEngineIds,
+      forceProvider: opts?.forceProvider,
+    })
+    if (useLatest && enabledProvidersPreview.length && !enabledProvidersPreview.includes('groksearch')) {
+      enabledProvidersPreview = [...enabledProvidersPreview, 'groksearch']
+    }
+    const includesWebEngine = enabledProvidersPreview.some((id) => id === 'tavily' || id === 'brave' || id === 'chatgptsearch' || id === 'groksearch')
+    const liveInstr = useLatest ? (includesWebEngine ? RECENCY_INSTRUCTION_COMPACT : RECENCY_INSTRUCTION) : ''
     const qBuilt = composeCleanseekPrompt(augmentedRaw, promptMods, liveInstr)
 
     setStreamError(null)
@@ -872,6 +977,14 @@ function CleanSeekLite() {
             promptMods.personaEnabled && promptMods.personaText.trim() ? promptMods.personaText.trim() : undefined,
           comprehensionEnabled: promptMods.comprehensionEnabled,
           comprehensionLevel: promptMods.comprehensionEnabled ? promptMods.comprehensionLevel : undefined,
+          ...(analysisMode !== 'none' && analysisJudge
+            ? {
+                analysisMode,
+                analysisJudge,
+                // Legacy backend compatibility: many deployments read `<mode>Judge`.
+                [`${analysisMode}Judge`]: analysisJudge,
+              }
+            : {}),
         }),
       })
     } catch (e) {
@@ -1054,6 +1167,16 @@ function CleanSeekLite() {
     return () => window.clearTimeout(id)
   }, [BACKEND_URL, isSearching, query])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    // If the desktop dashboard is opened on a phone, bounce back.
+    if (variant === 'desktop' && isProbablyMobileDevice() && window.location.pathname.endsWith('/desktop')) {
+      window.location.href = `/cleanseek-x${window.location.search}`
+    }
+  }, [variant])
+
+  const isMobile = variant === 'mobile'
+
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
       <div className="w-full max-w-none px-3 sm:px-5 xl:px-10 2xl:px-14 py-8">
@@ -1217,7 +1340,10 @@ function CleanSeekLite() {
         </div>
 
         {/* Prompt modifiers — interactive parity with main `/cleanseek` (ResponseLengthSlider + tone + persona + comprehension + reasoning). */}
-        <details className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30" defaultOpen>
+        <details
+          className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30"
+          defaultOpen={!isMobile}
+        >
           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2">
               {promptModifierActiveCount > 0 ? (
@@ -1283,7 +1409,7 @@ function CleanSeekLite() {
                   />
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
                     <span>Brief</span>
-                    <span>Standard</span>
+                    <span>100w</span>
                     <span>In-depth</span>
                   </div>
                   <p className="text-[11px] text-slate-500">{RESPONSE_LENGTH_LEVELS[promptMods.responseLength]?.hint}</p>
@@ -1393,6 +1519,51 @@ function CleanSeekLite() {
               </div>
             </div>
 
+            <div className="rounded-xl border border-slate-700/60 bg-black/20 p-4">
+              <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Analysis mode</div>
+              <p className="mt-1 text-xs text-slate-400 leading-snug">
+                Optional synthesizer pass using a judge model. Default judge is <span className="text-slate-200 font-semibold">chatgpt</span>.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <select
+                  value={analysisMode}
+                  onChange={(e) => setAnalysisMode(e.target.value)}
+                  className="min-w-[220px] rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/40"
+                  aria-label="Analysis mode"
+                >
+                  <option value="none">None</option>
+                  {analysisModes.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={analysisJudge}
+                  onChange={(e) => setAnalysisJudge(e.target.value)}
+                  className="min-w-[200px] rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/40"
+                  aria-label="Analysis judge engine"
+                >
+                  {ENGINE_CATALOG.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      Judge: {e.label}
+                    </option>
+                  ))}
+                </select>
+
+                {analysisMode !== 'none' ? (
+                  <span className="rounded-xl border border-violet-500/35 bg-violet-500/10 px-3 py-2 text-xs font-black text-violet-100">
+                    Enabled
+                  </span>
+                ) : (
+                  <span className="rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-xs font-black text-slate-500">
+                    Off
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-3 rounded-xl border border-slate-700/60 bg-black/20 p-4">
               <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Reasoning style</div>
               <div className="flex flex-wrap gap-2">
@@ -1451,17 +1622,19 @@ function CleanSeekLite() {
         </details>
 
         {/* Engines — interactive picks; optional “My picks only” overrides preset bundles for every search. */}
-        <div className="mt-6 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Engines to run</div>
-              <p className="mt-1 max-w-2xl text-xs leading-snug text-slate-400">
-                <span className="font-semibold text-slate-300">My picks only</span> (default): Search runs exactly the engines you
-                toggle — what you see is what you get. <span className="font-semibold text-slate-300">Preset bundles</span> matches
-                main CleanSeek: Quick / Research / Web each ship a fixed provider list (All In uses your toggles).
-              </p>
-            </div>
-          </div>
+        {(() => {
+          const inner = (
+            <>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Engines to run</div>
+                  <p className="mt-1 max-w-2xl text-xs leading-snug text-slate-400">
+                    <span className="font-semibold text-slate-300">My picks only</span> (default): Search runs exactly the engines you
+                    toggle — what you see is what you get. <span className="font-semibold text-slate-300">Preset bundles</span>{' '}
+                    matches main CleanSeek: Quick / Research / Web each ship a fixed provider list (All In uses your toggles).
+                  </p>
+                </div>
+              </div>
 
           <div className="mt-4 flex flex-wrap gap-2 rounded-xl border border-slate-700/50 bg-black/25 p-1">
             <button
@@ -1533,7 +1706,23 @@ function CleanSeekLite() {
               )
             })}
           </div>
-        </div>
+            </>
+          )
+
+          if (isMobile) {
+            return (
+              <details className="mt-6 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 open:border-cyan-500/30">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
+                  <span>Engines to run</span>
+                  <span className="text-[11px] font-black text-slate-500">Tap to expand ▾</span>
+                </summary>
+                <div className="border-t border-slate-800/90 px-4 pb-4 pt-4">{inner}</div>
+              </details>
+            )
+          }
+
+          return <div className="mt-6 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 px-4 py-4">{inner}</div>
+        })()}
 
         {/* Presets */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1573,7 +1762,13 @@ function CleanSeekLite() {
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Results</span>
           </div>
-          <div className="grid w-full min-w-0 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
+          <div
+            className={
+              isMobile
+                ? 'grid w-full min-w-0 gap-4 grid-cols-1'
+                : 'grid w-full min-w-0 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]'
+            }
+          >
           {Object.keys(results).length === 0 ? (
             <div className="col-span-full rounded-2xl border border-dashed border-slate-700/80 bg-[#0A1128]/40 px-6 py-14 text-center text-sm text-slate-400">
               No results yet — run Search above, or open the demo library below.
