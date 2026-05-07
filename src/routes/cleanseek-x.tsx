@@ -695,12 +695,30 @@ function CleanSeekLite() {
     if (opts?.queryOverride != null) setQuery(raw)
     syncCleanseekUrl(raw, useLatest, activePreset)
 
-    const liveInstr = useLatest ? RECENCY_INSTRUCTION : ''
-    const qBuilt = composeCleanseekPrompt(raw, promptMods, liveInstr)
-
     abortRef.current?.abort()
     const ac = new AbortController()
     abortRef.current = ac
+
+    let augmentedRaw = raw
+    if (typeof window !== 'undefined') {
+      try {
+        const sr = await fetch(`${window.location.origin}/api/supplementary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: ac.signal,
+          body: JSON.stringify({ query: raw }),
+        })
+        if (sr.ok) {
+          const sj = (await sr.json()) as { prefix?: string }
+          if (sj.prefix?.trim()) augmentedRaw = `${sj.prefix.trim()}\n\n${raw}`
+        }
+      } catch {
+        /* supplementary is optional */
+      }
+    }
+
+    const liveInstr = useLatest ? RECENCY_INSTRUCTION : ''
+    const qBuilt = composeCleanseekPrompt(augmentedRaw, promptMods, liveInstr)
 
     setStreamError(null)
     setIsSearching(true)
@@ -766,7 +784,7 @@ function CleanSeekLite() {
           userId: streamUserId,
           searchSource: 'cleanseek',
           platform: 'web',
-          promptCharacterCount: raw.length,
+          promptCharacterCount: augmentedRaw.length,
           enabledEngineCount: enabledProviders.length || undefined,
           liveDataMode: useLatest,
           grokLive: useLatest,

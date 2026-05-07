@@ -19,6 +19,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
+import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
 
 const SuccessRoute = SuccessRouteImport.update({
   id: '/success',
@@ -70,6 +71,11 @@ const CleanseekXHistoryRoute = CleanseekXHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => CleanseekXRoute,
 } as any)
+const ApiSupplementaryRoute = ApiSupplementaryRouteImport.update({
+  id: '/api/supplementary',
+  path: '/api/supplementary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/api/supplementary'
     | '/cleanseek-x/history'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/api/supplementary'
     | '/cleanseek-x/history'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/api/supplementary'
     | '/cleanseek-x/history'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   SigninRoute: typeof SigninRoute
   SuccessRoute: typeof SuccessRoute
+  ApiSupplementaryRoute: typeof ApiSupplementaryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CleanseekXHistoryRouteImport
       parentRoute: typeof CleanseekXRoute
     }
+    '/api/supplementary': {
+      id: '/api/supplementary'
+      path: '/api/supplementary'
+      fullPath: '/api/supplementary'
+      preLoaderRoute: typeof ApiSupplementaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -256,6 +276,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   SigninRoute: SigninRoute,
   SuccessRoute: SuccessRoute,
+  ApiSupplementaryRoute: ApiSupplementaryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
