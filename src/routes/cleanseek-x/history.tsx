@@ -164,7 +164,13 @@ function CleanSeekXHistoryPage() {
         <div className="flex items-center gap-3">
           <button
             data-testid="history-back-button"
-            onClick={() => navigate({ to: '/cleanseek-x' })}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.href = '/cleanseek-x'
+                return
+              }
+              navigate({ to: '/cleanseek-x' })
+            }}
             className="inline-flex items-center justify-center h-10 w-10 rounded-2xl border border-slate-700 bg-slate-900/30 hover:bg-slate-800/50"
           >
             <ArrowLeft className="h-4 w-4 text-slate-200" />
@@ -214,12 +220,12 @@ function CleanSeekXHistoryPage() {
               placeholder="Filter searches…"
               className="w-full rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-500/50"
             />
-            <Link
-              to="/cleanseek-x"
+            <a
+              href="/cleanseek-x"
               className="inline-flex items-center justify-center rounded-2xl bg-cyan-500 text-[#050B14] px-5 py-3 text-sm font-black"
             >
               New search
-            </Link>
+            </a>
           </div>
 
           {err ? (

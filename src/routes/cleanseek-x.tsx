@@ -1142,12 +1142,12 @@ function CleanSeekLite() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
-            <Link
-              to="/cleanseek-x/history"
+            <a
+              href="/cleanseek-x/history"
               className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
             >
               History
-            </Link>
+            </a>
 
             <button
               type="button"
