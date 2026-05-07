@@ -53,11 +53,15 @@ const ENGINE_PICK_MODE_KEY = 'seekbox_cleanseek_x_engine_pick_mode_v1'
 type EnginePickMode = 'preset' | 'custom'
 
 function loadEnginePickMode(): EnginePickMode {
-  if (typeof window === 'undefined') return 'preset'
+  // Default **custom** when unset so toggles match what runs (avoids “Web” silently overriding picks).
+  if (typeof window === 'undefined') return 'custom'
   try {
-    return window.localStorage.getItem(ENGINE_PICK_MODE_KEY) === 'custom' ? 'custom' : 'preset'
+    const v = window.localStorage.getItem(ENGINE_PICK_MODE_KEY)
+    if (v === 'preset') return 'preset'
+    if (v === 'custom') return 'custom'
+    return 'custom'
   } catch {
-    return 'preset'
+    return 'custom'
   }
 }
 
@@ -106,6 +110,20 @@ function engineCountForPreset(preset: Preset, allInPool: string[]): number {
 function enginesRunningCount(preset: Preset, pickIds: string[], mode: EnginePickMode): number {
   if (mode === 'custom') return pickIds.length
   return engineCountForPreset(preset, pickIds)
+}
+
+/** Single source of truth: which provider ids we send (before Grok-live append). */
+function resolveSearchEngineIds(args: {
+  enginePickMode: EnginePickMode
+  activePreset: PresetId
+  enabledEngineIds: string[]
+  forceProvider?: string
+}): string[] {
+  if (args.forceProvider) return [args.forceProvider]
+  if (args.enginePickMode === 'custom') return [...args.enabledEngineIds]
+  const preset = PRESETS.find((p) => p.id === args.activePreset) ?? PRESETS[0]
+  if (preset.engineIds.length > 0) return [...preset.engineIds]
+  return [...args.enabledEngineIds]
 }
 
 const PROMPT_MODIFIERS_STORAGE_KEY = 'seekbox_cleanseek_x_prompt_modifiers_v1'
@@ -545,12 +563,25 @@ function CleanSeekLite() {
       const sp = new URLSearchParams(window.location.search)
       const q = sp.get('q')
       const latest = sp.get('latest')
-      const preset = sp.get('preset') as PresetId | null
+      const presetParam = sp.get('preset') as PresetId | null
+      const initialPreset: PresetId =
+        presetParam && PRESETS.some((p) => p.id === presetParam) ? presetParam : 'web'
+
       if (q != null && q.trim()) setQuery(q.trim())
       if (latest != null) setUseLatest(latest !== '0' && latest.toLowerCase() !== 'false')
-      if (preset && PRESETS.some((p) => p.id === preset)) setActivePreset(preset)
-      setEnabledEngineIds(loadEnabledEngines())
-      setEnginePickMode(loadEnginePickMode())
+
+      setActivePreset(initialPreset)
+
+      const pm = loadEnginePickMode()
+      setEnginePickMode(pm)
+      if (pm === 'preset') {
+        const pr = PRESETS.find((x) => x.id === initialPreset)
+        if (pr && pr.engineIds.length > 0) setEnabledEngineIds([...pr.engineIds])
+        else setEnabledEngineIds(loadEnabledEngines())
+      } else {
+        setEnabledEngineIds(loadEnabledEngines())
+      }
+
       setPromptMods(loadPromptMods())
     } catch {
       // ignore
@@ -580,14 +611,38 @@ function CleanSeekLite() {
     return n
   }, [promptMods])
 
-  const toggleEngineEnabled = useCallback((id: string) => {
-    setEnabledEngineIds((prev) => {
-      const has = prev.includes(id)
-      let next = has ? prev.filter((x) => x !== id) : [...prev, id]
-      if (next.length === 0) next = [id]
-      return next
-    })
-  }, [])
+  const idsActuallySent = useMemo(
+    () =>
+      resolveSearchEngineIds({
+        enginePickMode,
+        activePreset,
+        enabledEngineIds,
+      }),
+    [enginePickMode, activePreset, enabledEngineIds],
+  )
+
+  const presetLocksEngines =
+    enginePickMode === 'preset' &&
+    (PRESETS.find((p) => p.id === activePreset)?.engineIds.length ?? 0) > 0
+
+  const activePresetLabel = PRESETS.find((p) => p.id === activePreset)?.label ?? activePreset
+
+  const toggleEngineEnabled = useCallback(
+    (id: string) => {
+      // Changing toggles while Quick/Research/Web locks engines would lie about what runs — switch to custom.
+      if (enginePickMode === 'preset') {
+        const pr = PRESETS.find((p) => p.id === activePreset)
+        if (pr && pr.engineIds.length > 0) setEnginePickMode('custom')
+      }
+      setEnabledEngineIds((prev) => {
+        const has = prev.includes(id)
+        let next = has ? prev.filter((x) => x !== id) : [...prev, id]
+        if (next.length === 0) next = [id]
+        return next
+      })
+    },
+    [enginePickMode, activePreset],
+  )
 
   useEffect(() => {
     const sb = isSupabaseConfigured ? supabase : null
@@ -653,13 +708,12 @@ function CleanSeekLite() {
     setResults({})
     setIsDeepDive(Boolean(opts?.deepDive))
 
-    const preset = PRESETS.find((p) => p.id === activePreset) ?? PRESETS[0]
-
-    let enabledProviders: string[]
-    if (opts?.forceProvider) enabledProviders = [opts.forceProvider]
-    else if (enginePickMode === 'custom') enabledProviders = [...enabledEngineIds]
-    else if (preset.engineIds.length > 0) enabledProviders = [...preset.engineIds]
-    else enabledProviders = [...enabledEngineIds]
+    let enabledProviders = resolveSearchEngineIds({
+      enginePickMode,
+      activePreset,
+      enabledEngineIds,
+      forceProvider: opts?.forceProvider,
+    })
 
     if (useLatest && enabledProviders.length && !enabledProviders.includes('groksearch')) {
       enabledProviders = [...enabledProviders, 'groksearch']
@@ -1259,10 +1313,9 @@ function CleanSeekLite() {
             <div>
               <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Engines to run</div>
               <p className="mt-1 max-w-2xl text-xs leading-snug text-slate-400">
-                Toggle who participates in the next stream. Use{' '}
-                <span className="font-semibold text-slate-300">My picks only</span> when you want full control on every search;
-                use <span className="font-semibold text-slate-300">Preset bundles</span> to match main CleanSeek (Quick / Research /
-                Web keep fixed sets; All In uses your toggles).
+                <span className="font-semibold text-slate-300">My picks only</span> (default): Search runs exactly the engines you
+                toggle — what you see is what you get. <span className="font-semibold text-slate-300">Preset bundles</span> matches
+                main CleanSeek: Quick / Research / Web each ship a fixed provider list (All In uses your toggles).
               </p>
             </div>
           </div>
@@ -1270,7 +1323,11 @@ function CleanSeekLite() {
           <div className="mt-4 flex flex-wrap gap-2 rounded-xl border border-slate-700/50 bg-black/25 p-1">
             <button
               type="button"
-              onClick={() => setEnginePickMode('preset')}
+              onClick={() => {
+                setEnginePickMode('preset')
+                const pr = PRESETS.find((x) => x.id === activePreset)
+                if (pr && pr.engineIds.length > 0) setEnabledEngineIds([...pr.engineIds])
+              }}
               className={`flex-1 min-w-[140px] rounded-lg px-3 py-2 text-center text-xs font-black transition-colors sm:flex-none ${
                 enginePickMode === 'preset'
                   ? 'bg-cyan-500/20 text-cyan-50 ring-1 ring-cyan-500/40'
@@ -1293,6 +1350,25 @@ function CleanSeekLite() {
               My picks only
             </button>
           </div>
+
+          <div className="mt-3 rounded-xl border border-slate-700/60 bg-slate-950/30 px-3 py-2 text-[11px] leading-snug text-slate-400">
+            <span className="font-black uppercase tracking-wide text-slate-500">Next request · </span>
+            <span className="font-mono text-slate-200">{idsActuallySent.join(', ') || '—'}</span>
+            {useLatest && idsActuallySent.length && !idsActuallySent.includes('groksearch') ? (
+              <span className="text-slate-500"> (+ groksearch when Grok Live is on)</span>
+            ) : null}
+          </div>
+
+          {presetLocksEngines ? (
+            <div
+              className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-3 py-2 text-xs leading-snug text-amber-100"
+              role="status"
+            >
+              <span className="font-black text-amber-200">{activePresetLabel}</span> locks providers while{' '}
+              <strong className="text-amber-50">Preset bundles</strong> is on — always matches the list above. Changing any toggle
+              switches you to <strong className="text-amber-50">My picks only</strong> so Search respects only what you select.
+            </div>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap gap-2">
             {ENGINE_CATALOG.map((eng) => {
@@ -1327,6 +1403,9 @@ function CleanSeekLite() {
                 onClick={() => {
                   setActivePreset(p.id)
                   syncCleanseekUrl(query, useLatest, p.id)
+                  if (enginePickMode === 'preset' && p.engineIds.length > 0) {
+                    setEnabledEngineIds([...p.engineIds])
+                  }
                 }}
                 className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-black border ${
                   activePreset === p.id
