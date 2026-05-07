@@ -205,8 +205,9 @@ function CleanSeekXHistoryPage() {
             <div className="mt-6 space-y-3">
               {filtered.map((r) => {
                 const q = (r.query ?? '').trim()
-                const to = q
-                  ? `/cleanseek-x?q=${encodeURIComponent(q)}&latest=1`
+                const to = q ? `/cleanseek-x?q=${encodeURIComponent(q)}&latest=1` : '/cleanseek-x?latest=1'
+                const runTo = q
+                  ? `/cleanseek-x?q=${encodeURIComponent(q)}&latest=1&autorun=1`
                   : '/cleanseek-x?latest=1'
 
                 return (
@@ -235,6 +236,15 @@ function CleanSeekXHistoryPage() {
                       >
                         <Play className="h-4 w-4" />
                         Open
+                      </a>
+
+                      <a
+                        data-testid={`history-run-${r.id}`}
+                        href={runTo}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-cyan-500 text-[#050B14] px-4 py-2 text-sm font-black hover:opacity-95"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Run again
                       </a>
 
                       <button

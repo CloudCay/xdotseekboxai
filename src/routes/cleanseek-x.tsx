@@ -13,6 +13,7 @@ import {
 } from '../lib/cleanseekPromptModifiers'
 import { LogOut, Mic, Play, Search, Sparkles, UserRound } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { ensureAccount } from '../lib/ensureAccount'
 
 export const Route = createFileRoute('/cleanseek-x')({
   component: CleanSeekLite,
@@ -529,6 +530,7 @@ function CleanSeekLite() {
   const abortRef = useRef<AbortController | null>(null)
   const queryInputRef = useRef<HTMLInputElement | null>(null)
   const hydratedFromUrlRef = useRef<boolean>(false)
+  const autorunRef = useRef<boolean>(false)
   /** Accumulate streamed deltas without triggering a React render per token (aligned with mobile `useStreamingSearch`). */
   const streamAccRef = useRef<Record<string, EngineResult>>({})
   const streamRafRef = useRef<number | null>(null)
@@ -563,6 +565,7 @@ function CleanSeekLite() {
       const sp = new URLSearchParams(window.location.search)
       const q = sp.get('q')
       const latest = sp.get('latest')
+      autorunRef.current = sp.get('autorun') === '1'
       const presetParam = sp.get('preset') as PresetId | null
       const initialPreset: PresetId =
         presetParam && PRESETS.some((p) => p.id === presetParam) ? presetParam : 'web'
@@ -660,6 +663,11 @@ function CleanSeekLite() {
       setAuthUserId(uid)
       setRoleLabel(null)
       if (uid) {
+        try {
+          await ensureAccount(u as any)
+        } catch {
+          // non-fatal
+        }
         const role = await fetchAccountRoleLabel(uid)
         if (!cancelled) setRoleLabel(role)
       }
@@ -676,6 +684,36 @@ function CleanSeekLite() {
       sub.subscription.unsubscribe()
     }
   }, [])
+
+  const saveHistory = useCallback(
+    async (queryText: string, enabledProviders: string[]) => {
+      const sb = isSupabaseConfigured ? supabase : null
+      if (!sb) return
+      try {
+        const { data } = await sb.auth.getUser()
+        const u = data.user
+        if (!u) return
+
+        const clientId = getClientId()
+        const searchMode = `cleanseekx_${activePreset}_${enginePickMode}_${useLatest ? 'latest1' : 'latest0'}_${enabledProviders.length}`
+
+        await sb
+          .from('search_sessions')
+          .insert({
+            client_id: clientId,
+            session_id: clientId,
+            query: queryText,
+            search_mode: searchMode,
+            fun_mode: false,
+            search_source: 'web',
+            user_id: u.id,
+          } as any)
+      } catch {
+        // history is best-effort
+      }
+    },
+    [activePreset, enginePickMode, useLatest],
+  )
 
   const signOut = async () => {
     const sb = isSupabaseConfigured ? supabase : null
@@ -936,6 +974,10 @@ function CleanSeekLite() {
       }
       flushStreamFrame()
       setIsSearching(false)
+
+      if (!ac.signal.aborted && raw.trim()) {
+        void saveHistory(raw.trim(), enabledProviders)
+      }
     }
   }
 
@@ -956,6 +998,20 @@ function CleanSeekLite() {
     queryInputRef.current?.focus()
     queryInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!autorunRef.current) return
+    if (!BACKEND_URL) return
+    if (isSearching) return
+    if (!query.trim()) return
+    autorunRef.current = false
+    // Defer a tick so the input state is committed before running.
+    const id = window.setTimeout(() => {
+      if (!isSearching && query.trim()) void run()
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [BACKEND_URL, isSearching, query])
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
@@ -998,12 +1054,40 @@ function CleanSeekLite() {
               onKeyDown={(e) => {
                 if (e.key !== 'Enter' || e.shiftKey) return
                 e.preventDefault()
-                if (!isSearching && BACKEND_URL && query.trim()) void run()
+                if (!BACKEND_URL) return
+                if (isSearching) {
+                  stop()
+                  return
+                }
+                if (!query.trim()) return
+                void run()
               }}
               placeholder="Ask once… get all answers side-by-side"
               className="min-w-0 flex-1 bg-transparent outline-none text-slate-100 placeholder-slate-500"
               aria-label="Search query"
             />
+            {isSearching ? (
+              <button
+                type="button"
+                onClick={stop}
+                className="shrink-0 rounded-xl border border-slate-600 bg-slate-900/40 px-3 py-1.5 text-xs font-black text-slate-200 hover:bg-slate-800/60"
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void run()}
+                disabled={
+                  !BACKEND_URL ||
+                  (enginePickMode === 'custom' && enabledEngineIds.length === 0) ||
+                  (enginePickMode === 'preset' && activePreset === 'allin' && enabledEngineIds.length === 0)
+                }
+                className="shrink-0 rounded-xl bg-cyan-500 text-[#050B14] px-4 py-1.5 text-xs font-black disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Search
+              </button>
+            )}
             <button
               type="button"
               disabled
@@ -1410,7 +1494,7 @@ function CleanSeekLite() {
           </div>
         </div>
 
-        {/* Presets + Search */}
+        {/* Presets */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {PRESETS.map((p) => {
             const n = enginesRunningCount(p, enabledEngineIds, enginePickMode)
@@ -1441,27 +1525,6 @@ function CleanSeekLite() {
               </button>
             )
           })}
-
-          <div className="ml-auto flex gap-2">
-            {isSearching ? (
-              <button type="button" onClick={stop} className="rounded-2xl bg-slate-800 px-5 py-2 text-sm font-black">
-                Stop
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void run()}
-                disabled={
-                  !BACKEND_URL ||
-                  (enginePickMode === 'custom' && enabledEngineIds.length === 0) ||
-                  (enginePickMode === 'preset' && activePreset === 'allin' && enabledEngineIds.length === 0)
-                }
-                className="rounded-2xl bg-cyan-500 text-[#050B14] px-5 py-2 text-sm font-black disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                Search
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Results — above demos; full-width responsive grid */}
