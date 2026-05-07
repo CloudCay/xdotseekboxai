@@ -18,8 +18,57 @@ const PRESETS: Preset[] = [
   { id: 'quick', label: 'Quick', emoji: '⚡', engineIds: ['chatgpt'] },
   { id: 'research', label: 'Research', emoji: '🔬', engineIds: ['claude', 'chatgpt', 'gemini'] },
   { id: 'web', label: 'Web', emoji: '🌐', engineIds: ['tavily', 'chatgptsearch', 'brave', 'groksearch'] },
-  { id: 'allin', label: 'All In', emoji: '🚀', engineIds: [] }, // backend interprets [] as "use defaults" (if supported)
+  /** Empty list = use every engine that’s checked in “Engines for All In” (same rule as main `/cleanseek`). */
+  { id: 'allin', label: 'All In', emoji: '🚀', engineIds: [] },
 ]
+
+/** Must stay aligned with backend `enabledProviders` ids (see mobile `DEFAULT_ENGINES`; omit `wiki`). */
+const ENGINE_CATALOG: { id: string; label: string }[] = [
+  { id: 'tavily', label: 'Tavily' },
+  { id: 'chatgpt', label: 'ChatGPT' },
+  { id: 'claude', label: 'Claude' },
+  { id: 'gemini', label: 'Gemini' },
+  { id: 'grok', label: 'Grok' },
+  { id: 'grok4', label: 'Grok 4' },
+  { id: 'brave', label: 'Brave' },
+  { id: 'chatgptsearch', label: 'GPT Search' },
+  { id: 'groksearch', label: 'Grok Web' },
+  { id: 'grokx', label: 'Grok X' },
+]
+
+const ENABLED_ENGINES_STORAGE_KEY = 'seekbox_cleanseek_x_enabled_engines_v1'
+
+function defaultEnabledEngineIds(): string[] {
+  return ENGINE_CATALOG.map((e) => e.id)
+}
+
+function loadEnabledEngines(): string[] {
+  if (typeof window === 'undefined') return defaultEnabledEngineIds()
+  try {
+    const raw = window.localStorage.getItem(ENABLED_ENGINES_STORAGE_KEY)
+    if (!raw) return defaultEnabledEngineIds()
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed) || parsed.length === 0) return defaultEnabledEngineIds()
+    const allowed = new Set(ENGINE_CATALOG.map((e) => e.id))
+    const filtered = parsed.filter((id): id is string => typeof id === 'string' && allowed.has(id))
+    return filtered.length ? filtered : defaultEnabledEngineIds()
+  } catch {
+    return defaultEnabledEngineIds()
+  }
+}
+
+function saveEnabledEngines(ids: string[]) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(ENABLED_ENGINES_STORAGE_KEY, JSON.stringify(ids))
+  } catch {
+    /* noop */
+  }
+}
+
+function engineCountForPreset(preset: Preset, allInPool: string[]): number {
+  return preset.engineIds.length > 0 ? preset.engineIds.length : allInPool.length
+}
 
 type ShowcasePrompt = { text: string; featured?: boolean; hint?: string }
 
@@ -334,6 +383,10 @@ function CleanSeekLite() {
   const [query, setQuery] = useState<string>('')
   const [useLatest, setUseLatest] = useState<boolean>(true)
   const [activePreset, setActivePreset] = useState<PresetId>('web')
+  /** Engines included when preset is All In — persisted like main CleanSeek’s settings engines. */
+  const [enabledEngineIds, setEnabledEngineIds] = useState<string[]>(() => loadEnabledEngines())
+  /** Order providers for the results grid (matches last request). */
+  const resultOrderRef = useRef<string[]>([])
   const [isSearching, setIsSearching] = useState<boolean>(false)
   const [results, setResults] = useState<Record<string, EngineResult>>({})
   const [isDeepDive, setIsDeepDive] = useState<boolean>(false)
@@ -382,9 +435,23 @@ function CleanSeekLite() {
       if (q != null && q.trim()) setQuery(q.trim())
       if (latest != null) setUseLatest(latest !== '0' && latest.toLowerCase() !== 'false')
       if (preset && PRESETS.some((p) => p.id === preset)) setActivePreset(preset)
+      setEnabledEngineIds(loadEnabledEngines())
     } catch {
       // ignore
     }
+  }, [])
+
+  useEffect(() => {
+    saveEnabledEngines(enabledEngineIds)
+  }, [enabledEngineIds])
+
+  const toggleEngineEnabled = useCallback((id: string) => {
+    setEnabledEngineIds((prev) => {
+      const has = prev.includes(id)
+      let next = has ? prev.filter((x) => x !== id) : [...prev, id]
+      if (next.length === 0) next = [id]
+      return next
+    })
   }, [])
 
   useEffect(() => {
@@ -451,11 +518,23 @@ function CleanSeekLite() {
     setIsDeepDive(Boolean(opts?.deepDive))
 
     const preset = PRESETS.find((p) => p.id === activePreset) ?? PRESETS[0]
-    let enabledProviders = preset.engineIds.length ? preset.engineIds : []
+
+    let enabledProviders: string[]
     if (opts?.forceProvider) enabledProviders = [opts.forceProvider]
+    else if (preset.engineIds.length > 0) enabledProviders = [...preset.engineIds]
+    else enabledProviders = [...enabledEngineIds]
+
     if (useLatest && enabledProviders.length && !enabledProviders.includes('groksearch')) {
       enabledProviders = [...enabledProviders, 'groksearch']
     }
+
+    if (!opts?.forceProvider && enabledProviders.length === 0) {
+      setIsSearching(false)
+      setStreamError('Turn on at least one engine below for All In, or select Quick / Research / Web.')
+      return
+    }
+
+    resultOrderRef.current = [...enabledProviders]
 
     // Pre-create loading cards — mirror into stream accumulator for RAF-batched streaming updates.
     if (enabledProviders.length) {
@@ -729,7 +808,13 @@ function CleanSeekLite() {
 
             <button
               type="button"
-              onClick={() => setUseLatest((v) => !v)}
+              onClick={() =>
+                setUseLatest((v) => {
+                  const next = !v
+                  syncCleanseekUrl(query, next, activePreset)
+                  return next
+                })
+              }
               className={`rounded-2xl px-5 py-3 text-sm font-black border ${
                 useLatest
                   ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.15)]'
@@ -801,34 +886,79 @@ function CleanSeekLite() {
           </span>
         </div>
 
-        {/* Presets + actions */}
+        {/* Presets + actions — presets mirror main CleanSeek; All In uses the checked engines row below. */}
         <div className="mt-6 flex flex-wrap items-center gap-2">
-          {PRESETS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setActivePreset(p.id)}
-              className={`rounded-2xl px-4 py-2 text-sm font-black border ${
-                activePreset === p.id ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-100' : 'border-slate-700 bg-slate-900/30 text-slate-200'
-              }`}
-            >
-              {p.emoji} {p.label}
-            </button>
-          ))}
+          {PRESETS.map((p) => {
+            const n = engineCountForPreset(p, enabledEngineIds)
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setActivePreset(p.id)
+                  syncCleanseekUrl(query, useLatest, p.id)
+                }}
+                className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-black border ${
+                  activePreset === p.id
+                    ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-100'
+                    : 'border-slate-700 bg-slate-900/30 text-slate-200'
+                }`}
+                aria-pressed={activePreset === p.id}
+              >
+                <span>
+                  {p.emoji} {p.label}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 tabular-nums">
+                  {n} engine{n !== 1 ? 's' : ''}
+                </span>
+              </button>
+            )
+          })}
 
           <div className="ml-auto flex gap-2">
             {isSearching ? (
-              <button onClick={stop} className="rounded-2xl bg-slate-800 px-5 py-2 text-sm font-black">
+              <button type="button" onClick={stop} className="rounded-2xl bg-slate-800 px-5 py-2 text-sm font-black">
                 Stop
               </button>
             ) : (
               <button
-                onClick={() => run()}
-                disabled={!BACKEND_URL}
+                type="button"
+                onClick={() => void run()}
+                disabled={!BACKEND_URL || (activePreset === 'allin' && enabledEngineIds.length === 0)}
                 className="rounded-2xl bg-cyan-500 text-[#050B14] px-5 py-2 text-sm font-black disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Search
               </button>
             )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 px-4 py-3">
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+            Engines for All In
+          </div>
+          <p className="mt-1 text-xs text-slate-400 leading-snug">
+            Quick / Research / Web always use their fixed sets above. All In runs whichever engines you check here — same idea as the main CleanSeek page.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ENGINE_CATALOG.map((eng) => {
+              const on = enabledEngineIds.includes(eng.id)
+              return (
+                <button
+                  key={eng.id}
+                  type="button"
+                  onClick={() => toggleEngineEnabled(eng.id)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-black border transition-colors ${
+                    on
+                      ? 'border-cyan-500/45 bg-cyan-500/15 text-cyan-50'
+                      : 'border-slate-700 bg-slate-950/40 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                  }`}
+                  aria-pressed={on}
+                >
+                  {eng.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -844,12 +974,17 @@ function CleanSeekLite() {
             </div>
           ) : (
             (() => {
-              const order = useLatest
-                ? ['groksearch', 'tavily', 'chatgpt', 'claude', 'gemini', 'chatgptsearch', 'brave']
-                : ['tavily', 'chatgpt', 'claude', 'gemini', 'chatgptsearch', 'brave', 'groksearch']
+              const fallback = useLatest
+                ? ['groksearch', 'tavily', 'chatgpt', 'claude', 'gemini', 'chatgptsearch', 'brave', 'grok', 'grok4', 'grokx']
+                : ['tavily', 'chatgpt', 'claude', 'gemini', 'chatgptsearch', 'brave', 'groksearch', 'grok', 'grok4', 'grokx']
+              const order = resultOrderRef.current.length ? resultOrderRef.current : fallback
 
               const items = Object.values(results)
-              items.sort((a, b) => order.indexOf(a.provider) - order.indexOf(b.provider))
+              items.sort((a, b) => {
+                const ia = order.indexOf(a.provider)
+                const ib = order.indexOf(b.provider)
+                return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+              })
 
               return items.map((r) => {
                 const isGrokLive = useLatest && r.provider === 'groksearch'
