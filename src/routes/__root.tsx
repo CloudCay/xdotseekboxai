@@ -97,17 +97,21 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-white text-slate-900 antialiased dark:bg-black dark:text-white">
-        <div className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur dark:border-slate-800/70 dark:bg-black/40">
-          <div className="mx-auto flex max-w-7xl items-center justify-end gap-2 px-3 py-2 sm:px-5">
-          <div className="inline-flex overflow-hidden rounded-xl border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950/40">
+        {/* Floating accessibility controls — avoids competing with page chrome / full-width headers */}
+        <div
+          className="fixed top-3 right-3 z-[100] flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-slate-300/90 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-slate-600 dark:bg-slate-950/90"
+          role="toolbar"
+          aria-label="Theme and text size"
+        >
+          <div className="inline-flex overflow-hidden rounded-xl border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900/80">
             <button
               type="button"
               onClick={() => setTheme('light')}
               className={`px-3 py-1.5 text-xs font-black transition-colors ${
                 theme === 'light'
                   ? 'bg-black text-white'
-                  : 'bg-transparent text-slate-700 hover:bg-slate-100'
-              } dark:${theme === 'light' ? '' : 'text-slate-300 hover:bg-slate-900/40'}`}
+                  : 'bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/60'
+              }`}
               aria-pressed={theme === 'light'}
               aria-label="Light theme"
             >
@@ -118,42 +122,43 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               onClick={() => setTheme('dark')}
               className={`px-3 py-1.5 text-xs font-black transition-colors ${
                 theme === 'dark'
-                  ? 'bg-black text-white'
-                  : 'bg-transparent text-slate-700 hover:bg-slate-100'
-              } dark:${theme === 'dark' ? '' : 'text-slate-300 hover:bg-slate-900/40'}`}
+                  ? 'bg-white text-black dark:bg-white dark:text-black'
+                  : 'bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/60'
+              }`}
               aria-pressed={theme === 'dark'}
               aria-label="Dark theme"
             >
               Dark
             </button>
           </div>
-          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-          <button
-            type="button"
-            onClick={() => setFont((f) => (f > 0 ? ((f - 1) as FontScale) : 0))}
-            className="rounded-xl border border-slate-200 bg-white/70 px-2.5 py-1.5 hover:bg-white dark:border-slate-700 dark:bg-slate-900/40 dark:hover:bg-slate-800/60"
-            aria-label="Decrease font size"
-            disabled={font === 0}
-          >
-            A-
-          </button>
-          <button
-            type="button"
-            onClick={() => setFont(0)}
-            className="rounded-xl border border-slate-200 bg-white/70 px-2.5 py-1.5 hover:bg-white dark:border-slate-700 dark:bg-slate-900/40 dark:hover:bg-slate-800/60"
-            aria-label="Reset font size"
-          >
-            A
-          </button>
-          <button
-            type="button"
-            onClick={() => setFont((f) => (f < 2 ? ((f + 1) as FontScale) : 2))}
-            className="rounded-xl border border-slate-200 bg-white/70 px-2.5 py-1.5 hover:bg-white dark:border-slate-700 dark:bg-slate-900/40 dark:hover:bg-slate-800/60"
-            aria-label="Increase font size"
-            disabled={font === 2}
-          >
-            A+
-          </button>
+          <div className="hidden h-6 w-px bg-slate-200 sm:block dark:bg-slate-600" />
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setFont((f) => (f > 0 ? ((f - 1) as FontScale) : 0))}
+              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
+              aria-label="Decrease font size"
+              disabled={font === 0}
+            >
+              A-
+            </button>
+            <button
+              type="button"
+              onClick={() => setFont(0)}
+              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
+              aria-label="Reset font size"
+            >
+              A
+            </button>
+            <button
+              type="button"
+              onClick={() => setFont((f) => (f < 2 ? ((f + 1) as FontScale) : 2))}
+              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
+              aria-label="Increase font size"
+              disabled={font === 2}
+            >
+              A+
+            </button>
           </div>
         </div>
         {children}
