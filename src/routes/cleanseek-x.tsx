@@ -60,12 +60,49 @@ const ENGINE_CATALOG: { id: string; label: string }[] = [
 
 const ENABLED_ENGINES_STORAGE_KEY = 'seekbox_cleanseek_x_enabled_engines_v1'
 const ENGINE_PICK_MODE_KEY = 'seekbox_cleanseek_x_engine_pick_mode_v1'
+const PRESET_ENGINES_STORAGE_KEY = 'seekbox_cleanseek_x_preset_engines_v1'
 const XMARKS_ENABLED_ENGINES_STORAGE_KEY = 'seekbox_xmarks_enabled_engines_v1'
 const XMARKS_ENGINE_PICK_MODE_KEY = 'seekbox_xmarks_engine_pick_mode_v1'
 const XMARKS_PROMPT_MODIFIERS_STORAGE_KEY = 'seekbox_xmarks_prompt_modifiers_v1'
 
 /** `preset`: Quick/Web/Research use fixed lists; All In uses toggles. `custom`: always use toggles. */
 type EnginePickMode = 'preset' | 'custom'
+
+type PresetEngineOverrides = Partial<Record<PresetId, string[]>>
+
+function loadPresetEngineOverrides(): PresetEngineOverrides {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(PRESET_ENGINES_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') return {}
+
+    const allowed = new Set(ENGINE_CATALOG.map((e) => e.id))
+    const out: PresetEngineOverrides = {}
+
+    for (const p of PRESETS) {
+      if (p.id === 'allin') continue
+      const v = (parsed as any)[p.id] as unknown
+      if (!Array.isArray(v)) continue
+      const ids = v.filter((id): id is string => typeof id === 'string' && allowed.has(id))
+      if (ids.length) out[p.id] = ids
+    }
+
+    return out
+  } catch {
+    return {}
+  }
+}
+
+function savePresetEngineOverrides(next: PresetEngineOverrides) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(PRESET_ENGINES_STORAGE_KEY, JSON.stringify(next))
+  } catch {
+    /* noop */
+  }
+}
 
 function loadEnginePickMode(): EnginePickMode {
   // Default **custom** when unset so toggles match what runs (avoids “Web” silently overriding picks).
@@ -179,10 +216,12 @@ function resolveSearchEngineIds(args: {
   activePreset: PresetId
   enabledEngineIds: string[]
   forceProvider?: string
+  presets?: Preset[]
 }): string[] {
   if (args.forceProvider) return [args.forceProvider]
   if (args.enginePickMode === 'custom') return [...args.enabledEngineIds]
-  const preset = PRESETS.find((p) => p.id === args.activePreset) ?? PRESETS[0]
+  const presets = args.presets ?? PRESETS
+  const preset = presets.find((p) => p.id === args.activePreset) ?? presets[0]
   if (preset.engineIds.length > 0) return [...preset.engineIds]
   return [...args.enabledEngineIds]
 }
@@ -1530,6 +1569,9 @@ export function CleanSeekLite({
     if (loaded.length) return loaded
     return defaultEnabledEngineIds && defaultEnabledEngineIds.length ? defaultEnabledEngineIds : loaded
   })
+  const [presetEngineOverrides, setPresetEngineOverrides] = useState<PresetEngineOverrides>(() =>
+    loadPresetEngineOverrides(),
+  )
   /** When `custom`, every search uses `enabledEngineIds`; when `preset`, only All In does. */
   const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => {
     if (typeof window === 'undefined') return defaultEnginePickMode ?? loadEnginePickMode()
@@ -1607,7 +1649,7 @@ export function CleanSeekLite({
       const pm = loadEnginePickModeFromKey(keys.enginePickModeKey)
       setEnginePickMode(pm)
       if (pm === 'preset') {
-        const pr = PRESETS.find((x) => x.id === initialPreset)
+        const pr = presets.find((x) => x.id === initialPreset)
         if (pr && pr.engineIds.length > 0) setEnabledEngineIds([...pr.engineIds])
         else setEnabledEngineIds(loadEnabledEnginesFromKey(keys.enabledEnginesKey))
       } else {
@@ -1621,7 +1663,7 @@ export function CleanSeekLite({
     } catch {
       // ignore
     }
-  }, [defaultEnabledEngineIds, defaultPreset, keys.enabledEnginesKey, keys.enginePickModeKey, keys.promptModsKey])
+  }, [defaultEnabledEngineIds, defaultPreset, keys.enabledEnginesKey, keys.enginePickModeKey, keys.promptModsKey, presets])
 
   useEffect(() => {
     savePromptModsToKey(keys.promptModsKey, promptMods)
@@ -1634,6 +1676,93 @@ export function CleanSeekLite({
   useEffect(() => {
     saveEnginePickModeToKey(keys.enginePickModeKey, enginePickMode)
   }, [enginePickMode, keys.enginePickModeKey])
+
+  const presets = useMemo(() => {
+    return PRESETS.map((p) => {
+      if (p.id === 'allin') return p
+      const o = presetEngineOverrides[p.id]
+      return o && o.length ? { ...p, engineIds: [...o] } : p
+    })
+  }, [presetEngineOverrides])
+
+  // Preset pill long-press editor
+  const [editingPresetId, setEditingPresetId] = useState<PresetId | null>(null)
+  const [editingEngineIds, setEditingEngineIds] = useState<string[]>([])
+  const longPressTimerRef = useRef<number | null>(null)
+  const didLongPressRef = useRef<boolean>(false)
+
+  const stopPresetLongPress = useCallback(() => {
+    if (longPressTimerRef.current != null) {
+      window.clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
+  const closePresetEditor = useCallback(() => {
+    setEditingPresetId(null)
+    setEditingEngineIds([])
+    setTimeout(() => {
+      didLongPressRef.current = false
+    }, 0)
+  }, [])
+
+  const openPresetEditor = useCallback(
+    (pid: PresetId) => {
+      didLongPressRef.current = true
+      setEditingPresetId(pid)
+      if (pid === 'allin') {
+        setEditingEngineIds([...enabledEngineIds])
+        return
+      }
+      const pr = presets.find((x) => x.id === pid) ?? PRESETS[0]
+      setEditingEngineIds(pr.engineIds.length ? [...pr.engineIds] : [...enabledEngineIds])
+    },
+    [enabledEngineIds, presets],
+  )
+
+  const startPresetLongPress = useCallback(
+    (pid: PresetId) => {
+      stopPresetLongPress()
+      longPressTimerRef.current = window.setTimeout(() => openPresetEditor(pid), 550) as unknown as number
+    },
+    [openPresetEditor, stopPresetLongPress],
+  )
+
+  const toggleEditingEngine = useCallback((id: string) => {
+    setEditingEngineIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }, [])
+
+  const savePresetEditor = useCallback(() => {
+    if (!editingPresetId) return
+    const allowed = new Set(ENGINE_CATALOG.map((e) => e.id))
+    const nextIds = editingEngineIds.filter((id) => allowed.has(id))
+
+    if (editingPresetId === 'allin') {
+      setEnabledEngineIds(nextIds)
+      saveEnabledEnginesToKey(keys.enabledEnginesKey, nextIds)
+      closePresetEditor()
+      return
+    }
+
+    const nextOverrides: PresetEngineOverrides = { ...presetEngineOverrides, [editingPresetId]: nextIds }
+    setPresetEngineOverrides(nextOverrides)
+    savePresetEngineOverrides(nextOverrides)
+
+    if (enginePickMode === 'preset' && activePreset === editingPresetId) {
+      setEnabledEngineIds([...nextIds])
+      saveEnabledEnginesToKey(keys.enabledEnginesKey, nextIds)
+    }
+
+    closePresetEditor()
+  }, [
+    activePreset,
+    closePresetEditor,
+    editingEngineIds,
+    editingPresetId,
+    enginePickMode,
+    keys.enabledEnginesKey,
+    presetEngineOverrides,
+  ])
 
   const promptModifierActiveCount = useMemo(() => {
     let n = 0
@@ -1652,15 +1781,16 @@ export function CleanSeekLite({
         enginePickMode,
         activePreset,
         enabledEngineIds,
+        presets,
       }),
-    [enginePickMode, activePreset, enabledEngineIds],
+    [enginePickMode, activePreset, enabledEngineIds, presets],
   )
 
   const presetLocksEngines =
     enginePickMode === 'preset' &&
-    (PRESETS.find((p) => p.id === activePreset)?.engineIds.length ?? 0) > 0
+    (presets.find((p) => p.id === activePreset)?.engineIds.length ?? 0) > 0
 
-  const activePresetLabel = PRESETS.find((p) => p.id === activePreset)?.label ?? activePreset
+  const activePresetLabel = presets.find((p) => p.id === activePreset)?.label ?? activePreset
 
   const toggleEngineEnabled = useCallback(
     (id: string) => {
@@ -1882,6 +2012,7 @@ export function CleanSeekLite({
       activePreset,
       enabledEngineIds,
       forceProvider: opts?.forceProvider,
+      presets,
     })
     if (useLatest && enabledProvidersPreview.length && !enabledProvidersPreview.includes('groksearch')) {
       enabledProvidersPreview = [...enabledProvidersPreview, 'groksearch']
@@ -1903,6 +2034,7 @@ export function CleanSeekLite({
       activePreset,
       enabledEngineIds,
       forceProvider: opts?.forceProvider,
+      presets,
     })
 
     if (useLatest && enabledProviders.length && !enabledProviders.includes('groksearch')) {
@@ -2784,19 +2916,28 @@ export function CleanSeekLite({
         {/* Presets — hidden in RabbitHole view (results-only). */}
         {!isRabbitHole ? (
           <div className="mt-4 flex flex-wrap items-center gap-2">
-          {PRESETS.map((p) => {
+          {presets.map((p) => {
             const n = enginesRunningCount(p, enabledEngineIds, enginePickMode)
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => {
+                  if (didLongPressRef.current) return
                   setActivePreset(p.id)
                   syncCleanseekUrl(query, useLatest, p.id)
                   if (enginePickMode === 'preset' && p.engineIds.length > 0) {
                     setEnabledEngineIds([...p.engineIds])
                   }
                 }}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  openPresetEditor(p.id)
+                }}
+                onPointerDown={() => startPresetLongPress(p.id)}
+                onPointerUp={stopPresetLongPress}
+                onPointerCancel={stopPresetLongPress}
+                onPointerLeave={stopPresetLongPress}
                 className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-black border ${
                   activePreset === p.id
                     ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-100'
@@ -2813,6 +2954,86 @@ export function CleanSeekLite({
               </button>
             )
           })}
+          </div>
+        ) : null}
+
+        {editingPresetId ? (
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit preset engines"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) closePresetEditor()
+            }}
+          >
+            <div className="w-full max-w-lg rounded-3xl border border-slate-700/70 bg-[#0A1128]/95 backdrop-blur-2xl p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-lg font-black">Edit engines</div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Preset: <span className="font-mono">{editingPresetId}</span> · Long-press any preset pill to edit
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePresetEditor}
+                  className="rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs font-black text-slate-200"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {ENGINE_CATALOG.map((eng) => {
+                  const on = editingEngineIds.includes(eng.id)
+                  return (
+                    <button
+                      key={eng.id}
+                      type="button"
+                      onClick={() => toggleEditingEngine(eng.id)}
+                      className={`rounded-2xl px-3 py-2 text-xs font-black border transition-colors ${
+                        on
+                          ? 'border-cyan-500/45 bg-cyan-500/15 text-cyan-50'
+                          : 'border-slate-700 bg-slate-950/40 text-slate-300 hover:border-slate-600'
+                      }`}
+                      aria-pressed={on}
+                    >
+                      {eng.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-xs text-slate-400">
+                  Selected: <span className="font-black text-slate-200 tabular-nums">{editingEngineIds.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingEngineIds(defaultEnabledEngineIds())}
+                    className="rounded-2xl border border-slate-700 bg-slate-950/30 px-4 py-2 text-xs font-black text-slate-200"
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingEngineIds([])}
+                    className="rounded-2xl border border-slate-700 bg-slate-950/30 px-4 py-2 text-xs font-black text-slate-200"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={savePresetEditor}
+                    className="rounded-2xl bg-cyan-500 px-5 py-2 text-xs font-black text-[#050B14]"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         ) : null}
 
