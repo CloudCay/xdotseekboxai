@@ -206,8 +206,10 @@ function engineCountForPreset(preset: Preset, allInPool: string[]): number {
 
 /** How many engines will run for this preset pill label (matches `run()` resolution). */
 function enginesRunningCount(preset: Preset, pickIds: string[], mode: EnginePickMode): number {
-  if (mode === 'custom') return pickIds.length
-  return engineCountForPreset(preset, pickIds)
+  // Show per-preset selection even when "My picks only" is active.
+  // Only presets with an empty engine list (All In) should reflect the global picks count.
+  if (preset.engineIds.length > 0) return preset.engineIds.length
+  return pickIds.length
 }
 
 /** Single source of truth: which provider ids we send (before Grok-live append). */
