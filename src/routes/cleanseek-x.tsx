@@ -1738,11 +1738,23 @@ export function CleanSeekLite({
     ;(async () => {
       try {
         // Table-backed modes. We accept different column names defensively.
-        const { data, error } = await sb
-          .from('analysis_modes')
-          .select('id, label, name, mode, slug, description, enabled, sort_order')
-          .order('sort_order', { ascending: true })
-          .limit(100)
+        // NOTE: PostgREST will error if we select a column that doesn't exist,
+        // so we retry without `name` when older schemas don't have it.
+        const fetchModes = async (withName: boolean) =>
+          sb
+            .from('analysis_modes')
+            .select(
+              withName
+                ? 'id, label, name, mode, slug, description, enabled, sort_order'
+                : 'id, label, mode, slug, description, enabled, sort_order',
+            )
+            .order('sort_order', { ascending: true })
+            .limit(100)
+
+        let { data, error } = await fetchModes(true)
+        if (error && (error as any)?.code === '42703') {
+          ;({ data, error } = await fetchModes(false))
+        }
         if (cancelled) return
         if (error) throw error
         const rows = ((data as any) ?? []) as Array<Record<string, unknown>>

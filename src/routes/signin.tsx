@@ -3,6 +3,14 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
+// If the Turnstile script loads before React effects run (e.g. due to preloading/caching),
+// Cloudflare will look for the `onload` callback name immediately. Provide a stub early so
+// the script never errors while our component hydrates and the library wires up its promise.
+if (typeof window !== 'undefined') {
+  const w = window as any
+  if (typeof w.onloadTurnstileCallback !== 'function') w.onloadTurnstileCallback = () => {}
+}
+
 function formatAuthError(err: unknown): string {
   if (!err) return 'Sign-in failed. Please try again.'
   if (typeof err === 'string') return err
@@ -259,6 +267,7 @@ function SignInPage() {
               }}
               options={{ theme: 'auto', size: 'flexible' }}
               scriptOptions={{
+                onLoadCallbackName: 'onloadTurnstileCallback',
                 onError: () => {
                   setCaptchaToken(null)
                   setTurnstileFailed(true)
