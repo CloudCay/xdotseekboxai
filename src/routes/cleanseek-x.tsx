@@ -1572,6 +1572,13 @@ export function CleanSeekLite({
   const [presetEngineOverrides, setPresetEngineOverrides] = useState<PresetEngineOverrides>(() =>
     loadPresetEngineOverrides(),
   )
+  const presets = useMemo(() => {
+    return PRESETS.map((p) => {
+      if (p.id === 'allin') return p
+      const o = presetEngineOverrides[p.id]
+      return o && o.length ? { ...p, engineIds: [...o] } : p
+    })
+  }, [presetEngineOverrides])
   /** When `custom`, every search uses `enabledEngineIds`; when `preset`, only All In does. */
   const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => {
     if (typeof window === 'undefined') return defaultEnginePickMode ?? loadEnginePickMode()
@@ -1676,14 +1683,6 @@ export function CleanSeekLite({
   useEffect(() => {
     saveEnginePickModeToKey(keys.enginePickModeKey, enginePickMode)
   }, [enginePickMode, keys.enginePickModeKey])
-
-  const presets = useMemo(() => {
-    return PRESETS.map((p) => {
-      if (p.id === 'allin') return p
-      const o = presetEngineOverrides[p.id]
-      return o && o.length ? { ...p, engineIds: [...o] } : p
-    })
-  }, [presetEngineOverrides])
 
   // Preset pill long-press editor
   const [editingPresetId, setEditingPresetId] = useState<PresetId | null>(null)
