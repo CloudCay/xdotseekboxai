@@ -1121,7 +1121,6 @@ function TickerSidebarPanel(props: {
   const [err, setErr] = useState<string | null>(null)
   const [selected, setSelected] = useState<string>('NVDA')
   const [watch, setWatch] = useState<TickerWatchItem[]>([])
-  const [holdings, setHoldings] = useState<TickerHolding[]>([])
 
   useEffect(() => {
     props.onSelectSymbol(selected)
@@ -1157,26 +1156,20 @@ function TickerSidebarPanel(props: {
     if (!sb) return
     if (!userId) {
       setWatch([])
-      setHoldings([])
       return
     }
     setErr(null)
     setLoading(true)
     try {
-      const [{ data: w, error: wErr }, { data: h, error: hErr }] = await Promise.all([
-        sb.from('ticker_watchlist').select('id, symbol, label').eq('user_id', userId).order('created_at', { ascending: false }),
-        sb
-          .from('ticker_holdings')
-          .select('id, symbol, shares, avg_cost')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false }),
-      ])
+      const { data: w, error: wErr } = await sb
+        .from('ticker_watchlist')
+        .select('id, symbol, label')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
       if (wErr) throw wErr
-      if (hErr) throw hErr
       setWatch(((w as any) ?? []) as TickerWatchItem[])
-      setHoldings(((h as any) ?? []) as TickerHolding[])
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Failed to load portfolio.')
+      setErr(e instanceof Error ? e.message : 'Failed to load your symbols.')
     } finally {
       setLoading(false)
     }
@@ -1260,7 +1253,7 @@ function TickerSidebarPanel(props: {
       </div>
 
       <div className="mt-5">
-        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Watchlist</div>
+        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Symbols</div>
         {loading ? (
           <div className="mt-2 text-xs text-slate-400">Loading…</div>
         ) : watch.length ? (
@@ -1285,24 +1278,7 @@ function TickerSidebarPanel(props: {
             ))}
           </div>
         ) : (
-          <div className="mt-2 text-xs text-slate-400">Add symbols to your watchlist.</div>
-        )}
-      </div>
-
-      <div className="mt-5">
-        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Portfolio</div>
-        {holdings.length ? (
-          <div className="mt-2 space-y-2">
-            {holdings.map((h) => (
-              <div key={h.id} className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
-                <div className="text-xs font-black text-slate-100">{h.symbol}</div>
-                <div className="mt-1 text-[11px] text-slate-400">Shares: {h.shares}</div>
-                {h.avg_cost != null ? <div className="text-[11px] text-slate-400">Avg cost: {h.avg_cost}</div> : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-2 text-xs text-slate-400">Holdings will appear here (table-backed).</div>
+          <div className="mt-2 text-xs text-slate-400">Add symbols (this is your portfolio/watchlist list for now).</div>
         )}
       </div>
     </div>
@@ -1312,6 +1288,7 @@ function TickerSidebarPanel(props: {
 function TickerContextPanel(props: { symbol: string }) {
   const [loading, setLoading] = useState<boolean>(false)
   const [err, setErr] = useState<string | null>(null)
+  const [companyName, setCompanyName] = useState<string | null>(null)
   const [payload, setPayload] = useState<{
     prefix?: string
     wikipedia?: { title: string; extract: string; url?: string } | null
@@ -1320,16 +1297,45 @@ function TickerContextPanel(props: { symbol: string }) {
     meta?: { ms: number; errors: string[] }
   } | null>(null)
 
+  useEffect(() => {
+    const s = props.symbol.trim().toUpperCase()
+    if (!s) return
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) {
+      setCompanyName(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data, error } = await sb.from('public_stocks').select('name').eq('symbol', s).maybeSingle()
+        if (cancelled) return
+        if (error) {
+          setCompanyName(null)
+          return
+        }
+        const nm = (data as any)?.name
+        setCompanyName(typeof nm === 'string' && nm.trim() ? nm.trim() : null)
+      } catch {
+        if (!cancelled) setCompanyName(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [props.symbol])
+
   const load = useCallback(async () => {
     const s = props.symbol.trim().toUpperCase()
     if (!s) return
     setErr(null)
     setLoading(true)
     try {
+      const query = companyName ? `${companyName} (${s}) stock` : `${s} stock`
       const res = await fetch('/api/supplementary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: s, symbols: [s] }),
+        body: JSON.stringify({ query, symbols: [s] }),
       })
       const j = (await res.json()) as any
       if (!res.ok) throw new Error(typeof j?.error === 'string' ? j.error : `HTTP ${res.status}`)
@@ -1339,13 +1345,28 @@ function TickerContextPanel(props: { symbol: string }) {
     } finally {
       setLoading(false)
     }
-  }, [props.symbol])
+  }, [companyName, props.symbol])
 
   useEffect(() => {
     void load()
   }, [load])
 
   const quote = payload?.quotes?.[0]
+  const relevantNews = useMemo(() => {
+    const s = props.symbol.trim().toUpperCase()
+    const nm = (companyName ?? '').trim()
+    const keys = [s, `$${s}`]
+    if (nm) keys.push(nm)
+    const re = new RegExp(keys.filter(Boolean).map((k) => k.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')).join('|'), 'i')
+    const secs = payload?.rss ?? []
+    const out: Array<{ feed: string; title: string; link?: string }> = []
+    for (const sec of secs) {
+      for (const it of sec.items ?? []) {
+        if (re.test(it.title)) out.push({ feed: sec.feed, title: it.title, link: it.link })
+      }
+    }
+    return out.slice(0, 12)
+  }, [companyName, payload?.rss, props.symbol])
 
   return (
     <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
@@ -1402,17 +1423,44 @@ function TickerContextPanel(props: { symbol: string }) {
         <div className="mt-4 rounded-2xl border border-slate-700/60 bg-black/20 p-3">
           <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">News (RSS)</div>
           <div className="mt-2 space-y-3">
-            {payload.rss.slice(0, 6).map((sec) => (
-              <div key={sec.feed}>
+            {relevantNews.length ? (
+              <div>
+                <div className="text-[11px] font-black text-slate-200">
+                  Relevant to {props.symbol.toUpperCase()}
+                  {companyName ? <span className="text-slate-500"> · {companyName}</span> : null}
+                </div>
+                <div className="mt-1 space-y-1">
+                  {relevantNews.map((it) => (
+                    <a
+                      key={`${it.feed}:${it.title}`}
+                      href={it.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-[11px] text-slate-300 hover:text-cyan-200"
+                      title={`${it.feed} · ${it.title}`}
+                    >
+                      • {it.title}
+                      <span className="text-slate-500"> ({it.feed})</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-400">No symbol-matched headlines found (showing top feeds).</div>
+            )}
+
+            {/* Fallback: top headlines by feed */}
+            {payload.rss.slice(0, 4).map((sec) => (
+              <div key={sec.feed} className="pt-2 border-t border-slate-800/80">
                 <div className="text-[11px] font-black text-slate-200">{sec.feed}</div>
                 <div className="mt-1 space-y-1">
-                  {sec.items.slice(0, 3).map((it) => (
+                  {sec.items.slice(0, 2).map((it) => (
                     <a
                       key={it.title}
                       href={it.link}
                       target="_blank"
                       rel="noreferrer"
-                      className="block text-[11px] text-slate-300 hover:text-cyan-200"
+                      className="block text-[11px] text-slate-400 hover:text-cyan-200"
                       title={it.title}
                     >
                       • {it.title}
