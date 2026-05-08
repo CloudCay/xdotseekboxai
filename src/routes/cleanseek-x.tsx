@@ -1727,41 +1727,43 @@ export function CleanSeekLite({
     [openPresetEditor, stopPresetLongPress],
   )
 
-  const toggleEditingEngine = useCallback((id: string) => {
-    setEditingEngineIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }, [])
+  const applyPresetEngineSelection = useCallback(
+    (nextIds: string[]) => {
+      if (!editingPresetId) return
+      const allowed = new Set(ENGINE_CATALOG.map((e) => e.id))
+      const filtered = nextIds.filter((id) => allowed.has(id))
+      setEditingEngineIds(filtered)
 
-  const savePresetEditor = useCallback(() => {
-    if (!editingPresetId) return
-    const allowed = new Set(ENGINE_CATALOG.map((e) => e.id))
-    const nextIds = editingEngineIds.filter((id) => allowed.has(id))
+      if (editingPresetId === 'allin') {
+        setEnabledEngineIds(filtered)
+        saveEnabledEnginesToKey(keys.enabledEnginesKey, filtered)
+        return
+      }
 
-    if (editingPresetId === 'allin') {
-      setEnabledEngineIds(nextIds)
-      saveEnabledEnginesToKey(keys.enabledEnginesKey, nextIds)
-      closePresetEditor()
-      return
-    }
+      const nextOverrides: PresetEngineOverrides = { ...presetEngineOverrides }
+      if (filtered.length) nextOverrides[editingPresetId] = filtered
+      else delete nextOverrides[editingPresetId]
+      setPresetEngineOverrides(nextOverrides)
+      savePresetEngineOverrides(nextOverrides)
 
-    const nextOverrides: PresetEngineOverrides = { ...presetEngineOverrides, [editingPresetId]: nextIds }
-    setPresetEngineOverrides(nextOverrides)
-    savePresetEngineOverrides(nextOverrides)
+      // Keep the toggles aligned to what will run for this preset.
+      if (activePreset === editingPresetId) {
+        setEnabledEngineIds([...filtered])
+        saveEnabledEnginesToKey(keys.enabledEnginesKey, filtered)
+      }
+    },
+    [activePreset, editingPresetId, keys.enabledEnginesKey, presetEngineOverrides],
+  )
 
-    if (enginePickMode === 'preset' && activePreset === editingPresetId) {
-      setEnabledEngineIds([...nextIds])
-      saveEnabledEnginesToKey(keys.enabledEnginesKey, nextIds)
-    }
-
-    closePresetEditor()
-  }, [
-    activePreset,
-    closePresetEditor,
-    editingEngineIds,
-    editingPresetId,
-    enginePickMode,
-    keys.enabledEnginesKey,
-    presetEngineOverrides,
-  ])
+  const toggleEditingEngine = useCallback(
+    (id: string) => {
+      if (!editingPresetId) return
+      applyPresetEngineSelection(
+        editingEngineIds.includes(id) ? editingEngineIds.filter((x) => x !== id) : [...editingEngineIds, id],
+      )
+    },
+    [applyPresetEngineSelection, editingEngineIds, editingPresetId],
+  )
 
   const promptModifierActiveCount = useMemo(() => {
     let n = 0
@@ -2925,7 +2927,9 @@ export function CleanSeekLite({
                   if (didLongPressRef.current) return
                   setActivePreset(p.id)
                   syncCleanseekUrl(query, useLatest, p.id)
-                  if (enginePickMode === 'preset' && p.engineIds.length > 0) {
+                  // Presets should be actionable even when "My picks only" is selected:
+                  // selecting a preset applies its engines immediately.
+                  if (p.engineIds.length > 0) {
                     setEnabledEngineIds([...p.engineIds])
                   }
                 }}
@@ -3011,24 +3015,24 @@ export function CleanSeekLite({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setEditingEngineIds(defaultEnabledEngineIds())}
+                    onClick={() => applyPresetEngineSelection(defaultEnabledEngineIds())}
                     className="rounded-2xl border border-slate-700 bg-slate-950/30 px-4 py-2 text-xs font-black text-slate-200"
                   >
                     Select all
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingEngineIds([])}
+                    onClick={() => applyPresetEngineSelection([])}
                     className="rounded-2xl border border-slate-700 bg-slate-950/30 px-4 py-2 text-xs font-black text-slate-200"
                   >
                     Clear
                   </button>
                   <button
                     type="button"
-                    onClick={savePresetEditor}
+                    onClick={closePresetEditor}
                     className="rounded-2xl bg-cyan-500 px-5 py-2 text-xs font-black text-[#050B14]"
                   >
-                    Save
+                    Done
                   </button>
                 </div>
               </div>
