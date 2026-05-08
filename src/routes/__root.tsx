@@ -1,6 +1,15 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
+// Cloudflare Turnstile loads with `?onload=onloadTurnstileCallback`.
+// When navigating to `/signin` via client-side routing, the Turnstile script can be requested
+// before the sign-in route chunk is evaluated (prefetch/caching). Ensure the callback exists
+// in the root bundle so Turnstile never fails early.
+if (typeof window !== 'undefined') {
+  const w = window as any
+  if (typeof w.onloadTurnstileCallback !== 'function') w.onloadTurnstileCallback = () => {}
+}
+
 import {
   applySiteFontToDocument,
   applySiteThemeToDocument,
