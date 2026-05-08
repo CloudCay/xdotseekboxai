@@ -705,7 +705,7 @@ function CleanSeekXMobileRoute() {
       window.location.href = `/cleanseek-x/desktop${window.location.search}`
     }
   }, [])
-  return <CleanSeekLite variant="mobile" />
+  return <CleanSeekLite variant="mobile" disableGrokLive />
 }
 
 function XmarksHistoryPanel(props: {
@@ -1528,6 +1528,7 @@ export function CleanSeekLite({
   defaultEnabledEngineIds,
   defaultEnginePickMode,
   storageKeys,
+  disableGrokLive = false,
 }: {
   variant?: CleanSeekVariant
   layout?: CleanSeekLayout
@@ -1536,6 +1537,8 @@ export function CleanSeekLite({
   defaultEnabledEngineIds?: string[]
   defaultEnginePickMode?: EnginePickMode
   storageKeys?: { enabledEnginesKey: string; enginePickModeKey: string; promptModsKey: string }
+  /** When true, hides the Grok Live toggle, recency instruction, auto-append of groksearch, deep-live-dive, and showcase panel. */
+  disableGrokLive?: boolean
 }) {
   const backendUrlOrError = useMemo(() => {
     // Vite only exposes client env vars prefixed with VITE_.
@@ -1562,7 +1565,7 @@ export function CleanSeekLite({
     )
   }, [storageKeys])
   const [query, setQuery] = useState<string>('')
-  const [useLatest, setUseLatest] = useState<boolean>(defaultUseLatest ?? true)
+  const [useLatest, setUseLatest] = useState<boolean>(disableGrokLive ? false : (defaultUseLatest ?? true))
   const [activePreset, setActivePreset] = useState<PresetId>(defaultPreset ?? 'web')
   /** Engines included when preset is All In — persisted like main CleanSeek’s settings engines. */
   const [enabledEngineIds, setEnabledEngineIds] = useState<string[]>(() => {
@@ -1651,7 +1654,7 @@ export function CleanSeekLite({
         presetParam && PRESETS.some((p) => p.id === presetParam) ? presetParam : (defaultPreset ?? 'web')
 
       if (q != null && q.trim()) setQuery(q.trim())
-      if (latest != null) setUseLatest(latest !== '0' && latest.toLowerCase() !== 'false')
+      if (latest != null && !disableGrokLive) setUseLatest(latest !== '0' && latest.toLowerCase() !== 'false')
 
       setActivePreset(initialPreset)
 
@@ -2412,23 +2415,25 @@ export function CleanSeekLite({
               RabbitHoleX
             </a>
 
-            <button
-              type="button"
-              onClick={() =>
-                setUseLatest((v) => {
-                  const next = !v
-                  syncCleanseekUrl(query, next, activePreset)
-                  return next
-                })
-              }
-              className={`rounded-2xl px-5 py-3 text-sm font-black border ${
-                useLatest
-                  ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.15)]'
-                  : 'border-slate-700 bg-slate-900/30 text-slate-200'
-              }`}
-            >
-              {useLatest ? 'Grok Live' : 'Grok Live off'}
-            </button>
+            {!disableGrokLive ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setUseLatest((v) => {
+                    const next = !v
+                    syncCleanseekUrl(query, next, activePreset)
+                    return next
+                  })
+                }
+                className={`rounded-2xl px-5 py-3 text-sm font-black border ${
+                  useLatest
+                    ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.15)]'
+                    : 'border-slate-700 bg-slate-900/30 text-slate-200'
+                }`}
+              >
+                {useLatest ? 'Grok Live' : 'Grok Live off'}
+              </button>
+            ) : null}
 
             {authUserId && authEmail ? (
               <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/80 bg-[#0A1128]/80 px-3 py-2">
@@ -2857,7 +2862,7 @@ export function CleanSeekLite({
           <div className="mt-3 rounded-xl border border-slate-700/60 bg-slate-950/30 px-3 py-2 text-[11px] leading-snug text-slate-400">
             <span className="font-black uppercase tracking-wide text-slate-500">Next request · </span>
             <span className="font-mono text-slate-200">{idsActuallySent.join(', ') || '—'}</span>
-            {useLatest && idsActuallySent.length && !idsActuallySent.includes('groksearch') ? (
+            {!disableGrokLive && useLatest && idsActuallySent.length && !idsActuallySent.includes('groksearch') ? (
               <span className="text-slate-500"> (+ groksearch when Grok Live is on)</span>
             ) : null}
           </div>
@@ -3183,6 +3188,7 @@ export function CleanSeekLite({
           </div>
         </section>
 
+        {!disableGrokLive ? (
         <details className="mt-10 rounded-2xl border border-slate-700/60 bg-[#050B14]/90 open:border-emerald-500/40 shadow-[0_-12px_40px_rgba(0,0,0,0.35)]">
           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-t-2xl px-4 py-4 text-sm font-black text-slate-100 hover:bg-white/[0.03] sm:px-6 [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2">
@@ -3356,6 +3362,7 @@ export function CleanSeekLite({
             </div>
           </div>
         </details>
+        ) : null}
           </div>
 
           {isXmarks ? (
