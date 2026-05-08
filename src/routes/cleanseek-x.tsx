@@ -16,6 +16,13 @@ import remarkGfm from 'remark-gfm'
 import { LogOut, Mic, Play, Search, Sparkles, UserRound } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
+import {
+  DEFAULT_XMARKS_PRESETS,
+  loadXmarksUserPicksFromLocalStorage,
+  saveXmarksUserPicksToLocalStorage,
+  type XmarksKind,
+  type XmarksPreset,
+} from '../lib/xmarksLibrary'
 
 export const Route = createFileRoute('/cleanseek-x')({
   component: CleanSeekXMobileRoute,
@@ -53,6 +60,9 @@ const ENGINE_CATALOG: { id: string; label: string }[] = [
 
 const ENABLED_ENGINES_STORAGE_KEY = 'seekbox_cleanseek_x_enabled_engines_v1'
 const ENGINE_PICK_MODE_KEY = 'seekbox_cleanseek_x_engine_pick_mode_v1'
+const XMARKS_ENABLED_ENGINES_STORAGE_KEY = 'seekbox_xmarks_enabled_engines_v1'
+const XMARKS_ENGINE_PICK_MODE_KEY = 'seekbox_xmarks_engine_pick_mode_v1'
+const XMARKS_PROMPT_MODIFIERS_STORAGE_KEY = 'seekbox_xmarks_prompt_modifiers_v1'
 
 /** `preset`: Quick/Web/Research use fixed lists; All In uses toggles. `custom`: always use toggles. */
 type EnginePickMode = 'preset' | 'custom'
@@ -74,6 +84,28 @@ function saveEnginePickMode(m: EnginePickMode) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(ENGINE_PICK_MODE_KEY, m)
+  } catch {
+    /* noop */
+  }
+}
+
+function loadEnginePickModeFromKey(storageKey: string): EnginePickMode {
+  // Default **custom** when unset so toggles match what runs (avoids “Web” silently overriding picks).
+  if (typeof window === 'undefined') return 'custom'
+  try {
+    const v = window.localStorage.getItem(storageKey)
+    if (v === 'preset') return 'preset'
+    if (v === 'custom') return 'custom'
+    return 'custom'
+  } catch {
+    return 'custom'
+  }
+}
+
+function saveEnginePickModeToKey(storageKey: string, m: EnginePickMode) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(storageKey, m)
   } catch {
     /* noop */
   }
@@ -102,6 +134,30 @@ function saveEnabledEngines(ids: string[]) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(ENABLED_ENGINES_STORAGE_KEY, JSON.stringify(ids))
+  } catch {
+    /* noop */
+  }
+}
+
+function loadEnabledEnginesFromKey(storageKey: string): string[] {
+  if (typeof window === 'undefined') return defaultEnabledEngineIds()
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return defaultEnabledEngineIds()
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed) || parsed.length === 0) return defaultEnabledEngineIds()
+    const allowed = new Set(ENGINE_CATALOG.map((e) => e.id))
+    const filtered = parsed.filter((id): id is string => typeof id === 'string' && allowed.has(id))
+    return filtered.length ? filtered : defaultEnabledEngineIds()
+  } catch {
+    return defaultEnabledEngineIds()
+  }
+}
+
+function saveEnabledEnginesToKey(storageKey: string, ids: string[]) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(ids))
   } catch {
     /* noop */
   }
@@ -218,6 +274,55 @@ function savePromptMods(m: PromptModifierSnapshot) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(PROMPT_MODIFIERS_STORAGE_KEY, JSON.stringify(m))
+  } catch {
+    /* noop */
+  }
+}
+
+function loadPromptModsFromKey(storageKey: string): PromptModifierSnapshot {
+  if (typeof window === 'undefined') return { ...DEFAULT_PROMPT_MODS }
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return { ...DEFAULT_PROMPT_MODS }
+    const p = JSON.parse(raw) as Record<string, unknown>
+    const flagsRaw = p.modifierFlags
+    const flags = Array.isArray(flagsRaw)
+      ? flagsRaw.filter((x): x is ModifierFlag =>
+          x === 'tldr' || x === 'nextsteps' || x === 'counterargs' || x === 'list',
+        )
+      : []
+    const rs = p.reasoningStyle
+    const reasoningStyle: ReasoningStyle | null =
+      rs === 'concise' || rs === 'stepbystep' || rs === 'exploratory' || rs === 'skeptical' ? rs : null
+    return {
+      ...DEFAULT_PROMPT_MODS,
+      responseLengthEnabled: Boolean(p.responseLengthEnabled),
+      responseLength:
+        typeof p.responseLength === 'number'
+          ? Math.max(0, Math.min(4, Math.round(p.responseLength)))
+          : DEFAULT_PROMPT_MODS.responseLength,
+      toneEnabled: Boolean(p.toneEnabled),
+      toneLevel:
+        typeof p.toneLevel === 'number' ? Math.max(0, Math.min(5, Math.round(p.toneLevel))) : DEFAULT_PROMPT_MODS.toneLevel,
+      comprehensionEnabled: Boolean(p.comprehensionEnabled),
+      comprehensionLevel:
+        typeof p.comprehensionLevel === 'number'
+          ? Math.max(0, Math.min(4, Math.round(p.comprehensionLevel)))
+          : DEFAULT_PROMPT_MODS.comprehensionLevel,
+      personaEnabled: Boolean(p.personaEnabled),
+      personaText: typeof p.personaText === 'string' ? p.personaText : '',
+      reasoningStyle,
+      modifierFlags: flags,
+    }
+  } catch {
+    return { ...DEFAULT_PROMPT_MODS }
+  }
+}
+
+function savePromptModsToKey(storageKey: string, m: PromptModifierSnapshot) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(m))
   } catch {
     /* noop */
   }
@@ -527,6 +632,7 @@ async function fetchAccountRoleLabel(uid: string): Promise<string | null> {
 }
 
 type CleanSeekVariant = 'mobile' | 'desktop'
+type CleanSeekLayout = 'default' | 'xmarks' | 'ticker'
 
 function isProbablyDesktopDevice(): boolean {
   if (typeof window === 'undefined') return false
@@ -561,7 +667,787 @@ function CleanSeekXMobileRoute() {
   return <CleanSeekLite variant="mobile" />
 }
 
-export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVariant }) {
+function XmarksHistoryPanel(props: {
+  onSelectQuery: (q: string) => void
+  onRunQuery: (q: string) => void
+  isSearching: boolean
+}) {
+  const [userId, setUserId] = useState<string | null>(null)
+  const [email, setEmail] = useState<string | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [rows, setRows] = useState<{ id: string; query: string | null; created_at: string }[]>([])
+  const [err, setErr] = useState<string | null>(null)
+  const [filter, setFilter] = useState<string>('')
+
+  useEffect(() => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) {
+      setLoading(false)
+      setErr('Supabase is not configured on this site yet.')
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await sb.auth.getSession()
+        const u = data.session?.user ?? null
+        if (cancelled) return
+        setUserId(u?.id ?? null)
+        setEmail(u?.email ?? null)
+        if (u) {
+          try {
+            await ensureAccount(u as any)
+          } catch {
+            // non-fatal
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : 'Failed to read session.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const load = useCallback(async () => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) return
+    if (!userId) {
+      setRows([])
+      return
+    }
+    setErr(null)
+    setLoading(true)
+    try {
+      const { data, error } = await sb
+        .from('search_sessions')
+        .select('id, query, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      setRows((data as any) ?? [])
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load history.')
+    } finally {
+      setLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const filtered = useMemo(() => {
+    const f = filter.trim().toLowerCase()
+    if (!f) return rows
+    return rows.filter((r) => (r.query ?? '').toLowerCase().includes(f))
+  }, [rows, filter])
+
+  return (
+    <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">History</div>
+          <div className="mt-1 text-[11px] text-slate-400">
+            {email ? email : userId ? `User ${userId.slice(0, 8)}…` : '—'}
+          </div>
+        </div>
+        <a
+          href="/cleanseek-x/history"
+          className="shrink-0 rounded-2xl border border-slate-700 bg-slate-900/30 px-3 py-2 text-[11px] font-black text-slate-200 hover:bg-slate-800/50"
+          title="Open full history"
+        >
+          Open
+        </a>
+      </div>
+
+      {!isSupabaseConfigured ? (
+        <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+          Supabase is not configured.
+        </div>
+      ) : null}
+
+      {!userId && isSupabaseConfigured ? (
+        <div className="mt-3 rounded-2xl border border-slate-700/60 bg-black/20 px-3 py-2 text-xs text-slate-200">
+          Sign in to view saved searches.{' '}
+          <a href="/signin?returnTo=/xmarks" className="underline underline-offset-4 text-cyan-300">
+            Sign in
+          </a>
+        </div>
+      ) : null}
+
+      <div className="mt-3">
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter…"
+          className="w-full rounded-2xl border border-slate-700 bg-slate-900/30 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-500/50"
+          aria-label="Filter history"
+        />
+      </div>
+
+      {err ? (
+        <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">{err}</div>
+      ) : null}
+
+      {loading ? (
+        <div className="mt-4 text-xs text-slate-400">Loading…</div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {filtered.length === 0 ? (
+            <div className="text-xs text-slate-400">No saved searches yet.</div>
+          ) : (
+            filtered.map((r) => {
+              const q = (r.query ?? '').trim()
+              return (
+                <div key={r.id} className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+                  <button
+                    type="button"
+                    onClick={() => props.onSelectQuery(q)}
+                    className="w-full text-left text-xs font-semibold text-slate-100 hover:text-cyan-200"
+                    title="Load into search box"
+                  >
+                    {q || '—'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!q || props.isSearching}
+                    onClick={() => props.onRunQuery(q)}
+                    className="mt-2 w-full rounded-xl bg-cyan-500 text-[#050B14] px-3 py-1.5 text-[11px] font-black disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    Run
+                  </button>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function XmarksLibraryPanel(props: {
+  isSearching: boolean
+  onFill: (q: string) => void
+  onRun: (q: string) => void
+}) {
+  const [tab, setTab] = useState<XmarksKind>('topic')
+  const [filter, setFilter] = useState<string>('')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [hasSupabase, setHasSupabase] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [err, setErr] = useState<string | null>(null)
+
+  const [defaultPresets, setDefaultPresets] = useState<XmarksPreset[]>(() => DEFAULT_XMARKS_PRESETS)
+  const [userPicks, setUserPicks] = useState<XmarksPreset[]>(() => loadXmarksUserPicksFromLocalStorage())
+
+  useEffect(() => {
+    saveXmarksUserPicksToLocalStorage(userPicks)
+  }, [userPicks])
+
+  useEffect(() => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) {
+      setLoading(false)
+      setErr(null)
+      setHasSupabase(false)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        setHasSupabase(true)
+        const { data } = await sb.auth.getSession()
+        const u = data.session?.user ?? null
+        if (cancelled) return
+        setUserId(u?.id ?? null)
+      } catch {
+        // ignore (local fallback still works)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const loadFromSupabase = useCallback(async () => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) return
+    setErr(null)
+    setLoading(true)
+    try {
+      // Defaults (admin-editable)
+      const { data: defaults, error: defaultsErr } = await sb
+        .from('xmarks_presets')
+        .select('id, kind, label, query')
+        .eq('is_default', true)
+        .order('sort_order', { ascending: true })
+      if (defaultsErr) throw defaultsErr
+      const d = ((defaults as any) ?? []) as Array<{ id: string; kind: XmarksKind; label: string; query: string }>
+      if (d.length) {
+        setDefaultPresets(d.map((r) => ({ ...r, source: 'default' as const })))
+      }
+
+      // User picks
+      const { data: sess } = await sb.auth.getSession()
+      const uid = sess.session?.user?.id ?? null
+      setUserId(uid)
+      if (uid) {
+        const { data: picks, error: picksErr } = await sb
+          .from('xmarks_user_picks')
+          .select('id, kind, label, query')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false })
+          .limit(100)
+        if (picksErr) throw picksErr
+        const p = ((picks as any) ?? []) as Array<{ id: string; kind: XmarksKind; label: string; query: string }>
+        if (p.length) {
+          setUserPicks(p.map((r) => ({ ...r, source: 'user' as const })))
+        }
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load XMarks presets.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hasSupabase) return
+    void loadFromSupabase()
+  }, [hasSupabase, loadFromSupabase])
+
+  const items = useMemo(() => {
+    const all = [...defaultPresets, ...userPicks]
+    const f = filter.trim().toLowerCase()
+    return all.filter((p) => {
+      if (p.kind !== tab) return false
+      if (!f) return true
+      return p.label.toLowerCase().includes(f) || p.query.toLowerCase().includes(f)
+    })
+  }, [defaultPresets, filter, tab, userPicks])
+
+  const addPick = useCallback(() => {
+    const label = window.prompt('Label for this pick?')?.trim() ?? ''
+    if (!label) return
+    const query = window.prompt('Search prompt / query?')?.trim() ?? ''
+    if (!query) return
+    const sb = isSupabaseConfigured ? supabase : null
+    if (sb && userId) {
+      const payload = { user_id: userId, kind: tab, label, query }
+      void (async () => {
+        try {
+          const { data, error } = await sb.from('xmarks_user_picks').insert(payload).select('id, kind, label, query').single()
+          if (error) throw error
+          const row = data as any
+          setUserPicks((prev) => [{ id: row.id, kind: row.kind, label: row.label, query: row.query, source: 'user' }, ...prev])
+        } catch (e) {
+          // Fall back to local if RLS blocks insert or table missing
+          const id = `user-${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`
+          setUserPicks((prev) => [{ id, kind: tab, label, query, source: 'user' }, ...prev])
+          setErr(e instanceof Error ? e.message : 'Failed to save pick to Supabase. Saved locally instead.')
+        }
+      })()
+      return
+    }
+    const id = `user-${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`
+    setUserPicks((prev) => [{ id, kind: tab, label, query, source: 'user' }, ...prev])
+  }, [tab, userId])
+
+  const removePick = useCallback((id: string) => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (sb && userId) {
+      void (async () => {
+        try {
+          const { error } = await sb.from('xmarks_user_picks').delete().eq('id', id).eq('user_id', userId)
+          if (error) throw error
+          setUserPicks((prev) => prev.filter((p) => p.id !== id))
+        } catch (e) {
+          setErr(e instanceof Error ? e.message : 'Delete failed.')
+        }
+      })()
+      return
+    }
+    setUserPicks((prev) => prev.filter((p) => p.id !== id))
+  }, [userId])
+
+  return (
+    <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">XMarks library</div>
+          <div className="mt-1 text-[11px] text-slate-400">One-tap searches for consuming info.</div>
+        </div>
+        <a
+          href="/cleanseek-x/history"
+          className="shrink-0 rounded-2xl border border-slate-700 bg-slate-900/30 px-3 py-2 text-[11px] font-black text-slate-200 hover:bg-slate-800/50"
+          title="Open full search history"
+        >
+          History
+        </a>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 rounded-2xl border border-slate-700/50 bg-black/25 p-1">
+        {(['topic', 'person', 'industry'] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setTab(k)}
+            className={`flex-1 min-w-[90px] rounded-xl px-3 py-2 text-center text-[11px] font-black transition-colors ${
+              tab === k ? 'bg-cyan-500/20 text-cyan-50 ring-1 ring-cyan-500/40' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+            }`}
+            aria-pressed={tab === k}
+          >
+            {k === 'topic' ? 'Topics' : k === 'person' ? 'People' : 'Industry'}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter…"
+          className="w-full rounded-2xl border border-slate-700 bg-slate-900/30 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-500/50"
+          aria-label="Filter library"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window === 'undefined') return
+            addPick()
+          }}
+          className="shrink-0 rounded-2xl bg-cyan-500 text-[#050B14] px-3 py-2 text-xs font-black"
+          title="Add a saved pick"
+        >
+          + Add
+        </button>
+      </div>
+
+      {hasSupabase ? (
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="text-[10px] text-slate-500">Defaults + picks can load from Supabase.</span>
+          <button
+            type="button"
+            onClick={() => void loadFromSupabase()}
+            className="rounded-xl border border-slate-700 bg-slate-900/30 px-2.5 py-1 text-[10px] font-black text-slate-200 hover:bg-slate-800/50"
+          >
+            Refresh
+          </button>
+        </div>
+      ) : null}
+
+      {err ? (
+        <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          {err}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="mt-4 text-xs text-slate-400">Loading…</div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {items.length === 0 ? (
+            <div className="text-xs text-slate-400">No presets found.</div>
+          ) : (
+            items.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => props.onFill(p.query)}
+                    className="min-w-0 flex-1 text-left text-xs font-semibold text-slate-100 hover:text-cyan-200"
+                    title="Load into search box"
+                  >
+                    {p.label}
+                  </button>
+                  {p.source === 'user' ? (
+                    <button
+                      type="button"
+                      onClick={() => removePick(p.id)}
+                      className="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-500/15"
+                      title="Remove saved pick"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={props.isSearching}
+                    onClick={() => props.onRun(p.query)}
+                    className="flex-1 rounded-xl bg-cyan-500 text-[#050B14] px-3 py-1.5 text-[11px] font-black disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    Run
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => props.onFill(p.query)}
+                    className="flex-1 rounded-xl border border-slate-700 bg-slate-900/30 px-3 py-1.5 text-[11px] font-black text-slate-200 hover:bg-slate-800/50"
+                  >
+                    Fill
+                  </button>
+                </div>
+                <div className="mt-2 text-[10px] text-slate-500">
+                  {p.source === 'default' ? 'Default' : hasSupabase && userId ? 'Saved' : 'Saved (local)'}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+type TickerWatchItem = { id: string; symbol: string; label?: string | null }
+type TickerHolding = { id: string; symbol: string; shares: number; avg_cost?: number | null }
+
+function TickerSidebarPanel(props: {
+  isSearching: boolean
+  onSelectSymbol: (symbol: string) => void
+  onRunPulse: (symbol: string) => void
+}) {
+  const [userId, setUserId] = useState<string | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [err, setErr] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string>('NVDA')
+  const [watch, setWatch] = useState<TickerWatchItem[]>([])
+  const [holdings, setHoldings] = useState<TickerHolding[]>([])
+
+  useEffect(() => {
+    props.onSelectSymbol(selected)
+  }, [props, selected])
+
+  useEffect(() => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) {
+      setLoading(false)
+      setErr(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await sb.auth.getSession()
+        const u = data.session?.user ?? null
+        if (cancelled) return
+        setUserId(u?.id ?? null)
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : 'Failed to read session.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const load = useCallback(async () => {
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb) return
+    if (!userId) {
+      setWatch([])
+      setHoldings([])
+      return
+    }
+    setErr(null)
+    setLoading(true)
+    try {
+      const [{ data: w, error: wErr }, { data: h, error: hErr }] = await Promise.all([
+        sb.from('ticker_watchlist').select('id, symbol, label').eq('user_id', userId).order('created_at', { ascending: false }),
+        sb
+          .from('ticker_holdings')
+          .select('id, symbol, shares, avg_cost')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
+      ])
+      if (wErr) throw wErr
+      if (hErr) throw hErr
+      setWatch(((w as any) ?? []) as TickerWatchItem[])
+      setHoldings(((h as any) ?? []) as TickerHolding[])
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load portfolio.')
+    } finally {
+      setLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const addToWatchlist = useCallback(async () => {
+    const sym = window.prompt('Symbol to add (e.g. NVDA)?')?.trim().toUpperCase() ?? ''
+    if (!sym) return
+    const sb = isSupabaseConfigured ? supabase : null
+    if (!sb || !userId) {
+      setErr('Sign in to save a watchlist.')
+      return
+    }
+    setErr(null)
+    try {
+      const { error } = await sb.from('ticker_watchlist').insert({ user_id: userId, symbol: sym, label: null })
+      if (error) throw error
+      await load()
+      setSelected(sym)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to add.')
+    }
+  }, [load, userId])
+
+  const removeWatch = useCallback(
+    async (id: string) => {
+      const sb = isSupabaseConfigured ? supabase : null
+      if (!sb || !userId) return
+      setErr(null)
+      try {
+        const { error } = await sb.from('ticker_watchlist').delete().eq('id', id).eq('user_id', userId)
+        if (error) throw error
+        await load()
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Delete failed.')
+      }
+    },
+    [load, userId],
+  )
+
+  return (
+    <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Ticker</div>
+          <div className="mt-1 text-xs font-black text-slate-100">{selected}</div>
+        </div>
+        <button
+          type="button"
+          onClick={addToWatchlist}
+          className="shrink-0 rounded-2xl bg-cyan-500 text-[#050B14] px-3 py-2 text-[11px] font-black"
+        >
+          + Watch
+        </button>
+      </div>
+
+      {err ? (
+        <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">{err}</div>
+      ) : null}
+
+      <div className="mt-3 flex gap-2">
+        <input
+          value={selected}
+          onChange={(e) => setSelected(e.target.value.toUpperCase())}
+          className="w-full rounded-2xl border border-slate-700 bg-slate-900/30 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/50"
+          aria-label="Selected symbol"
+        />
+        <button
+          type="button"
+          disabled={props.isSearching}
+          onClick={() => props.onRunPulse(selected)}
+          className="shrink-0 rounded-2xl bg-emerald-500 text-[#050B14] px-3 py-2 text-[11px] font-black disabled:opacity-60"
+          title="Run X + web pulse search"
+        >
+          Pulse
+        </button>
+      </div>
+
+      <div className="mt-5">
+        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Watchlist</div>
+        {loading ? (
+          <div className="mt-2 text-xs text-slate-400">Loading…</div>
+        ) : watch.length ? (
+          <div className="mt-2 space-y-2">
+            {watch.map((w) => (
+              <div key={w.id} className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+                <button
+                  type="button"
+                  onClick={() => setSelected(w.symbol)}
+                  className="w-full text-left text-xs font-black text-slate-100 hover:text-cyan-200"
+                >
+                  {w.symbol}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void removeWatch(w.id)}
+                  className="mt-2 w-full rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-[11px] font-black text-red-100 hover:bg-red-500/15"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 text-xs text-slate-400">Add symbols to your watchlist.</div>
+        )}
+      </div>
+
+      <div className="mt-5">
+        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Portfolio</div>
+        {holdings.length ? (
+          <div className="mt-2 space-y-2">
+            {holdings.map((h) => (
+              <div key={h.id} className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+                <div className="text-xs font-black text-slate-100">{h.symbol}</div>
+                <div className="mt-1 text-[11px] text-slate-400">Shares: {h.shares}</div>
+                {h.avg_cost != null ? <div className="text-[11px] text-slate-400">Avg cost: {h.avg_cost}</div> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 text-xs text-slate-400">Holdings will appear here (table-backed).</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function TickerContextPanel(props: { symbol: string }) {
+  const [loading, setLoading] = useState<boolean>(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [payload, setPayload] = useState<{
+    prefix?: string
+    wikipedia?: { title: string; extract: string; url?: string } | null
+    rss?: Array<{ feed: string; items: { title: string; link?: string }[] }>
+    quotes?: Array<{ symbol: string; price?: string; changePercent?: string; error?: string }>
+    meta?: { ms: number; errors: string[] }
+  } | null>(null)
+
+  const load = useCallback(async () => {
+    const s = props.symbol.trim().toUpperCase()
+    if (!s) return
+    setErr(null)
+    setLoading(true)
+    try {
+      const res = await fetch('/api/supplementary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: s, symbols: [s] }),
+      })
+      const j = (await res.json()) as any
+      if (!res.ok) throw new Error(typeof j?.error === 'string' ? j.error : `HTTP ${res.status}`)
+      setPayload(j)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load supplementary context.')
+    } finally {
+      setLoading(false)
+    }
+  }, [props.symbol])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const quote = payload?.quotes?.[0]
+
+  return (
+    <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Context</div>
+          <div className="mt-1 text-xs text-slate-400">Twelve Data + RSS + Wikipedia</div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="shrink-0 rounded-xl border border-slate-700 bg-slate-900/30 px-2.5 py-1 text-[10px] font-black text-slate-200 hover:bg-slate-800/50"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading ? <div className="mt-3 text-xs text-slate-400">Loading…</div> : null}
+      {err ? (
+        <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">{err}</div>
+      ) : null}
+
+      <div className="mt-4 rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Quote</div>
+        {quote ? (
+          quote.error ? (
+            <div className="mt-2 text-xs text-amber-200">{quote.symbol}: {quote.error}</div>
+          ) : (
+            <div className="mt-2 flex items-baseline justify-between gap-3">
+              <div className="text-sm font-black text-slate-100">{quote.symbol}</div>
+              <div className="text-sm font-black text-slate-100">{quote.price ?? '—'}</div>
+              <div className="text-xs font-black text-slate-400">{quote.changePercent != null ? `${quote.changePercent}%` : '—'}</div>
+            </div>
+          )
+        ) : (
+          <div className="mt-2 text-xs text-slate-400">No quote available (check `TWELVE_API_KEY`).</div>
+        )}
+      </div>
+
+      {payload?.wikipedia ? (
+        <div className="mt-4 rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Wikipedia</div>
+          <div className="mt-2 text-xs font-black text-slate-100">{payload.wikipedia.title}</div>
+          <div className="mt-2 text-[11px] leading-snug text-slate-300 line-clamp-6">{payload.wikipedia.extract}</div>
+          {payload.wikipedia.url ? (
+            <a className="mt-2 inline-block text-[11px] font-black text-cyan-300 underline underline-offset-4" href={payload.wikipedia.url} target="_blank" rel="noreferrer">
+              Open
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+
+      {payload?.rss?.length ? (
+        <div className="mt-4 rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">News (RSS)</div>
+          <div className="mt-2 space-y-3">
+            {payload.rss.slice(0, 6).map((sec) => (
+              <div key={sec.feed}>
+                <div className="text-[11px] font-black text-slate-200">{sec.feed}</div>
+                <div className="mt-1 space-y-1">
+                  {sec.items.slice(0, 3).map((it) => (
+                    <a
+                      key={it.title}
+                      href={it.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-[11px] text-slate-300 hover:text-cyan-200"
+                      title={it.title}
+                    >
+                      • {it.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {payload.meta?.errors?.length ? (
+            <div className="mt-3 text-[10px] text-slate-500">Some feeds errored: {payload.meta.errors.slice(0, 3).join(' · ')}</div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function CleanSeekLite({
+  variant = 'desktop',
+  layout = 'default',
+  defaultPreset,
+  defaultUseLatest,
+  defaultEnabledEngineIds,
+  defaultEnginePickMode,
+  storageKeys,
+}: {
+  variant?: CleanSeekVariant
+  layout?: CleanSeekLayout
+  defaultPreset?: PresetId
+  defaultUseLatest?: boolean
+  defaultEnabledEngineIds?: string[]
+  defaultEnginePickMode?: EnginePickMode
+  storageKeys?: { enabledEnginesKey: string; enginePickModeKey: string; promptModsKey: string }
+}) {
   const backendUrlOrError = useMemo(() => {
     // Vite only exposes client env vars prefixed with VITE_.
     // Prefer VITE_BACKEND_URL in the browser, fall back to EXPO_PUBLIC_BACKEND_URL
@@ -577,15 +1463,32 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
     }
   }, [])
   const BACKEND_URL = backendUrlOrError.url
+  const keys = useMemo(() => {
+    return (
+      storageKeys ?? {
+        enabledEnginesKey: ENABLED_ENGINES_STORAGE_KEY,
+        enginePickModeKey: ENGINE_PICK_MODE_KEY,
+        promptModsKey: PROMPT_MODIFIERS_STORAGE_KEY,
+      }
+    )
+  }, [storageKeys])
   const [query, setQuery] = useState<string>('')
-  const [useLatest, setUseLatest] = useState<boolean>(true)
-  const [activePreset, setActivePreset] = useState<PresetId>('web')
+  const [useLatest, setUseLatest] = useState<boolean>(defaultUseLatest ?? true)
+  const [activePreset, setActivePreset] = useState<PresetId>(defaultPreset ?? 'web')
   /** Engines included when preset is All In — persisted like main CleanSeek’s settings engines. */
-  const [enabledEngineIds, setEnabledEngineIds] = useState<string[]>(() => loadEnabledEngines())
+  const [enabledEngineIds, setEnabledEngineIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return defaultEnabledEngineIds ?? loadEnabledEngines()
+    const loaded = loadEnabledEnginesFromKey(keys.enabledEnginesKey)
+    if (loaded.length) return loaded
+    return defaultEnabledEngineIds && defaultEnabledEngineIds.length ? defaultEnabledEngineIds : loaded
+  })
   /** When `custom`, every search uses `enabledEngineIds`; when `preset`, only All In does. */
-  const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => loadEnginePickMode())
+  const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => {
+    if (typeof window === 'undefined') return defaultEnginePickMode ?? loadEnginePickMode()
+    return loadEnginePickModeFromKey(keys.enginePickModeKey)
+  })
   /** Response length, tone, persona, comprehension, reasoning — persisted; appended to query like `/cleanseek`. */
-  const [promptMods, setPromptMods] = useState<PromptModifierSnapshot>(() => loadPromptMods())
+  const [promptMods, setPromptMods] = useState<PromptModifierSnapshot>(() => loadPromptModsFromKey(keys.promptModsKey))
   /** Analysis modes: fetched from Supabase `analysis_modes` with a fallback. */
   const [analysisModes, setAnalysisModes] = useState<AnalysisModeRow[]>(() => FALLBACK_ANALYSIS_MODES)
   const [analysisMode, setAnalysisMode] = useState<string>('none')
@@ -594,6 +1497,7 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
   const resultOrderRef = useRef<string[]>([])
   const [isSearching, setIsSearching] = useState<boolean>(false)
   const [results, setResults] = useState<Record<string, EngineResult>>({})
+  const [tickerSymbol, setTickerSymbol] = useState<string>('NVDA')
   const [isDeepDive, setIsDeepDive] = useState<boolean>(false)
   const [streamError, setStreamError] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
@@ -640,40 +1544,43 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
       autorunRef.current = sp.get('autorun') === '1'
       const presetParam = sp.get('preset') as PresetId | null
       const initialPreset: PresetId =
-        presetParam && PRESETS.some((p) => p.id === presetParam) ? presetParam : 'web'
+        presetParam && PRESETS.some((p) => p.id === presetParam) ? presetParam : (defaultPreset ?? 'web')
 
       if (q != null && q.trim()) setQuery(q.trim())
       if (latest != null) setUseLatest(latest !== '0' && latest.toLowerCase() !== 'false')
 
       setActivePreset(initialPreset)
 
-      const pm = loadEnginePickMode()
+      const pm = loadEnginePickModeFromKey(keys.enginePickModeKey)
       setEnginePickMode(pm)
       if (pm === 'preset') {
         const pr = PRESETS.find((x) => x.id === initialPreset)
         if (pr && pr.engineIds.length > 0) setEnabledEngineIds([...pr.engineIds])
-        else setEnabledEngineIds(loadEnabledEngines())
+        else setEnabledEngineIds(loadEnabledEnginesFromKey(keys.enabledEnginesKey))
       } else {
-        setEnabledEngineIds(loadEnabledEngines())
+        const loaded = loadEnabledEnginesFromKey(keys.enabledEnginesKey)
+        if (loaded.length) setEnabledEngineIds(loaded)
+        else if (defaultEnabledEngineIds && defaultEnabledEngineIds.length) setEnabledEngineIds(defaultEnabledEngineIds)
+        else setEnabledEngineIds(loadEnabledEngines())
       }
 
-      setPromptMods(loadPromptMods())
+      setPromptMods(loadPromptModsFromKey(keys.promptModsKey))
     } catch {
       // ignore
     }
-  }, [])
+  }, [defaultEnabledEngineIds, defaultPreset, keys.enabledEnginesKey, keys.enginePickModeKey, keys.promptModsKey])
 
   useEffect(() => {
-    savePromptMods(promptMods)
-  }, [promptMods])
+    savePromptModsToKey(keys.promptModsKey, promptMods)
+  }, [keys.promptModsKey, promptMods])
 
   useEffect(() => {
-    saveEnabledEngines(enabledEngineIds)
-  }, [enabledEngineIds])
+    saveEnabledEnginesToKey(keys.enabledEnginesKey, enabledEngineIds)
+  }, [enabledEngineIds, keys.enabledEnginesKey])
 
   useEffect(() => {
-    saveEnginePickMode(enginePickMode)
-  }, [enginePickMode])
+    saveEnginePickModeToKey(keys.enginePickModeKey, enginePickMode)
+  }, [enginePickMode, keys.enginePickModeKey])
 
   const promptModifierActiveCount = useMemo(() => {
     let n = 0
@@ -1179,6 +2086,8 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
 
   const isMobile = variant === 'mobile'
   const isRabbitHole = typeof window !== 'undefined' && window.location.pathname.endsWith('/rabbitholex')
+  const isXmarks = layout === 'xmarks'
+  const isTicker = layout === 'ticker'
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
@@ -1275,6 +2184,13 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
               History
             </a>
             <a
+              href="/xmarks"
+              className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
+              title="XMarks: Grok X only dashboard"
+            >
+              XMarks
+            </a>
+            <a
               href={`/cleanseek-x/rabbitholex?q=${encodeURIComponent(query.trim())}&latest=${useLatest ? '1' : '0'}&autorun=1`}
               className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
               title="Open a dedicated page that prints all results."
@@ -1349,6 +2265,50 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
           </div>
         </div>
 
+        <div className={isXmarks || isTicker ? 'mt-6 flex flex-col gap-4 lg:flex-row lg:items-start' : ''}>
+          {isXmarks ? (
+            <aside className="w-full lg:w-[340px] lg:shrink-0">
+              <XmarksLibraryPanel
+                isSearching={isSearching}
+                onFill={(q) => setQuery(q)}
+                onRun={(q) => {
+                  setQuery(q)
+                  if (!BACKEND_URL) return
+                  if (!q.trim()) return
+                  window.setTimeout(() => {
+                    if (!isSearching && q.trim()) void run({ queryOverride: q })
+                  }, 0)
+                }}
+              />
+            </aside>
+          ) : null}
+
+          {isTicker ? (
+            <aside className="w-full lg:w-[360px] lg:shrink-0">
+              <TickerSidebarPanel
+                isSearching={isSearching}
+                onSelectSymbol={(sym) => {
+                  // Keep input in sync with symbol-focused mode.
+                  const s = sym.trim().toUpperCase()
+                  if (!s) return
+                  setTickerSymbol(s)
+                  setQuery(`${s} stock`)
+                }}
+                onRunPulse={(sym) => {
+                  const s = sym.trim().toUpperCase()
+                  if (!BACKEND_URL || !s) return
+                  setTickerSymbol(s)
+                  const q = `${s} — stock pulse: price drivers, notable news, sentiment on X, and key risks. Include any notable posts if available and cite links when possible.`
+                  setQuery(q)
+                  window.setTimeout(() => {
+                    if (!isSearching) void run({ queryOverride: q })
+                  }, 0)
+                }}
+              />
+            </aside>
+          ) : null}
+
+          <div className={isXmarks || isTicker ? 'min-w-0 flex-1' : ''}>
         {/* Prompt modifiers — hidden in RabbitHole view (results-only). */}
         {!isRabbitHole ? (
           <details
@@ -2087,6 +3047,61 @@ export function CleanSeekLite({ variant = 'desktop' }: { variant?: CleanSeekVari
             </div>
           </div>
         </details>
+          </div>
+
+          {isXmarks ? (
+            <aside className="w-full lg:w-[380px] lg:shrink-0">
+              <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
+                <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Analysis modes</div>
+                <p className="mt-1 text-xs text-slate-400 leading-snug">
+                  Optional synthesizer pass using a judge model.
+                </p>
+                <div className="mt-3 flex flex-col gap-2">
+                  <select
+                    value={analysisMode}
+                    onChange={(e) => setAnalysisMode(e.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/40"
+                    aria-label="Analysis mode"
+                  >
+                    <option value="none">None</option>
+                    {analysisModes.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={analysisJudge}
+                    onChange={(e) => setAnalysisJudge(e.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/40"
+                    aria-label="Analysis judge engine"
+                  >
+                    {ENGINE_CATALOG.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        Judge: {e.label}
+                      </option>
+                    ))}
+                  </select>
+                  {analysisMode !== 'none' ? (
+                    <span className="rounded-xl border border-violet-500/35 bg-violet-500/10 px-3 py-2 text-xs font-black text-violet-100">
+                      Enabled
+                    </span>
+                  ) : (
+                    <span className="rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-xs font-black text-slate-500">
+                      Off
+                    </span>
+                  )}
+                </div>
+              </div>
+            </aside>
+          ) : null}
+
+          {isTicker ? (
+            <aside className="w-full lg:w-[420px] lg:shrink-0">
+              <TickerContextPanel symbol={tickerSymbol} />
+            </aside>
+          ) : null}
+        </div>
       </div>
     </div>
   )

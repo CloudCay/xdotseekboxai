@@ -11,6 +11,10 @@ const RSS_FEEDS = [
   { name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml' },
   { name: 'BBC Science', url: 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml' },
   { name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml' },
+  // Stock/markets-focused (public feeds; no keys)
+  { name: 'CNBC Top News', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html' },
+  { name: 'MarketWatch Top Stories', url: 'https://feeds.marketwatch.com/marketwatch/topstories/' },
+  { name: 'Yahoo Finance', url: 'https://finance.yahoo.com/news/rssindex' },
 ] as const
 
 const TICKER_STOPWORDS = new Set(

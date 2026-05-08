@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
+import {
+  applySiteFontToDocument,
+  applySiteThemeToDocument,
+  readSiteFontScale,
+  readSiteTheme,
+  SITE_THEME_OPTIONS,
+  siteFontPx,
+  writeSiteFontScale,
+  writeSiteTheme,
+  type SiteFontScale,
+  type SiteThemeMode,
+} from '../lib/siteTheme'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 export const Route = createFileRoute('/account')({
   component: AccountPage,
@@ -67,6 +79,9 @@ function AccountPage() {
   const [account, setAccount] = useState<AccountRow | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
   const [isSyncingAccount, setIsSyncingAccount] = useState(false)
+
+  const [siteTheme, setSiteTheme] = useState<SiteThemeMode>(() => readSiteTheme())
+  const [siteFont, setSiteFont] = useState<SiteFontScale>(() => readSiteFontScale())
 
   const fromStripe = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -224,6 +239,23 @@ function AccountPage() {
     }
   }, [fromStripe, refreshTick])
 
+  useEffect(() => {
+    setSiteTheme(readSiteTheme())
+    setSiteFont(readSiteFontScale())
+  }, [])
+
+  const setThemeAndPersist = (t: SiteThemeMode) => {
+    setSiteTheme(t)
+    writeSiteTheme(t)
+    applySiteThemeToDocument(t)
+  }
+
+  const setFontAndPersist = (f: SiteFontScale) => {
+    setSiteFont(f)
+    writeSiteFontScale(f)
+    applySiteFontToDocument(f)
+  }
+
   const isPaid =
     (subscription?.status === 'active' || subscription?.status === 'trialing') && Boolean(subscription?.plan)
 
@@ -279,6 +311,73 @@ function AccountPage() {
             {error ?? 'Something went wrong.'}
           </div>
         ) : null}
+
+        <div className="mt-6 rounded-2xl border border-slate-700/60 bg-black/20 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-red-400">Appearance</div>
+              <p className="mt-1 text-sm text-slate-400">
+                Theme and text size match the floating toolbar. Stored on this device only (
+                <span className="font-mono text-slate-500">sb_theme_mode_v2</span>,{' '}
+                <span className="font-mono text-slate-500">sb_font_scale_v1</span>).
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">Theme</div>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {SITE_THEME_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setThemeAndPersist(opt.id)}
+                  className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
+                    siteTheme === opt.id
+                      ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-50'
+                      : 'border-slate-700/80 bg-slate-900/25 text-slate-200 hover:border-slate-600 hover:bg-slate-900/40'
+                  }`}
+                  aria-pressed={siteTheme === opt.id}
+                >
+                  <div className="text-sm font-black">{opt.label}</div>
+                  <div className="mt-1 text-xs text-slate-400">{opt.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">Text size</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFontAndPersist((siteFont > 0 ? siteFont - 1 : 0) as SiteFontScale)}
+                disabled={siteFont === 0}
+                className="rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-2 text-sm font-bold text-slate-100 disabled:opacity-40"
+              >
+                A-
+              </button>
+              <button
+                type="button"
+                onClick={() => setFontAndPersist(0)}
+                className="rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-2 text-sm font-bold text-slate-100"
+              >
+                Default ({siteFontPx(0)}px)
+              </button>
+              <button
+                type="button"
+                onClick={() => setFontAndPersist((siteFont < 2 ? siteFont + 1 : 2) as SiteFontScale)}
+                disabled={siteFont === 2}
+                className="rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-2 text-sm font-bold text-slate-100 disabled:opacity-40"
+              >
+                A+
+              </button>
+              <span className="text-xs text-slate-500">
+                Current root size: <span className="font-mono text-slate-400">{siteFontPx(siteFont)}px</span>
+              </span>
+            </div>
+          </div>
+        </div>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-4">

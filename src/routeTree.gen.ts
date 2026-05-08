@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as XmarksRouteImport } from './routes/xmarks'
+import { Route as TickerRouteImport } from './routes/ticker'
 import { Route as SuccessRouteImport } from './routes/success'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as PricingRouteImport } from './routes/pricing'
@@ -23,6 +25,16 @@ import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/hist
 import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desktop'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
 
+const XmarksRoute = XmarksRouteImport.update({
+  id: '/xmarks',
+  path: '/xmarks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TickerRoute = TickerRouteImport.update({
+  id: '/ticker',
+  path: '/ticker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SuccessRoute = SuccessRouteImport.update({
   id: '/success',
   path: '/success',
@@ -99,6 +111,8 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/ticker': typeof TickerRoute
+  '/xmarks': typeof XmarksRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
@@ -114,6 +128,8 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/ticker': typeof TickerRoute
+  '/xmarks': typeof XmarksRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
@@ -130,6 +146,8 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
+  '/ticker': typeof TickerRoute
+  '/xmarks': typeof XmarksRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
@@ -147,6 +165,8 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/ticker'
+    | '/xmarks'
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
@@ -162,6 +182,8 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/ticker'
+    | '/xmarks'
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
@@ -177,6 +199,8 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/signin'
     | '/success'
+    | '/ticker'
+    | '/xmarks'
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
@@ -193,11 +217,27 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   SigninRoute: typeof SigninRoute
   SuccessRoute: typeof SuccessRoute
+  TickerRoute: typeof TickerRoute
+  XmarksRoute: typeof XmarksRoute
   ApiSupplementaryRoute: typeof ApiSupplementaryRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/xmarks': {
+      id: '/xmarks'
+      path: '/xmarks'
+      fullPath: '/xmarks'
+      preLoaderRoute: typeof XmarksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ticker': {
+      id: '/ticker'
+      path: '/ticker'
+      fullPath: '/ticker'
+      preLoaderRoute: typeof TickerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/success': {
       id: '/success'
       path: '/success'
@@ -318,6 +358,8 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   SigninRoute: SigninRoute,
   SuccessRoute: SuccessRoute,
+  TickerRoute: TickerRoute,
+  XmarksRoute: XmarksRoute,
   ApiSupplementaryRoute: ApiSupplementaryRoute,
 }
 export const routeTree = rootRouteImport

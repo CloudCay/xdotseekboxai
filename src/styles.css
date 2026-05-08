@@ -1,12 +1,88 @@
 @import "tailwindcss" source("../");
 
-body {
-  @apply m-0;
+/* -------------------------------------------------------------------------- */
+/* Global theme body chrome (set via <html data-theme="…"> from __root.tsx)   */
+/* -------------------------------------------------------------------------- */
+
+html[data-theme="light"] body {
+  margin: 0;
+  background-color: #ffffff;
+  color: #0f172a;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html[data-theme="dark"] body {
+  margin: 0;
+  background-color: #000000;
+  color: #fafafa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Newspaper — greyscale, print-like, high legibility */
+html[data-theme="newspaper"] {
+  color-scheme: light;
+}
+
+html[data-theme="newspaper"] body {
+  margin: 0;
+  background-color: #e8e6df;
+  background-image: linear-gradient(180deg, #f2f0ea 0%, #e4e2db 35%, #dddad2 100%);
+  color: #111111;
+  font-family: "Georgia", "Times New Roman", "Times", ui-serif, serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: auto;
+  filter: grayscale(1);
+  /* Subtle print texture without harming contrast */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* SeekBox — official brand palette (theme id: seekbox, P_SEEKBOX_BRAND) */
+html[data-theme="seekbox"] {
+  color-scheme: light;
+  --sb-bg: #fafbff;
+  --sb-card: #ffffff;
+  --sb-border: #d6e0f0;
+  --sb-text: #1b2a4a;
+  --sb-text-secondary: #2563eb;
+  --sb-text-muted: #7b8ba8;
+  --sb-input: #ffffff;
+  --sb-section-header: #dc2626;
+  --sb-pill-bg: #eef2ff;
+  --sb-pill-active-bg: #ffffff;
+  --sb-pill-border: #bfdbfe;
+  --sb-marketing-red-tint: rgba(220, 38, 38, 0.08);
+}
+
+html[data-theme="seekbox"] body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--sb-bg);
+  color: var(--sb-text);
+  /* Inter stack — matches FONT_FAMILIES[system] / catalog body */
+  font-family:
+    "Inter",
+    "Inter var",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply m-0 min-h-screen;
 }
 
 code {

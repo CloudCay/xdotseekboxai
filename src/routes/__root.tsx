@@ -1,6 +1,18 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
+import {
+  applySiteFontToDocument,
+  applySiteThemeToDocument,
+  readSiteFontScale,
+  readSiteTheme,
+  siteFontPx,
+  writeSiteFontScale,
+  writeSiteTheme,
+  type SiteFontScale,
+  type SiteThemeMode,
+} from '../lib/siteTheme'
+
 import '../styles.css'
 
 export const Route = createRootRoute({
@@ -18,6 +30,16 @@ export const Route = createRootRoute({
       },
     ],
     links: [
+      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..900;1,14..32,400..900&display=swap',
+      },
       // Cache-bust so browsers pick up changes quickly.
       { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2', sizes: '32x32' },
       { rel: 'apple-touch-icon', href: '/favicon.png?v=2' },
@@ -32,111 +54,111 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 })
 
-type ThemeMode = 'dark' | 'light'
-type FontScale = 0 | 1 | 2
-
-const THEME_KEY = 'sb_theme_mode_v1'
-const FONT_KEY = 'sb_font_scale_v1'
-
-function loadTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'dark'
-  try {
-    const v = window.localStorage.getItem(THEME_KEY)
-    return v === 'light' ? 'light' : 'dark'
-  } catch {
-    return 'dark'
-  }
-}
-
-function loadFont(): FontScale {
-  if (typeof window === 'undefined') return 0
-  try {
-    const raw = window.localStorage.getItem(FONT_KEY)
-    const n = raw ? Number(raw) : 0
-    if (n === 1 || n === 2) return n
-    return 0
-  } catch {
-    return 0
-  }
-}
-
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<ThemeMode>(() => loadTheme())
-  const [font, setFont] = useState<FontScale>(() => loadFont())
+  const [theme, setTheme] = useState<SiteThemeMode>(() => readSiteTheme())
+  const [font, setFont] = useState<SiteFontScale>(() => readSiteFontScale())
 
-  const rootFontPx = useMemo(() => {
-    // Keep it subtle; page typography is already dense.
-    return font === 2 ? 18 : font === 1 ? 17 : 16
-  }, [font])
+  const rootFontPx = useMemo(() => siteFontPx(font), [font])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(THEME_KEY, theme)
-    } catch {
-      /* noop */
-    }
-    const el = window.document.documentElement
-    if (theme === 'dark') el.classList.add('dark')
-    else el.classList.remove('dark')
+    writeSiteTheme(theme)
+    applySiteThemeToDocument(theme)
   }, [theme])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(FONT_KEY, String(font))
-    } catch {
-      /* noop */
-    }
-    window.document.documentElement.style.fontSize = `${rootFontPx}px`
+    writeSiteFontScale(font)
+    applySiteFontToDocument(font)
   }, [font, rootFontPx])
 
+  const chrome = useMemo(() => {
+    switch (theme) {
+      case 'light':
+        return {
+          wrap: 'border-slate-300/90 bg-white/95 backdrop-blur-md shadow-lg',
+          group: 'border-slate-300 bg-white',
+          btnOn: 'bg-black text-white',
+          btnOff: 'bg-transparent text-slate-700 hover:bg-slate-100',
+          sep: 'bg-slate-200',
+          fontBtn:
+            'border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-40',
+        }
+      case 'dark':
+        return {
+          wrap: 'border-slate-600 bg-slate-950/90 backdrop-blur-md shadow-lg',
+          group: 'border-slate-600 bg-slate-900/80',
+          btnOn: 'bg-white text-black',
+          btnOff: 'text-slate-300 hover:bg-slate-800/60',
+          sep: 'bg-slate-600',
+          fontBtn:
+            'border-slate-600 bg-slate-900 hover:bg-slate-800 text-slate-100 disabled:opacity-40',
+        }
+      case 'newspaper':
+        return {
+          wrap:
+            'border-neutral-800 bg-[#f4f1ea]/95 shadow-[4px_4px_0_0_rgba(0,0,0,0.18)] backdrop-blur-sm',
+          group: 'border-neutral-800 bg-[#faf8f3]',
+          btnOn: 'bg-neutral-900 text-[#f4f1ea]',
+          btnOff: 'text-neutral-800 hover:bg-neutral-200/80',
+          sep: 'bg-neutral-400',
+          fontBtn:
+            'border-neutral-700 bg-[#faf8f3] text-neutral-900 hover:bg-neutral-200 disabled:opacity-40',
+        }
+      case 'seekbox':
+        return {
+          wrap: 'border-[#D6E0F0] bg-[#FFFFFF]/95 shadow-sm backdrop-blur-md',
+          group: 'border-[#D6E0F0] bg-[#FFFFFF]',
+          btnOn:
+            'bg-[#FFFFFF] text-[#2563EB] shadow-[inset_0_0_0_1px_#BFDBFE] font-extrabold',
+          btnOff: 'bg-transparent text-[#7B8BA8] hover:bg-[#EEF2FF] hover:text-[#1B2A4A]',
+          sep: 'bg-[#D6E0F0]',
+          fontBtn:
+            'border-[#D6E0F0] bg-[#FFFFFF] text-[#1B2A4A] hover:bg-[#FAFBFF] disabled:opacity-40',
+        }
+    }
+  }, [theme])
+
   return (
-    <html lang="en" className={theme === 'dark' ? 'dark' : ''}>
+    <html lang="en" data-theme={theme} className={theme === 'dark' ? 'dark' : ''}>
       <head>
         <HeadContent />
       </head>
-      <body className="bg-white text-slate-900 antialiased dark:bg-black dark:text-white">
-        {/* Floating accessibility controls — avoids competing with page chrome / full-width headers */}
+      <body className="antialiased">
         <div
-          className="fixed top-3 right-3 z-[100] flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-slate-300/90 bg-white/95 p-2 shadow-lg backdrop-blur-md dark:border-slate-600 dark:bg-slate-950/90"
+          className={`fixed top-3 right-3 z-[100] flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-2xl border p-2 ${chrome.wrap} ${
+            theme === 'newspaper' ? 'font-serif' : theme === 'seekbox' ? 'font-sans' : ''
+          }`}
           role="toolbar"
           aria-label="Theme and text size"
         >
-          <div className="inline-flex overflow-hidden rounded-xl border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900/80">
-            <button
-              type="button"
-              onClick={() => setTheme('light')}
-              className={`px-3 py-1.5 text-xs font-black transition-colors ${
-                theme === 'light'
-                  ? 'bg-black text-white'
-                  : 'bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/60'
-              }`}
-              aria-pressed={theme === 'light'}
-              aria-label="Light theme"
-            >
-              Light
-            </button>
-            <button
-              type="button"
-              onClick={() => setTheme('dark')}
-              className={`px-3 py-1.5 text-xs font-black transition-colors ${
-                theme === 'dark'
-                  ? 'bg-white text-black dark:bg-white dark:text-black'
-                  : 'bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/60'
-              }`}
-              aria-pressed={theme === 'dark'}
-              aria-label="Dark theme"
-            >
-              Dark
-            </button>
+          <div className={`inline-flex max-w-full flex-wrap overflow-hidden rounded-xl border ${chrome.group}`}>
+            {(
+              [
+                ['light', 'Light'] as const,
+                ['dark', 'Dark'] as const,
+                ['newspaper', 'Paper'] as const,
+                ['seekbox', 'SeekBox'] as const,
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTheme(id)}
+                className={`px-2.5 py-1.5 text-[10px] font-black transition-colors sm:px-3 sm:text-xs ${
+                  theme === id ? chrome.btnOn : chrome.btnOff
+                }`}
+                aria-pressed={theme === id}
+                aria-label={`${label} theme`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <div className="hidden h-6 w-px bg-slate-200 sm:block dark:bg-slate-600" />
+          <div className={`hidden h-6 w-px sm:block ${chrome.sep}`} />
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={() => setFont((f) => (f > 0 ? ((f - 1) as FontScale) : 0))}
-              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
+              onClick={() => setFont((f) => (f > 0 ? ((f - 1) as SiteFontScale) : 0))}
+              className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold ${chrome.fontBtn}`}
               aria-label="Decrease font size"
               disabled={font === 0}
             >
@@ -145,15 +167,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setFont(0)}
-              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
+              className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold ${chrome.fontBtn}`}
               aria-label="Reset font size"
             >
               A
             </button>
             <button
               type="button"
-              onClick={() => setFont((f) => (f < 2 ? ((f + 1) as FontScale) : 2))}
-              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
+              onClick={() => setFont((f) => (f < 2 ? ((f + 1) as SiteFontScale) : 2))}
+              className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold ${chrome.fontBtn}`}
               aria-label="Increase font size"
               disabled={font === 2}
             >
