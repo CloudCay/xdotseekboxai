@@ -19,6 +19,13 @@ const anon = fromViteEnv('VITE_SUPABASE_ANON_KEY') ?? optionalEnv('EXPO_PUBLIC_S
 export const supabase =
   url && anon
     ? createClient(url, anon, {
+        global: {
+          // Some proxies / environments can drop default headers; force the API key on every request.
+          headers: {
+            apikey: anon,
+            Authorization: `Bearer ${anon}`,
+          },
+        },
         auth: {
           persistSession: true,
           autoRefreshToken: true,

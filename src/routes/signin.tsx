@@ -3,6 +3,38 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
+function formatAuthError(err: unknown): string {
+  if (!err) return 'Sign-in failed. Please try again.'
+  if (typeof err === 'string') return err
+  if (typeof err === 'object') {
+    const anyErr = err as Record<string, unknown>
+    const msg = typeof anyErr.message === 'string' && anyErr.message.trim() ? anyErr.message.trim() : null
+    const status = typeof anyErr.status === 'number' ? anyErr.status : null
+    const code = typeof anyErr.code === 'string' && anyErr.code.trim() ? anyErr.code.trim() : null
+    const name = typeof anyErr.name === 'string' && anyErr.name.trim() ? anyErr.name.trim() : null
+    const parts = [
+      msg ?? 'Sign-in failed. Please try again.',
+      status != null ? `status ${status}` : null,
+      code ? `code ${code}` : null,
+      name ? `(${name})` : null,
+    ].filter(Boolean)
+    const joined = parts.join(' · ')
+
+    // Add one targeted hint for the most common “mysterious 400”.
+    if (status === 400 && msg && /api key|invalid api key|jwt/i.test(msg)) {
+      return `${joined}\n\nHint: this usually means the Supabase anon key or URL is wrong/rotated. Update VITE_SUPABASE_ANON_KEY + VITE_SUPABASE_URL in Netlify and redeploy.`
+    }
+    if (status === 400 && msg && /redirect/i.test(msg)) {
+      return `${joined}\n\nHint: check Supabase Auth “Redirect URLs” / “Site URL” for this deployment origin.`
+    }
+    if (msg && /captcha/i.test(msg)) {
+      return `${joined}\n\nHint: Supabase is requiring captcha. Ensure Turnstile is enabled and VITE_TURNSTILE_SITE_KEY is set (or disable captcha enforcement in Supabase Auth settings).`
+    }
+    return joined
+  }
+  return 'Sign-in failed. Please try again.'
+}
+
 // Vite only exposes VITE_* vars to the browser bundle.
 // Support both so you can share naming with the main app, but use VITE_ on this site.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env access
@@ -120,7 +152,7 @@ function SignInPage() {
       if (authError) throw authError
       // Browser will redirect out to Google automatically.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.')
+      setError(formatAuthError(err))
     } finally {
       setIsGoogleLoading(false)
     }
@@ -151,7 +183,7 @@ function SignInPage() {
       if (authError) throw authError
       setStatus('sent')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to send link. Please try again.'
+      const msg = formatAuthError(err)
       if (/captcha/i.test(msg) && !CAPTCHA_REQUIRED) {
         setError(
           'Captcha is required, but Turnstile is not configured on this site. Set VITE_TURNSTILE_SITE_KEY in Netlify and redeploy.',
