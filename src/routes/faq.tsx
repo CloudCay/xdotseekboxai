@@ -8,54 +8,157 @@ export const Route = createFileRoute('/faq')({
 
 const faqs = [
   {
-    question: 'What is My SaaS?',
+    question: 'What is SeekBoxAi?',
     answer:
-      'My SaaS is an all-in-one platform that provides real-time analytics, automated workflows, and team collaboration tools. It helps teams ship products faster by consolidating the tools they need into a single, easy-to-use interface.',
+      'SeekBoxAi is a multi-engine AI search UI that runs several models and web-search engines side-by-side. You ask once, then compare answers, sources, and perspectives in one place.',
   },
   {
-    question: 'How does the free plan work?',
+    question: 'What is CleanSeek‑X?',
     answer:
-      'The Starter plan is completely free and includes up to 3 projects and 1,000 events per month. No credit card is required to sign up. You can upgrade to a paid plan at any time as your needs grow.',
+      'CleanSeek‑X is the main multi-engine search experience: streaming answers, engine selection, presets, prompt modifiers, and optional “Grok Live” behavior for recency-focused queries.',
   },
   {
-    question: 'Can I cancel my subscription at any time?',
+    question: 'What is XMarks?',
     answer:
-      "Yes. You can cancel your subscription at any time from your account settings. When you cancel, you'll retain access to your paid features until the end of your current billing cycle.",
+      'XMarks is a consumption-first dashboard with curated, pre-built searches (Topics / People / Industry) plus your own saved picks. It’s designed for quick “tap → run → read” workflows.',
   },
   {
-    question: 'Is my data secure?',
+    question: 'What is the Ticker page?',
     answer:
-      'Absolutely. My SaaS is SOC 2 Type II compliant and uses end-to-end encryption for all data in transit and at rest. We also support SSO, role-based access controls, and provide detailed audit logs for Enterprise customers.',
+      'Ticker is a stock-focused dashboard that pairs a symbol list (your watchlist/portfolio) with a Pulse run (X + web engines) and a factual context panel (Twelve Data quote + RSS + Wikipedia).',
   },
   {
-    question: 'What integrations do you support?',
+    question: 'How does streaming work?',
     answer:
-      'We integrate with popular tools like Slack, GitHub, Jira, Linear, Notion, and many more. Our API and webhook system also allows you to build custom integrations with any service.',
+      'Search results stream token-by-token using Server-Sent Events (SSE). This lets you see partial answers quickly while the rest continues to generate.',
   },
   {
-    question: 'Do you offer support for teams?',
+    question: 'Which engines can run?',
     answer:
-      'All plans include community support via our forum. Pro plans get priority email support with a 24-hour response time. Enterprise customers receive a dedicated account manager and phone support with guaranteed SLAs.',
+      'CleanSeek‑X includes a mix of model engines (e.g. ChatGPT, Claude, Gemini, Grok) and web engines (e.g. Tavily, Brave, GPT Search, Grok Web). You can choose which engines run per query.',
   },
   {
-    question: 'Can I import data from other tools?',
+    question: 'What’s the difference between presets and “My picks only”?',
     answer:
-      'Yes. We provide migration guides and import tools for common platforms. Our support team can also assist with custom migrations for Enterprise customers.',
+      'Presets are fast, opinionated bundles (Quick / Research / Web). “My picks only” runs exactly the engines you toggle — what you see is what you get.',
+  },
+  {
+    question: 'How do I confirm which engines will run?',
+    answer:
+      'The UI shows a “Next request” line listing the exact provider ids that will be sent on your next search.',
+  },
+  {
+    question: 'What does “Grok Live” do?',
+    answer:
+      'It adds a recency-focused instruction so results prioritize the last ~7 days when possible. It’s designed for fast-changing topics like markets, news, and launches.',
+  },
+  {
+    question: 'Does Grok Live override response length?',
+    answer:
+      'Yes — Live mode disables the response-length cap so engines have room to include fresh context and citations.',
+  },
+  {
+    question: 'What are prompt modifiers?',
+    answer:
+      'Prompt modifiers are optional controls that append short instruction suffixes to your query (response length target, tone, persona, comprehension level, reasoning style, and formatting flags).',
+  },
+  {
+    question: 'Are prompt modifiers saved?',
+    answer:
+      'Yes. They persist locally in your browser (localStorage) so preferences stick across reloads on the same device.',
+  },
+  {
+    question: 'What is RabbitHoleX?',
+    answer:
+      'RabbitHoleX opens a dedicated results-only view that auto-runs the current query and prints all engine outputs on a single page.',
+  },
+  {
+    question: 'What does History store?',
+    answer:
+      'History stores the search session and the per-engine outputs so you can expand an entry and read prior results, re-run, or delete it.',
+  },
+  {
+    question: 'Do I need to sign in for History?',
+    answer:
+      'Yes. History is backed by Supabase tables keyed to your user id, so you need an authenticated session to save and browse entries.',
+  },
+  {
+    question: 'Where do XMarks defaults and picks live?',
+    answer:
+      'Defaults are admin-editable in Supabase. Your personal picks save to Supabase when signed in, with a local fallback if the DB write is blocked or not configured.',
+  },
+  {
+    question: 'What is the Ticker “Context” panel?',
+    answer:
+      'It pulls factual context from public APIs: Twelve Data quotes, RSS headlines, and a Wikipedia snippet. It’s fast grounding for a symbol.',
+  },
+  {
+    question: 'Does Ticker news match my symbol?',
+    answer:
+      'Yes. The page surfaces RSS headlines that mention the symbol ($TSLA / TSLA) and, when available, the company name from the public stock metadata table.',
+  },
+  {
+    question: 'Is there direct Twitter/X API integration?',
+    answer:
+      'Not on this site. “X pull” is achieved through engines that have X/web access (e.g. Grok X) and the Pulse prompt — not by calling the X REST API directly.',
+  },
+  {
+    question: 'What data is stored locally vs in Supabase?',
+    answer:
+      'Local: theme, font size, engine selections, prompt modifiers. Supabase: signed-in history sessions/results, XMarks presets/picks (when enabled), and ticker watchlist symbols (when enabled).',
+  },
+  {
+    question: 'How do themes work?',
+    answer:
+      'Themes are applied via <html data-theme="…">. Dark also toggles the Tailwind “dark” class so existing dark-mode styles keep working.',
+  },
+  {
+    question: 'What is the “Paper” theme?',
+    answer:
+      'Paper is a greyscale, newsprint-inspired theme designed for reading: serif typography, high contrast, and minimal color distraction.',
+  },
+  {
+    question: 'What is the “SeekBox” theme?',
+    answer:
+      'SeekBox uses the official brand palette (cool white background, navy text, cobalt links, signal-red accents) and Inter typography.',
+  },
+  {
+    question: 'What do I need configured for full functionality?',
+    answer:
+      'You need a backend URL for streaming search. Supabase env vars enable sign-in + history + personalization tables. Twelve Data quotes require TWELVE_API_KEY server-side.',
   },
 ]
 
 function FAQ() {
   return (
-    <div className="min-h-screen py-20 px-4">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold text-center mb-4">
-          Frequently Asked Questions
-        </h1>
-        <p className="text-center mb-14 max-w-xl mx-auto">
-          Got questions? We've got answers. If you can't find what you're
-          looking for, reach out to our support team.
+    <div className="min-h-screen bg-[#050B14] text-slate-50 py-16 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between gap-4">
+          <a href="/" className="font-black text-lg tracking-tight">
+            SeekBoxAi
+          </a>
+          <div className="flex gap-2">
+            <a
+              href="/cleanseek-x"
+              className="rounded-xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800/50"
+            >
+              Open CleanSeek‑X
+            </a>
+            <a
+              href="/account"
+              className="rounded-xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800/50"
+            >
+              Account
+            </a>
+          </div>
+        </div>
+
+        <h1 className="mt-10 text-3xl md:text-4xl font-black tracking-tight">Frequently Asked Questions</h1>
+        <p className="mt-2 text-slate-400 max-w-2xl">
+          Product + platform FAQs for CleanSeek‑X, XMarks, and Ticker. If something feels off, it’s usually a missing env var or a Supabase table/RLS policy.
         </p>
-        <div className="space-y-3">
+
+        <div className="mt-10 space-y-3">
           {faqs.map((faq, i) => (
             <Accordion key={i} question={faq.question} answer={faq.answer} />
           ))}
@@ -69,19 +172,19 @@ function Accordion({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="rounded-2xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between gap-4 p-5 text-left hover:bg-white/[0.03] transition-colors"
       >
-        <span className="font-medium text-lg">{question}</span>
+        <span className="font-black text-base sm:text-lg text-slate-100">{question}</span>
         <ChevronDown
           size={20}
-          className={`transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
       {open && (
-        <div className="px-5 pb-5 leading-relaxed">{answer}</div>
+        <div className="px-5 pb-5 text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">{answer}</div>
       )}
     </div>
   )
