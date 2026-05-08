@@ -42,6 +42,104 @@ html[data-theme="newspaper"] body {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
+/* ----------------------------------------------------------------------------
+ * Newspaper theme — invert hardcoded dark Tailwind utilities used across the
+ * app (especially /cleanseek-x). Components were authored with dark colors
+ * baked into class names; these overrides re-paint them in newsprint tones
+ * without touching component code. Selector form `html[data-theme=…] .x`
+ * outranks plain Tailwind utility specificity.
+ * ------------------------------------------------------------------------- */
+
+/* Surfaces / cards — dark navy → cream paper */
+html[data-theme="newspaper"] .bg-\[\#0A1128\],
+html[data-theme="newspaper"] .bg-\[\#0A1128\]\/40,
+html[data-theme="newspaper"] .bg-\[\#0A1128\]\/60,
+html[data-theme="newspaper"] .bg-\[\#0A1128\]\/70,
+html[data-theme="newspaper"] .bg-\[\#0A1128\]\/80,
+html[data-theme="newspaper"] .bg-\[\#0A1128\]\/90,
+html[data-theme="newspaper"] .bg-\[\#050B14\],
+html[data-theme="newspaper"] .bg-\[\#050B14\]\/80,
+html[data-theme="newspaper"] .bg-\[\#050B14\]\/90 {
+  background-color: #faf8f3 !important;
+  background-image: none !important;
+}
+
+html[data-theme="newspaper"] .bg-slate-900,
+html[data-theme="newspaper"] .bg-slate-900\/30,
+html[data-theme="newspaper"] .bg-slate-900\/35,
+html[data-theme="newspaper"] .bg-slate-900\/40,
+html[data-theme="newspaper"] .bg-slate-900\/60,
+html[data-theme="newspaper"] .bg-slate-900\/80,
+html[data-theme="newspaper"] .bg-slate-950,
+html[data-theme="newspaper"] .bg-slate-950\/30,
+html[data-theme="newspaper"] .bg-slate-950\/90 {
+  background-color: #f4f1ea !important;
+  background-image: none !important;
+}
+
+html[data-theme="newspaper"] .bg-black\/20,
+html[data-theme="newspaper"] .bg-black\/25,
+html[data-theme="newspaper"] .bg-black\/30 {
+  background-color: #ede9df !important;
+}
+
+/* Borders — slate → neutral newsprint */
+html[data-theme="newspaper"] [class*="border-slate-600"],
+html[data-theme="newspaper"] [class*="border-slate-700"],
+html[data-theme="newspaper"] [class*="border-slate-800"] {
+  border-color: rgba(23, 23, 23, 0.25) !important;
+}
+
+/* Text — light slate → near-black ink with hierarchy */
+html[data-theme="newspaper"] .text-white,
+html[data-theme="newspaper"] .text-slate-100,
+html[data-theme="newspaper"] .text-slate-200,
+html[data-theme="newspaper"] .text-emerald-100,
+html[data-theme="newspaper"] .text-emerald-100\/95,
+html[data-theme="newspaper"] .text-cyan-100,
+html[data-theme="newspaper"] .text-violet-100 {
+  color: #111111 !important;
+}
+
+html[data-theme="newspaper"] .text-slate-200\/90,
+html[data-theme="newspaper"] .text-slate-300 {
+  color: #1f1f1f !important;
+}
+
+html[data-theme="newspaper"] .text-slate-400,
+html[data-theme="newspaper"] .text-slate-500,
+html[data-theme="newspaper"] .text-slate-600,
+html[data-theme="newspaper"] .text-emerald-200\/80,
+html[data-theme="newspaper"] .text-cyan-300,
+html[data-theme="newspaper"] .text-cyan-400,
+html[data-theme="newspaper"] .text-cyan-400\/90,
+html[data-theme="newspaper"] .text-emerald-300,
+html[data-theme="newspaper"] .text-emerald-400,
+html[data-theme="newspaper"] .text-emerald-400\/90 {
+  color: #4a4a4a !important;
+}
+
+/* Streaming markdown cards — `prose prose-invert` is dark-mode prose. Flip it. */
+html[data-theme="newspaper"] .prose-invert,
+html[data-theme="newspaper"] .prose.prose-invert {
+  --tw-prose-body: #111111;
+  --tw-prose-headings: #0a0a0a;
+  --tw-prose-lead: #1f1f1f;
+  --tw-prose-links: #1d4ed8;
+  --tw-prose-bold: #0a0a0a;
+  --tw-prose-counters: #4a4a4a;
+  --tw-prose-bullets: #6b6b6b;
+  --tw-prose-hr: rgba(0, 0, 0, 0.18);
+  --tw-prose-quotes: #1f1f1f;
+  --tw-prose-quote-borders: rgba(0, 0, 0, 0.2);
+  --tw-prose-captions: #4a4a4a;
+  --tw-prose-code: #0a0a0a;
+  --tw-prose-pre-code: #0a0a0a;
+  --tw-prose-pre-bg: #ede9df;
+  --tw-prose-th-borders: rgba(0, 0, 0, 0.25);
+  --tw-prose-td-borders: rgba(0, 0, 0, 0.15);
+}
+
 /* SeekBox — official brand palette (theme id: seekbox, P_SEEKBOX_BRAND) */
 html[data-theme="seekbox"] {
   color-scheme: light;

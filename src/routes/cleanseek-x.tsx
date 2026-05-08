@@ -231,8 +231,10 @@ function resolveSearchEngineIds(args: {
 const PROMPT_MODIFIERS_STORAGE_KEY = 'seekbox_cleanseek_x_prompt_modifiers_v1'
 
 const DEFAULT_PROMPT_MODS: PromptModifierSnapshot = {
-  responseLengthEnabled: true,
-  // Default page-wide target: ~100 words (see RESPONSE_LENGTH_LEVELS index 1).
+  // All modifiers default OFF — the prompt should only be modified when the
+  // user explicitly toggles or selects a control. Toggling response length on
+  // still defaults to ~100 words (level 1).
+  responseLengthEnabled: false,
   responseLength: 1,
   toneEnabled: false,
   toneLevel: 2,
@@ -2098,11 +2100,21 @@ export function CleanSeekLite({
           enabledEngineCount: enabledProviders.length || undefined,
           liveDataMode: useLatest,
           grokLive: useLatest,
-          responseLengthSetting: promptMods.responseLength,
-          persona:
-            promptMods.personaEnabled && promptMods.personaText.trim() ? promptMods.personaText.trim() : undefined,
-          comprehensionEnabled: promptMods.comprehensionEnabled,
-          comprehensionLevel: promptMods.comprehensionEnabled ? promptMods.comprehensionLevel : undefined,
+          // Only send modifier metadata when the corresponding toggle is on.
+          // Mirrors `modsForThisRun` so live-mode overrides apply (e.g. the
+          // response-length cap is intentionally suppressed in live mode).
+          ...(modsForThisRun.responseLengthEnabled
+            ? { responseLengthSetting: modsForThisRun.responseLength }
+            : {}),
+          ...(promptMods.personaEnabled && promptMods.personaText.trim()
+            ? { persona: promptMods.personaText.trim() }
+            : {}),
+          ...(promptMods.comprehensionEnabled
+            ? {
+                comprehensionEnabled: true,
+                comprehensionLevel: promptMods.comprehensionLevel,
+              }
+            : {}),
           ...(analysisMode !== 'none' && analysisJudge
             ? {
                 analysisMode,
