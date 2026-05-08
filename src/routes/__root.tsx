@@ -124,7 +124,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="antialiased">
         <div
-          className={`fixed top-3 right-3 z-[100] flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-2xl border p-2 ${chrome.wrap} ${
+          className={`fixed bottom-3 left-3 z-[100] flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-start gap-2 rounded-2xl border p-2 ${chrome.wrap} ${
             theme === 'newspaper' ? 'font-serif' : theme === 'seekbox' ? 'font-sans' : ''
           }`}
           role="toolbar"

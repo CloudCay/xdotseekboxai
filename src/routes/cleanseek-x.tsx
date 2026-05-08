@@ -1541,6 +1541,11 @@ export function CleanSeekLite({
   const [analysisModes, setAnalysisModes] = useState<AnalysisModeRow[]>(() => FALLBACK_ANALYSIS_MODES)
   const [analysisMode, setAnalysisMode] = useState<string>('none')
   const [analysisJudge, setAnalysisJudge] = useState<string>('chatgpt')
+  const analysisSelectableEngineIds = useMemo(() => new Set(['chatgpt', 'gemini']), [])
+  const analysisEngineCatalog = useMemo(() => {
+    if (analysisMode === 'none') return ENGINE_CATALOG
+    return ENGINE_CATALOG.filter((e) => analysisSelectableEngineIds.has(e.id))
+  }, [analysisMode, analysisSelectableEngineIds])
   /** Order providers for the results grid (matches last request). */
   const resultOrderRef = useRef<string[]>([])
   const [isSearching, setIsSearching] = useState<boolean>(false)
@@ -1659,6 +1664,7 @@ export function CleanSeekLite({
 
   const toggleEngineEnabled = useCallback(
     (id: string) => {
+      if (analysisMode !== 'none' && !analysisSelectableEngineIds.has(id)) return
       // Changing toggles while Quick/Research/Web locks engines would lie about what runs — switch to custom.
       if (enginePickMode === 'preset') {
         const pr = PRESETS.find((p) => p.id === activePreset)
@@ -1668,11 +1674,24 @@ export function CleanSeekLite({
         const has = prev.includes(id)
         let next = has ? prev.filter((x) => x !== id) : [...prev, id]
         if (next.length === 0) next = [id]
+        if (analysisMode !== 'none') {
+          next = next.filter((x) => analysisSelectableEngineIds.has(x))
+          if (next.length === 0) next = ['chatgpt', 'gemini']
+        }
         return next
       })
     },
-    [enginePickMode, activePreset],
+    [enginePickMode, activePreset, analysisMode, analysisSelectableEngineIds],
   )
+
+  useEffect(() => {
+    if (analysisMode === 'none') return
+    setEnabledEngineIds((prev) => {
+      const next = prev.filter((id) => analysisSelectableEngineIds.has(id))
+      return next.length ? next : ['chatgpt', 'gemini']
+    })
+    if (!analysisSelectableEngineIds.has(analysisJudge)) setAnalysisJudge('chatgpt')
+  }, [analysisMode, analysisJudge, analysisSelectableEngineIds])
 
   useEffect(() => {
     const sb = isSupabaseConfigured ? supabase : null
@@ -2564,7 +2583,7 @@ export function CleanSeekLite({
                   className="min-w-[200px] rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/40"
                   aria-label="Analysis judge engine"
                 >
-                  {ENGINE_CATALOG.map((e) => (
+                  {analysisEngineCatalog.map((e) => (
                     <option key={e.id} value={e.id}>
                       Judge: {e.label}
                     </option>
@@ -2710,15 +2729,19 @@ export function CleanSeekLite({
           <div className="mt-3 flex flex-wrap gap-2">
             {ENGINE_CATALOG.map((eng) => {
               const on = enabledEngineIds.includes(eng.id)
+              const disabled = analysisMode !== 'none' && !analysisSelectableEngineIds.has(eng.id)
               return (
                 <button
                   key={eng.id}
                   type="button"
                   onClick={() => toggleEngineEnabled(eng.id)}
+                  disabled={disabled}
                   className={`rounded-xl px-3 py-1.5 text-xs font-black border transition-colors ${
-                    on
-                      ? 'border-cyan-500/45 bg-cyan-500/15 text-cyan-50'
-                      : 'border-slate-700 bg-slate-950/40 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                    disabled
+                      ? 'cursor-not-allowed border-slate-800 bg-slate-950/20 text-slate-700 opacity-60'
+                      : on
+                        ? 'border-cyan-500/45 bg-cyan-500/15 text-cyan-50'
+                        : 'border-slate-700 bg-slate-950/40 text-slate-500 hover:border-slate-600 hover:text-slate-300'
                   }`}
                   aria-pressed={on}
                 >
@@ -3124,7 +3147,7 @@ export function CleanSeekLite({
                     className="w-full rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/40"
                     aria-label="Analysis judge engine"
                   >
-                    {ENGINE_CATALOG.map((e) => (
+                    {analysisEngineCatalog.map((e) => (
                       <option key={e.id} value={e.id}>
                         Judge: {e.label}
                       </option>
