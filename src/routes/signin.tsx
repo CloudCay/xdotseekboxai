@@ -66,8 +66,8 @@ function SignInPage() {
             Sign-in isn’t enabled on this site yet.
           </div>
           <div className="mt-6 text-sm text-slate-400">
-            To enable it, set <span className="font-mono">EXPO_PUBLIC_SUPABASE_URL</span> and{' '}
-            <span className="font-mono">EXPO_PUBLIC_SUPABASE_ANON_KEY</span> in Netlify and redeploy.
+            To enable it, set <span className="font-mono">VITE_SUPABASE_URL</span> and{' '}
+            <span className="font-mono">VITE_SUPABASE_ANON_KEY</span> in Netlify and redeploy.
           </div>
           <a
             href="/"
