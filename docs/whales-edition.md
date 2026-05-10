@@ -12,6 +12,7 @@ SeekBox Whales Edition is the ticker-page layer for Unusual Whales data. It supp
 - Hosted key mode verifies the Supabase session token before using `UW_API_KEY`.
 - Set `UW_ALLOWED_EMAILS=email1@example.com,email2@example.com` to limit hosted-key access further during personal/dev use.
 - The seeded board currently watches `OKE` (ONEOK), `AAPL`, `SPY`, and `VIX`.
+- When the `uw_symbols` migration exists, the ticker page reads the seeded public watchlist from Supabase and falls back to the bundled four-symbol list if the table is missing.
 
 ## License Posture
 
@@ -43,6 +44,21 @@ The UI normalizes those responses into:
 - optional market tide sparkline
 - an LLM-ready prompt that can be pushed into the ticker Pulse search box
 
+## UW Lab Packs
+
+The ticker page now has opt-in lab packs for deliberately over-sampling the API during personal/dev discovery. These calls run only when a signed-in hosted-key user or BYO-key user clicks `Run`; nothing auto-loads.
+
+- Market impact: `/api/market/top-net-impact`, `/api/market/oi-change`, `/api/market/sector-etfs`, `/api/market/total-options-volume`
+- Gamma/vol: `/api/stock/{ticker}/greek-exposure`, `/api/stock/{ticker}/iv-rank`, `/api/stock/{ticker}/max-pain`, `/api/stock/{ticker}/volatility/stats`, `/api/stock/{ticker}/volatility/term-structure`
+- News catalyst: `/api/news/headlines`
+- Ownership and short pressure: insider buy/sells, institutional ownership, short data, and failures-to-deliver endpoints
+- Political tape: congressional unusual trades by ticker, when available for the subscription level
+- ETF tide: `/api/market/{ticker}/etf-tide` plus market-tide comparison
+
+The special thing about UW for SeekBox is not one endpoint. It is the ability to create a compact read that combines options pressure, market-wide impact, gamma/volatility context, dark-pool/short pressure, and public catalysts into a promptable research surface.
+
+Source: https://api.unusualwhales.com/docs
+
 ## Supabase Isolation
 
 Migration:
@@ -54,6 +70,8 @@ The migration creates:
 - `uw_symbols` for seeded/private symbol configuration
 - `uw_snapshots` for user-owned normalized snapshot metadata and metrics
 - `uw_snapshot_items` for user-owned normalized item summaries
+- `uw_lab_runs` for user-owned normalized lab-pack metadata and metrics
+- `uw_lab_items` for user-owned normalized lab-pack summaries
 - `delete_expired_uw_snapshots()` for TTL cleanup
 
 The tables are intentionally prefixed with `uw_` so they can be moved into a separate database later without renaming the domain model.

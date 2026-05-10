@@ -29,10 +29,15 @@ export const Route = createFileRoute('/api/unusual-whales')({
         const minPremium = cleanMoney(body.minPremium, 250_000)
         const side = cleanSide(body.side)
         const include = cleanInclude(body.include)
-        const endpointPlans = buildEndpointPlans({ symbol, minPremium, side, include })
+        const labKeys = cleanLabs(body.labs ?? body.lab)
+        const endpointPlans = [
+          ...buildEndpointPlans({ symbol, minPremium, side, include }),
+          ...buildLabEndpointPlans(symbol, labKeys),
+        ]
 
         const settled = await Promise.allSettled(endpointPlans.map((plan) => fetchUnusualWhales(plan, apiKey)))
         const errors: string[] = []
+        const endpointErrors: Record<string, string> = {}
         const rawByKey: Record<string, unknown> = {}
         const okEndpoints: string[] = []
 
@@ -42,7 +47,9 @@ export const Route = createFileRoute('/api/unusual-whales')({
             rawByKey[plan.key] = result.value.raw
             okEndpoints.push(plan.key)
           } else {
-            errors.push(result.reason instanceof Error ? result.reason.message : `${plan.label} failed.`)
+            const message = result.reason instanceof Error ? result.reason.message : `${plan.label} failed.`
+            endpointErrors[plan.key] = message
+            errors.push(message)
           }
         })
 
@@ -51,6 +58,11 @@ export const Route = createFileRoute('/api/unusual-whales')({
         const darkpoolRows = normalizeDarkpool(rawByKey.darkpool)
         const marketTide = normalizeMarketTide(rawByKey.marketTide)
         const metrics = deriveMetrics({ flowRows, alertRows, darkpoolRows, marketTide })
+        const labs = summarizeLabResults({ labKeys, endpointPlans, rawByKey, endpointErrors })
+        const labPrompt = labs.length ? buildLabPrompt({ symbol, labs }) : ''
+        const prompt = [buildWhalesPrompt({ symbol, metrics, alertRows, darkpoolRows, marketTide }), labPrompt]
+          .filter(Boolean)
+          .join('\n\n')
 
         return Response.json({
           symbol,
@@ -63,7 +75,9 @@ export const Route = createFileRoute('/api/unusual-whales')({
           flowAlerts: alertRows,
           darkpool: darkpoolRows,
           marketTide,
-          prompt: buildWhalesPrompt({ symbol, metrics, alertRows, darkpoolRows, marketTide }),
+          labs,
+          labPrompt,
+          prompt,
           source: {
             name: 'Unusual Whales',
             docs: 'https://api.unusualwhales.com/docs',
@@ -81,11 +95,31 @@ type IncludeFlags = {
   marketTide: boolean
 }
 
+type LabKey = 'marketImpact' | 'gammaVol' | 'newsCatalyst' | 'ownershipPressure' | 'politicalTape' | 'etfTide'
+
 type EndpointPlan = {
-  key: 'recentFlow' | 'flowAlerts' | 'darkpool' | 'marketTide'
+  key: string
   label: string
   path: string
   params?: Record<string, string | number | boolean | undefined>
+  lab?: LabKey
+}
+
+type LabResult = {
+  key: LabKey
+  label: string
+  status: 'ok' | 'partial' | 'empty' | 'error'
+  endpoints: string[]
+  rowCount: number
+  metrics: Record<string, string | number | null>
+  highlights: LabHighlight[]
+  errors: string[]
+}
+
+type LabHighlight = {
+  title: string
+  meta?: string
+  value?: string
 }
 
 type NormalizedFlowRow = {
@@ -184,6 +218,65 @@ function buildEndpointPlans(args: {
     })
   }
   return plans.length ? plans : buildEndpointPlans({ ...args, include: { ...args.include, flowAlerts: true } })
+}
+
+const LAB_LABELS: Record<LabKey, string> = {
+  marketImpact: 'Market impact',
+  gammaVol: 'Gamma and volatility',
+  newsCatalyst: 'News catalyst',
+  ownershipPressure: 'Ownership and short pressure',
+  politicalTape: 'Political tape',
+  etfTide: 'ETF tide',
+}
+
+function buildLabEndpointPlans(symbol: string, labKeys: LabKey[]): EndpointPlan[] {
+  return labKeys.flatMap((lab): EndpointPlan[] => {
+    if (lab === 'marketImpact') {
+      return [
+        { key: 'labTopNetImpact', lab, label: 'Top net impact', path: '/api/market/top-net-impact', params: { limit: 20 } },
+        { key: 'labOiChange', lab, label: 'Market OI change', path: '/api/market/oi-change', params: { limit: 20 } },
+        { key: 'labSectorEtfs', lab, label: 'Sector ETFs', path: '/api/market/sector-etfs' },
+        { key: 'labTotalOptionsVolume', lab, label: 'Total options volume', path: '/api/market/total-options-volume' },
+      ]
+    }
+    if (lab === 'gammaVol') {
+      return [
+        { key: 'labGreekExposure', lab, label: 'Greek exposure', path: `/api/stock/${encodeURIComponent(symbol)}/greek-exposure` },
+        { key: 'labIvRank', lab, label: 'IV rank', path: `/api/stock/${encodeURIComponent(symbol)}/iv-rank` },
+        { key: 'labMaxPain', lab, label: 'Max pain', path: `/api/stock/${encodeURIComponent(symbol)}/max-pain` },
+        { key: 'labVolatilityStats', lab, label: 'Volatility stats', path: `/api/stock/${encodeURIComponent(symbol)}/volatility/stats` },
+        { key: 'labVolatilityTerm', lab, label: 'Volatility term structure', path: `/api/stock/${encodeURIComponent(symbol)}/volatility/term-structure` },
+      ]
+    }
+    if (lab === 'newsCatalyst') {
+      return [
+        { key: 'labNews', lab, label: 'News headlines', path: '/api/news/headlines', params: { ticker: symbol, major_only: true, limit: 10 } },
+      ]
+    }
+    if (lab === 'ownershipPressure') {
+      return [
+        { key: 'labInsiderBuysSells', lab, label: 'Insider buy and sells', path: `/api/stock/${encodeURIComponent(symbol)}/insider-buy-sells` },
+        { key: 'labInstitutionalOwnership', lab, label: 'Institutional ownership', path: `/api/institution/${encodeURIComponent(symbol)}/ownership` },
+        { key: 'labShortData', lab, label: 'Short data', path: `/api/shorts/${encodeURIComponent(symbol)}/data` },
+        { key: 'labFailuresToDeliver', lab, label: 'Failures to deliver', path: `/api/shorts/${encodeURIComponent(symbol)}/ftds` },
+      ]
+    }
+    if (lab === 'politicalTape') {
+      return [
+        {
+          key: 'labCongressTicker',
+          lab,
+          label: 'Congress unusual trades by ticker',
+          path: '/api/congress/unusual-trades/by-tickers',
+          params: { tickers: symbol, limit: 20 },
+        },
+      ]
+    }
+    return [
+      { key: 'labEtfTide', lab, label: 'ETF tide', path: `/api/market/${encodeURIComponent(symbol)}/etf-tide` },
+      { key: 'labEtfMarketTide', lab, label: 'Market tide comparison', path: '/api/market/market-tide', params: { interval_5m: true } },
+    ]
+  })
 }
 
 async function fetchUnusualWhales(plan: EndpointPlan, apiKey: string): Promise<{ key: EndpointPlan['key']; raw: unknown }> {
@@ -311,6 +404,17 @@ function cleanInclude(value: unknown): IncludeFlags {
   }
 }
 
+function cleanLabs(value: unknown): LabKey[] {
+  const raw = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []
+  const allowed = new Set<LabKey>(['marketImpact', 'gammaVol', 'newsCatalyst', 'ownershipPressure', 'politicalTape', 'etfTide'])
+  const labs: LabKey[] = []
+  raw.forEach((item) => {
+    const key = typeof item === 'string' ? item.trim() : ''
+    if (allowed.has(key as LabKey) && !labs.includes(key as LabKey)) labs.push(key as LabKey)
+  })
+  return labs.slice(0, 6)
+}
+
 function cleanBoolean(value: unknown, fallback: boolean): boolean {
   if (typeof value === 'boolean') return value
   if (typeof value === 'string') {
@@ -392,6 +496,137 @@ function normalizeMarketTide(raw: unknown): NormalizedTidePoint[] {
     })
 }
 
+function summarizeLabResults(args: {
+  labKeys: LabKey[]
+  endpointPlans: EndpointPlan[]
+  rawByKey: Record<string, unknown>
+  endpointErrors: Record<string, string>
+}): LabResult[] {
+  return args.labKeys.map((lab) => {
+    const plans = args.endpointPlans.filter((plan) => plan.lab === lab)
+    const errors = plans.map((plan) => args.endpointErrors[plan.key]).filter(Boolean)
+    const highlights = plans.flatMap((plan) => labHighlightsForPlan(plan, args.rawByKey[plan.key])).slice(0, 8)
+    const rowCount = plans.reduce((total, plan) => total + compactRows(args.rawByKey[plan.key]).length, 0)
+    const hasPayload = plans.some((plan) => Object.prototype.hasOwnProperty.call(args.rawByKey, plan.key))
+    const status: LabResult['status'] =
+      !hasPayload && errors.length
+        ? 'error'
+        : rowCount > 0 || highlights.length
+          ? errors.length
+            ? 'partial'
+            : 'ok'
+          : errors.length
+            ? 'partial'
+            : 'empty'
+
+    return {
+      key: lab,
+      label: LAB_LABELS[lab],
+      status,
+      endpoints: plans.map((plan) => plan.key),
+      rowCount,
+      metrics: buildLabMetrics(lab, args.rawByKey),
+      highlights,
+      errors,
+    }
+  })
+}
+
+function buildLabMetrics(lab: LabKey, rawByKey: Record<string, unknown>): Record<string, string | number | null> {
+  if (lab === 'marketImpact') {
+    return {
+      topImpactRows: compactRows(rawByKey.labTopNetImpact).length,
+      oiChangeRows: compactRows(rawByKey.labOiChange).length,
+      sectorRows: compactRows(rawByKey.labSectorEtfs).length,
+      totalVolumeRows: compactRows(rawByKey.labTotalOptionsVolume).length,
+    }
+  }
+  if (lab === 'gammaVol') {
+    return {
+      greekExposureRows: compactRows(rawByKey.labGreekExposure).length,
+      ivRankRows: compactRows(rawByKey.labIvRank).length,
+      maxPainRows: compactRows(rawByKey.labMaxPain).length,
+      volatilityRows: compactRows(rawByKey.labVolatilityStats).length + compactRows(rawByKey.labVolatilityTerm).length,
+    }
+  }
+  if (lab === 'newsCatalyst') return { headlines: compactRows(rawByKey.labNews).length }
+  if (lab === 'ownershipPressure') {
+    return {
+      insiderRows: compactRows(rawByKey.labInsiderBuysSells).length,
+      ownershipRows: compactRows(rawByKey.labInstitutionalOwnership).length,
+      shortRows: compactRows(rawByKey.labShortData).length,
+      ftdRows: compactRows(rawByKey.labFailuresToDeliver).length,
+    }
+  }
+  if (lab === 'politicalTape') return { congressionalRows: compactRows(rawByKey.labCongressTicker).length }
+  return {
+    etfTidePoints: compactRows(rawByKey.labEtfTide).length,
+    marketTidePoints: compactRows(rawByKey.labEtfMarketTide).length,
+  }
+}
+
+function labHighlightsForPlan(plan: EndpointPlan, raw: unknown): LabHighlight[] {
+  return compactRows(raw)
+    .slice(0, 3)
+    .map((row, index) => {
+      const title =
+        pickString(row, ['headline', 'title', 'ticker', 'symbol', 'company_name', 'name', 'politician', 'representative', 'issuer_name', 'expiry', 'expiration']) ??
+        `${plan.label} ${index + 1}`
+      const meta = [
+        plan.label,
+        pickString(row, ['source', 'source_name', 'transaction_type', 'sentiment', 'direction', 'side']),
+        pickString(row, ['date', 'transaction_date', 'report_date', 'published_at', 'created_at', 'timestamp', 'expiry', 'expiration']),
+      ]
+        .filter(Boolean)
+        .join(' | ')
+      return {
+        title,
+        meta,
+        value: pickLabValue(row),
+      }
+    })
+}
+
+function compactRows(raw: unknown): Record<string, unknown>[] {
+  const rows = dataRows(raw)
+  if (rows.length) return rows
+  if (isRecord(raw) && isRecord(raw.data)) return [raw.data]
+  if (isRecord(raw)) return [raw]
+  return []
+}
+
+function pickLabValue(row: Record<string, unknown>): string | undefined {
+  const moneyKeys = [
+    'net_premium',
+    'net_call_premium',
+    'net_put_premium',
+    'premium',
+    'total_premium',
+    'amount',
+    'value',
+    'market_value',
+    'notional',
+  ]
+  for (const key of moneyKeys) {
+    const value = optionalNumber(row, [key])
+    if (value != null) return money(value)
+  }
+
+  const percentKeys = ['iv_rank', 'iv_percentile', 'short_interest_pct_float', 'short_volume_ratio', 'percent_of_float']
+  for (const key of percentKeys) {
+    const value = optionalNumber(row, [key])
+    if (value != null) return `${value.toFixed(value >= 10 ? 0 : 1)}%`
+  }
+
+  const numberKeys = ['volume', 'open_interest', 'shares', 'short_interest', 'days_to_cover', 'gamma_exposure', 'call_volume', 'put_volume']
+  for (const key of numberKeys) {
+    const value = optionalNumber(row, [key])
+    if (value != null) return formatCount(value)
+  }
+
+  return undefined
+}
+
 function deriveMetrics(args: {
   flowRows: NormalizedFlowRow[]
   alertRows: NormalizedAlertRow[]
@@ -444,6 +679,21 @@ function buildWhalesPrompt(args: {
     topDarkpool ? `Largest dark pool print: ${money(topDarkpool.premium)} at ${topDarkpool.price ?? 'unknown price'}.` : 'Largest dark pool print: none returned.',
     tide != null ? `Market tide latest net: ${money(tide)}.` : 'Market tide not included.',
     'Answer in sections: whale tape, confirming public narrative, contradiction/risk, and what to watch next. Do not give financial advice.',
+  ].join('\n')
+}
+
+function buildLabPrompt(args: { symbol: string; labs: LabResult[] }): string {
+  const lines = args.labs.map((lab) => {
+    const highlights = lab.highlights
+      .slice(0, 3)
+      .map((item) => `${item.title}${item.value ? ` (${item.value})` : ''}`)
+      .join('; ')
+    return `${lab.label}: ${lab.status}, ${lab.rowCount} normalized rows${highlights ? `; ${highlights}` : ''}.`
+  })
+  return [
+    `${args.symbol} UW Lab context: compare these private endpoint reads against public market/X narratives and explain which sources are useful enough to productize.`,
+    ...lines,
+    'Respect the provider license posture: do not redistribute raw or derived provider data publicly.',
   ].join('\n')
 }
 
@@ -511,4 +761,13 @@ function money(value: number): string {
   if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`
   if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`
   return `${sign}$${abs.toFixed(0)}`
+}
+
+function formatCount(value: number): string {
+  const sign = value < 0 ? '-' : ''
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(2)}B`
+  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(2)}M`
+  if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}K`
+  return `${sign}${abs.toFixed(0)}`
 }

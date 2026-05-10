@@ -8,6 +8,7 @@ create table if not exists public.uw_symbols (
   symbol text primary key,
   display_name text not null,
   profile text not null,
+  sort_order integer not null default 100,
   default_min_premium integer not null default 250000,
   default_include jsonb not null default '{}'::jsonb,
   notes text,
@@ -17,6 +18,9 @@ create table if not exists public.uw_symbols (
   constraint uw_symbols_symbol_format check (symbol ~ '^[A-Z][A-Z0-9.-]{0,11}$')
 );
 
+alter table public.uw_symbols
+  add column if not exists sort_order integer not null default 100;
+
 alter table public.uw_symbols enable row level security;
 
 drop policy if exists "uw_symbols_public_read" on public.uw_symbols;
@@ -24,15 +28,16 @@ create policy "uw_symbols_public_read"
   on public.uw_symbols for select
   using (true);
 
-insert into public.uw_symbols (symbol, display_name, profile, default_min_premium, default_include, notes, is_seeded)
+insert into public.uw_symbols (symbol, display_name, profile, sort_order, default_min_premium, default_include, notes, is_seeded)
 values
-  ('OKE', 'ONEOK', 'Energy midstream flow', 100000, '{"recentFlow":true,"flowAlerts":true,"darkpool":true,"marketTide":false}', 'Seeded personal-dev board symbol.', true),
-  ('AAPL', 'Apple', 'Mega-cap single name', 500000, '{"recentFlow":true,"flowAlerts":true,"darkpool":true,"marketTide":false}', 'Seeded personal-dev board symbol.', true),
-  ('SPY', 'SPY', 'Index ETF tape', 1000000, '{"recentFlow":true,"flowAlerts":true,"darkpool":true,"marketTide":true}', 'Seeded personal-dev board symbol.', true),
-  ('VIX', 'VIX', 'Volatility regime', 250000, '{"recentFlow":false,"flowAlerts":true,"darkpool":false,"marketTide":true}', 'Index/volatility endpoints may return partial data.', true)
+  ('OKE', 'ONEOK', 'Energy midstream flow', 10, 100000, '{"recentFlow":true,"flowAlerts":true,"darkpool":true,"marketTide":false}', 'Seeded personal-dev board symbol.', true),
+  ('AAPL', 'Apple', 'Mega-cap single name', 20, 500000, '{"recentFlow":true,"flowAlerts":true,"darkpool":true,"marketTide":false}', 'Seeded personal-dev board symbol.', true),
+  ('SPY', 'SPY', 'Index ETF tape', 30, 1000000, '{"recentFlow":true,"flowAlerts":true,"darkpool":true,"marketTide":true}', 'Seeded personal-dev board symbol.', true),
+  ('VIX', 'VIX', 'Volatility regime', 40, 250000, '{"recentFlow":false,"flowAlerts":true,"darkpool":false,"marketTide":true}', 'Index/volatility endpoints may return partial data.', true)
 on conflict (symbol) do update set
   display_name = excluded.display_name,
   profile = excluded.profile,
+  sort_order = excluded.sort_order,
   default_min_premium = excluded.default_min_premium,
   default_include = excluded.default_include,
   notes = excluded.notes,
@@ -42,7 +47,7 @@ on conflict (symbol) do update set
 create table if not exists public.uw_snapshots (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  symbol text not null references public.uw_symbols(symbol) on update cascade,
+  symbol text not null,
   provider text not null default 'unusual_whales',
   key_source text not null check (key_source in ('user', 'server')),
   min_premium integer not null default 250000,
@@ -51,7 +56,8 @@ create table if not exists public.uw_snapshots (
   prompt text,
   fetched_at timestamptz not null,
   expires_at timestamptz not null default (now() + interval '24 hours'),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint uw_snapshots_symbol_format check (symbol ~ '^[A-Z][A-Z0-9.-]{0,11}$')
 );
 
 create index if not exists uw_snapshots_user_symbol_created_idx
@@ -127,6 +133,96 @@ create policy "uw_snapshot_items_delete_own"
     )
   );
 
+create table if not exists public.uw_lab_runs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  symbol text not null,
+  provider text not null default 'unusual_whales',
+  key_source text not null check (key_source in ('user', 'server')),
+  lab_keys text[] not null default '{}'::text[],
+  metrics jsonb not null default '{}'::jsonb,
+  prompt text,
+  fetched_at timestamptz not null,
+  expires_at timestamptz not null default (now() + interval '24 hours'),
+  created_at timestamptz not null default now(),
+  constraint uw_lab_runs_symbol_format check (symbol ~ '^[A-Z][A-Z0-9.-]{0,11}$')
+);
+
+create index if not exists uw_lab_runs_user_symbol_created_idx
+  on public.uw_lab_runs (user_id, symbol, created_at desc);
+
+create index if not exists uw_lab_runs_expires_idx
+  on public.uw_lab_runs (expires_at);
+
+alter table public.uw_lab_runs enable row level security;
+
+drop policy if exists "uw_lab_runs_select_own" on public.uw_lab_runs;
+create policy "uw_lab_runs_select_own"
+  on public.uw_lab_runs for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "uw_lab_runs_insert_own" on public.uw_lab_runs;
+create policy "uw_lab_runs_insert_own"
+  on public.uw_lab_runs for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "uw_lab_runs_delete_own" on public.uw_lab_runs;
+create policy "uw_lab_runs_delete_own"
+  on public.uw_lab_runs for delete
+  using (auth.uid() = user_id);
+
+create table if not exists public.uw_lab_items (
+  id uuid primary key default gen_random_uuid(),
+  lab_run_id uuid not null references public.uw_lab_runs(id) on delete cascade,
+  lab_key text not null check (lab_key in ('marketImpact', 'gammaVol', 'newsCatalyst', 'ownershipPressure', 'politicalTape', 'etfTide')),
+  endpoint_key text not null,
+  status text not null check (status in ('ok', 'partial', 'empty', 'error')),
+  ordinal integer not null default 0,
+  summary jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists uw_lab_items_run_idx
+  on public.uw_lab_items (lab_run_id, lab_key, ordinal);
+
+alter table public.uw_lab_items enable row level security;
+
+drop policy if exists "uw_lab_items_select_own" on public.uw_lab_items;
+create policy "uw_lab_items_select_own"
+  on public.uw_lab_items for select
+  using (
+    exists (
+      select 1
+      from public.uw_lab_runs r
+      where r.id = lab_run_id
+        and r.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "uw_lab_items_insert_own" on public.uw_lab_items;
+create policy "uw_lab_items_insert_own"
+  on public.uw_lab_items for insert
+  with check (
+    exists (
+      select 1
+      from public.uw_lab_runs r
+      where r.id = lab_run_id
+        and r.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "uw_lab_items_delete_own" on public.uw_lab_items;
+create policy "uw_lab_items_delete_own"
+  on public.uw_lab_items for delete
+  using (
+    exists (
+      select 1
+      from public.uw_lab_runs r
+      where r.id = lab_run_id
+        and r.user_id = auth.uid()
+    )
+  );
+
 create or replace function public.delete_expired_uw_snapshots()
 returns integer
 language plpgsql
@@ -135,10 +231,16 @@ set search_path = public
 as $$
 declare
   deleted_count integer;
+  lab_deleted_count integer;
 begin
   delete from public.uw_snapshots
   where expires_at < now();
   get diagnostics deleted_count = row_count;
-  return deleted_count;
+
+  delete from public.uw_lab_runs
+  where expires_at < now();
+  get diagnostics lab_deleted_count = row_count;
+
+  return deleted_count + lab_deleted_count;
 end;
 $$;

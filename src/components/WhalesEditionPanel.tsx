@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, BarChart3, Database, KeyRound, Lock, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Activity, BarChart3, Database, FlaskConical, KeyRound, Lock, RefreshCw, ShieldCheck } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 const API_KEY_STORAGE_KEY = 'seekbox_whales_unusual_whales_api_key_v1'
@@ -10,6 +10,7 @@ const WHALE_BOARD_SYMBOLS: WhaleBoardSymbol[] = [
     symbol: 'OKE',
     label: 'ONEOK',
     description: 'Energy midstream flow',
+    sortOrder: 10,
     minPremium: 100_000,
     include: { recentFlow: true, flowAlerts: true, darkpool: true, marketTide: false },
   },
@@ -17,6 +18,7 @@ const WHALE_BOARD_SYMBOLS: WhaleBoardSymbol[] = [
     symbol: 'AAPL',
     label: 'Apple',
     description: 'Mega-cap single name',
+    sortOrder: 20,
     minPremium: 500_000,
     include: { recentFlow: true, flowAlerts: true, darkpool: true, marketTide: false },
   },
@@ -24,6 +26,7 @@ const WHALE_BOARD_SYMBOLS: WhaleBoardSymbol[] = [
     symbol: 'SPY',
     label: 'SPY',
     description: 'Index ETF tape',
+    sortOrder: 30,
     minPremium: 1_000_000,
     include: { recentFlow: true, flowAlerts: true, darkpool: true, marketTide: true },
   },
@@ -31,15 +34,28 @@ const WHALE_BOARD_SYMBOLS: WhaleBoardSymbol[] = [
     symbol: 'VIX',
     label: 'VIX',
     description: 'Volatility regime',
+    sortOrder: 40,
     minPremium: 250_000,
     include: { recentFlow: false, flowAlerts: true, darkpool: false, marketTide: true },
   },
 ]
 
+const UW_LAB_PACKS: Array<{ key: LabKey; label: string; description: string }> = [
+  { key: 'marketImpact', label: 'Market impact', description: 'Top net impact, OI change, sectors, total options volume' },
+  { key: 'gammaVol', label: 'Gamma/vol', description: 'GEX, IV rank, max pain, volatility shape' },
+  { key: 'newsCatalyst', label: 'News', description: 'Ticker headlines for catalyst checks' },
+  { key: 'ownershipPressure', label: 'Ownership', description: 'Insider, institution, short, and FTD pressure' },
+  { key: 'politicalTape', label: 'Political', description: 'Congressional unusual trades when available' },
+  { key: 'etfTide', label: 'ETF tide', description: 'ETF-specific tide against market tide' },
+]
+
+type LabKey = 'marketImpact' | 'gammaVol' | 'newsCatalyst' | 'ownershipPressure' | 'politicalTape' | 'etfTide'
+
 type WhaleBoardSymbol = {
   symbol: string
   label: string
   description: string
+  sortOrder?: number
   minPremium: number
   include: IncludeFlags
 }
@@ -108,6 +124,21 @@ type WhalesPayload = {
     netPremium: number
     netVolume?: number
   }>
+  labs?: Array<{
+    key: LabKey
+    label: string
+    status: 'ok' | 'partial' | 'empty' | 'error'
+    endpoints: string[]
+    rowCount: number
+    metrics: Record<string, string | number | null>
+    highlights: Array<{
+      title: string
+      meta?: string
+      value?: string
+    }>
+    errors: string[]
+  }>
+  labPrompt?: string
   prompt: string
   source?: { name?: string; docs?: string }
 }
@@ -140,14 +171,42 @@ export function WhalesEditionPanel({
   })
   const [loading, setLoading] = useState<boolean>(false)
   const [boardLoading, setBoardLoading] = useState<boolean>(false)
+  const [labLoading, setLabLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [payload, setPayload] = useState<WhalesPayload | null>(null)
   const [boardSnapshots, setBoardSnapshots] = useState<Record<string, BoardSnapshotState>>({})
+  const [watchlistSymbols, setWatchlistSymbols] = useState<WhaleBoardSymbol[]>(WHALE_BOARD_SYMBOLS)
+  const [selectedLabs, setSelectedLabs] = useState<Record<LabKey, boolean>>({
+    marketImpact: true,
+    gammaVol: true,
+    newsCatalyst: false,
+    ownershipPressure: false,
+    politicalTape: false,
+    etfTide: false,
+  })
 
   useEffect(() => {
     const next = normalizeWhaleSymbol(symbol)
     if (next) setActiveSymbol(next)
   }, [symbol])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return
+    let cancelled = false
+    void (async () => {
+      const { data, error } = await supabase
+        .from('uw_symbols')
+        .select('symbol, display_name, profile, default_min_premium, default_include, sort_order')
+        .eq('is_seeded', true)
+        .order('sort_order', { ascending: true })
+      if (cancelled || error || !Array.isArray(data) || !data.length) return
+      const symbols = data.map(mapWatchlistRow).filter(Boolean) as WhaleBoardSymbol[]
+      if (symbols.length) setWatchlistSymbols(symbols)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -166,7 +225,7 @@ export function WhalesEditionPanel({
     }
   }, [apiKey, rememberKey])
 
-  const requestSnapshot = useCallback(async (args: { symbol: string; include?: IncludeFlags; minPremium?: number | string }) => {
+  const requestSnapshot = useCallback(async (args: { symbol: string; include?: IncludeFlags; minPremium?: number | string; labs?: LabKey[] }) => {
     const requestSymbol = normalizeWhaleSymbol(args.symbol) || 'NVDA'
     const ownKey = apiKey.trim()
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -184,6 +243,7 @@ export function WhalesEditionPanel({
         minPremium: args.minPremium ?? minPremium,
         side: side === 'all' ? null : side,
         include: args.include ?? include,
+        labs: args.labs ?? [],
       }),
     })
     const json = (await response.json()) as { error?: string } & WhalesPayload
@@ -246,16 +306,32 @@ export function WhalesEditionPanel({
   const loadBoard = useCallback(async () => {
     setBoardLoading(true)
     try {
-      for (const profile of WHALE_BOARD_SYMBOLS) {
+      for (const profile of watchlistSymbols) {
         await loadBoardSnapshot(profile)
       }
     } finally {
       setBoardLoading(false)
     }
-  }, [loadBoardSnapshot])
+  }, [loadBoardSnapshot, watchlistSymbols])
 
   const biasTone = payload?.metrics.bias ?? 'quiet'
   const tapeRead = useMemo(() => deriveTapeRead(payload), [payload])
+  const selectedLabKeys = useMemo(() => UW_LAB_PACKS.filter((pack) => selectedLabs[pack.key]).map((pack) => pack.key), [selectedLabs])
+  const watchlistText = useMemo(() => watchlistSymbols.map((profile) => profile.label).join(', '), [watchlistSymbols])
+
+  const runLab = useCallback(async () => {
+    if (!selectedLabKeys.length) return
+    setLabLoading(true)
+    setError(null)
+    try {
+      const json = await requestSnapshot({ symbol: cleanSymbol, labs: selectedLabKeys })
+      setPayload(json)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load UW lab.')
+    } finally {
+      setLabLoading(false)
+    }
+  }, [cleanSymbol, requestSnapshot, selectedLabKeys])
 
   return (
     <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 p-4 backdrop-blur-2xl">
@@ -373,7 +449,7 @@ export function WhalesEditionPanel({
           <div className="min-w-0">
             <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Whale board</div>
             <div className="mt-1 text-xs font-semibold leading-5 text-slate-400">
-              Seeded personal-dev board: ONEOK, AAPL, SPY, and VIX.
+              Public watchlist: {watchlistText}.
             </div>
           </div>
           <button
@@ -386,7 +462,7 @@ export function WhalesEditionPanel({
           </button>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {WHALE_BOARD_SYMBOLS.map((profile) => {
+          {watchlistSymbols.map((profile) => {
             const state = boardSnapshots[profile.symbol]
             const metrics = state?.payload?.metrics ?? null
             const isActive = profile.symbol === cleanSymbol
@@ -440,6 +516,69 @@ export function WhalesEditionPanel({
               </div>
             )
           })}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
+              <FlaskConical className="h-3.5 w-3.5" />
+              UW Lab
+            </div>
+            <div className="mt-1 text-xs font-semibold leading-5 text-slate-400">
+              Over-sample endpoint packs for product discovery, then keep only the reads worth paying for.
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={labLoading || !selectedLabKeys.length}
+            onClick={() => void runLab()}
+            className="shrink-0 rounded-2xl border border-emerald-400/35 bg-emerald-400/10 px-3 py-2 text-[11px] font-black text-emerald-100 hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {labLoading ? 'Running' : `Run ${selectedLabKeys.length}`}
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {UW_LAB_PACKS.map((pack) => (
+            <LabPackToggle
+              key={pack.key}
+              label={pack.label}
+              description={pack.description}
+              checked={selectedLabs[pack.key]}
+              onChange={(checked) => setSelectedLabs((next) => ({ ...next, [pack.key]: checked }))}
+            />
+          ))}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedLabs({
+              marketImpact: true,
+              gammaVol: true,
+              newsCatalyst: true,
+              ownershipPressure: true,
+              politicalTape: true,
+              etfTide: true,
+            })}
+            className="rounded-xl border border-slate-700 bg-slate-900/45 px-2.5 py-1.5 text-[10px] font-black text-slate-200 hover:border-cyan-400/35"
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedLabs({
+              marketImpact: true,
+              gammaVol: true,
+              newsCatalyst: false,
+              ownershipPressure: false,
+              politicalTape: false,
+              etfTide: false,
+            })}
+            className="rounded-xl border border-slate-700 bg-slate-900/45 px-2.5 py-1.5 text-[10px] font-black text-slate-200 hover:border-cyan-400/35"
+          >
+            Core only
+          </button>
         </div>
       </div>
 
@@ -508,6 +647,50 @@ export function WhalesEditionPanel({
             </button>
           </div>
 
+          {payload.labs?.length ? (
+            <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
+                  <FlaskConical className="h-3.5 w-3.5" />
+                  UW Lab results
+                </div>
+                <div className="text-[11px] font-black text-slate-300">{payload.labs.length} packs</div>
+              </div>
+              <div className="space-y-2">
+                {payload.labs.map((lab) => (
+                  <div key={lab.key} className="rounded-xl border border-slate-800/90 bg-slate-950/30 px-3 py-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-black text-slate-100">{lab.label}</div>
+                        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                          {lab.status} | {lab.rowCount} normalized rows
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-[10px] font-black text-cyan-100">{lab.endpoints.length} endpoints</div>
+                    </div>
+                    {lab.highlights.length ? (
+                      <div className="mt-2 space-y-1.5">
+                        {lab.highlights.slice(0, 3).map((item) => (
+                          <div key={`${lab.key}:${item.title}:${item.value ?? item.meta}`} className="flex items-start justify-between gap-3 text-[11px] leading-4">
+                            <div className="min-w-0">
+                              <div className="truncate font-black text-slate-200">{item.title}</div>
+                              <div className="truncate text-slate-500">{item.meta ?? 'No metadata'}</div>
+                            </div>
+                            {item.value ? <div className="shrink-0 font-black text-slate-200">{item.value}</div> : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-[11px] text-slate-500">
+                        {lab.errors[0] ?? 'No rows returned for this pack.'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <ResultList title="Flow alerts" empty="No flow alerts returned." rows={payload.flowAlerts.slice(0, 5).map((row) => ({
             key: row.id ?? `${row.contract}:${row.premium}:${row.tapeTime}`,
             title: `${row.side ?? 'UNKNOWN'} ${row.contract ?? 'contract'}`,
@@ -550,6 +733,30 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     <label className="flex items-center justify-between gap-2 rounded-2xl border border-slate-700/70 bg-black/20 px-3 py-2 text-[11px] font-black text-slate-300">
       <span>{label}</span>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-cyan-400" />
+    </label>
+  )
+}
+
+function LabPackToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string
+  description: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className={`block rounded-2xl border p-3 ${checked ? 'border-emerald-400/35 bg-emerald-400/10' : 'border-slate-700/70 bg-slate-950/30'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-black text-slate-100">{label}</div>
+          <div className="mt-0.5 text-[10px] leading-4 text-slate-500">{description}</div>
+        </div>
+        <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-400" />
+      </div>
     </label>
   )
 }
@@ -687,6 +894,31 @@ function shortTime(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function mapWatchlistRow(row: unknown): WhaleBoardSymbol | null {
+  if (!row || typeof row !== 'object') return null
+  const record = row as Record<string, unknown>
+  const symbol = normalizeWhaleSymbol(String(record.symbol ?? ''))
+  if (!symbol) return null
+  return {
+    symbol,
+    label: String(record.display_name ?? symbol),
+    description: String(record.profile ?? 'Public watchlist symbol'),
+    sortOrder: typeof record.sort_order === 'number' ? record.sort_order : Number(record.sort_order ?? 100),
+    minPremium: typeof record.default_min_premium === 'number' ? record.default_min_premium : Number(record.default_min_premium ?? 250_000),
+    include: normalizeIncludeFlags(record.default_include),
+  }
+}
+
+function normalizeIncludeFlags(value: unknown): IncludeFlags {
+  const record = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+  return {
+    recentFlow: typeof record.recentFlow === 'boolean' ? record.recentFlow : true,
+    flowAlerts: typeof record.flowAlerts === 'boolean' ? record.flowAlerts : true,
+    darkpool: typeof record.darkpool === 'boolean' ? record.darkpool : true,
+    marketTide: typeof record.marketTide === 'boolean' ? record.marketTide : false,
+  }
 }
 
 function normalizeWhaleSymbol(value: string): string {
