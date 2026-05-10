@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
 import { SeekBoxLogo } from '../components/SeekBoxLogo'
+import { WhalesEditionPanel } from '../components/WhalesEditionPanel'
 import {
   composeCleanseekPrompt,
   MODIFIER_FLAGS,
@@ -3584,6 +3585,17 @@ export function CleanSeekLite({
           {isTicker ? (
             <aside className="w-full lg:w-[420px] lg:shrink-0">
               <TickerContextPanel symbol={tickerSymbol} />
+              <div className="mt-4">
+                <WhalesEditionPanel
+                  symbol={tickerSymbol}
+                  onFillPrompt={(prompt) => {
+                    setQuery(prompt)
+                    if (typeof window !== 'undefined') {
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }
+                  }}
+                />
+              </div>
             </aside>
           ) : null}
         </div>

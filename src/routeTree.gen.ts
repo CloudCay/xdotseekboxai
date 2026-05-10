@@ -29,6 +29,7 @@ import { Route as IndustriesVerticalRouteImport } from './routes/industries/$ver
 import { Route as CleanseekXRabbitholexRouteImport } from './routes/cleanseek-x/rabbitholex'
 import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
 import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desktop'
+import { Route as ApiUnusualWhalesRouteImport } from './routes/api/unusual-whales'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
 import { Route as ApiPulseRunsRouteImport } from './routes/api/pulse-runs'
 
@@ -132,6 +133,11 @@ const CleanseekXDesktopRoute = CleanseekXDesktopRouteImport.update({
   path: '/desktop',
   getParentRoute: () => CleanseekXRoute,
 } as any)
+const ApiUnusualWhalesRoute = ApiUnusualWhalesRouteImport.update({
+  id: '/api/unusual-whales',
+  path: '/api/unusual-whales',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSupplementaryRoute = ApiSupplementaryRouteImport.update({
   id: '/api/supplementary',
   path: '/api/supplementary',
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
+  '/api/unusual-whales': typeof ApiUnusualWhalesRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
+  '/api/unusual-whales': typeof ApiUnusualWhalesRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
+  '/api/unusual-whales': typeof ApiUnusualWhalesRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/xmarks'
     | '/api/pulse-runs'
     | '/api/supplementary'
+    | '/api/unusual-whales'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/xmarks'
     | '/api/pulse-runs'
     | '/api/supplementary'
+    | '/api/unusual-whales'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/xmarks'
     | '/api/pulse-runs'
     | '/api/supplementary'
+    | '/api/unusual-whales'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
@@ -309,6 +321,7 @@ export interface RootRouteChildren {
   XmarksRoute: typeof XmarksRoute
   ApiPulseRunsRoute: typeof ApiPulseRunsRoute
   ApiSupplementaryRoute: typeof ApiSupplementaryRoute
+  ApiUnusualWhalesRoute: typeof ApiUnusualWhalesRoute
   IndustriesVerticalRoute: typeof IndustriesVerticalRoute
   IndustriesIndexRoute: typeof IndustriesIndexRoute
 }
@@ -455,6 +468,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CleanseekXDesktopRouteImport
       parentRoute: typeof CleanseekXRoute
     }
+    '/api/unusual-whales': {
+      id: '/api/unusual-whales'
+      path: '/api/unusual-whales'
+      fullPath: '/api/unusual-whales'
+      preLoaderRoute: typeof ApiUnusualWhalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/supplementary': {
       id: '/api/supplementary'
       path: '/api/supplementary'
@@ -506,6 +526,7 @@ const rootRouteChildren: RootRouteChildren = {
   XmarksRoute: XmarksRoute,
   ApiPulseRunsRoute: ApiPulseRunsRoute,
   ApiSupplementaryRoute: ApiSupplementaryRoute,
+  ApiUnusualWhalesRoute: ApiUnusualWhalesRoute,
   IndustriesVerticalRoute: IndustriesVerticalRoute,
   IndustriesIndexRoute: IndustriesIndexRoute,
 }
