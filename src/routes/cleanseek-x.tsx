@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientId } from '../lib/clientId'
+import { SeekBoxLogo } from '../components/SeekBoxLogo'
 import {
   composeCleanseekPrompt,
   MODIFIER_FLAGS,
@@ -16,6 +17,13 @@ import remarkGfm from 'remark-gfm'
 import { LogOut, Mic, Play, Search, Sparkles, UserRound } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
+import { optionalEnv } from '../lib/env'
+import {
+  getAccountProfileSummary,
+  getLocalAccountProfileSummary,
+  incrementSessionSearchCount,
+  type AccountProfileSummary,
+} from '../lib/accountProfileSummary'
 import {
   DEFAULT_XMARKS_PRESETS,
   loadXmarksUserPicksFromLocalStorage,
@@ -23,6 +31,14 @@ import {
   type XmarksKind,
   type XmarksPreset,
 } from '../lib/xmarksLibrary'
+import {
+  appendPersonalizationToQuery,
+  buildPersonalizationContext,
+  loadPersonalizationSeed,
+  type PersonalizationContext,
+  type PersonalizationSeed,
+  type SearchHistoryClassification,
+} from '../lib/personalization'
 
 export const Route = createFileRoute('/cleanseek-x')({
   component: CleanSeekXMobileRoute,
@@ -632,9 +648,15 @@ function parseLiveXContext(raw: string): LiveXContext {
 
 function normalizeBaseUrl(raw: string | undefined): string {
   const v = (raw ?? '').trim().replace(/\/$/, '')
-  if (!v) throw new Error('EXPO_PUBLIC_BACKEND_URL environment variable is not set')
-  if (!/^https?:\/\//i.test(v)) throw new Error(`EXPO_PUBLIC_BACKEND_URL must include https:// (got: ${v})`)
+  if (!v) throw new Error('VITE_BACKEND_URL or EXPO_PUBLIC_BACKEND_URL environment variable is not set')
+  if (!/^https?:\/\//i.test(v)) throw new Error(`Backend URL must include https:// (got: ${v})`)
   return v
+}
+
+function readBackendUrlEnv(): string | undefined {
+  const viteUrl = (import.meta.env.VITE_BACKEND_URL as string | undefined)?.trim()
+  if (viteUrl) return viteUrl
+  return optionalEnv('VITE_BACKEND_URL') ?? optionalEnv('EXPO_PUBLIC_BACKEND_URL') ?? undefined
 }
 
 /** Backend sometimes emits `groksearch`; CleanSeek-X UI keys engines by preset ids — normalize aliases here only when merging streams. */
@@ -646,32 +668,6 @@ function normalizeStreamProviderId(raw: string): string {
 
 function snapshotResults(init: Record<string, EngineResult>): Record<string, EngineResult> {
   return Object.fromEntries(Object.entries(init).map(([k, v]) => [k, { ...v }]))
-}
-
-async function fetchAccountRoleLabel(uid: string): Promise<string | null> {
-  const sb = isSupabaseConfigured ? supabase : null
-  if (!sb) return null
-  const tryCols = async (col: 'owner_user_id' | 'user_id' | 'id') => {
-    const res = await sb.from('accounts').select('role,granted_role').eq(col, uid).maybeSingle()
-    return res
-  }
-  for (const col of ['owner_user_id', 'user_id', 'id'] as const) {
-    const res = await tryCols(col)
-    if (!res.error && res.data) {
-      const d = res.data as { role?: string | null; granted_role?: string | null }
-      return (d.granted_role ?? d.role ?? null)?.trim() || null
-    }
-    const msg = String(res.error?.message ?? '')
-    if (
-      /does not exist/i.test(msg) ||
-      /42703/i.test(msg) ||
-      (/column/i.test(msg) && /owner_user_id|user_id/i.test(msg))
-    ) {
-      continue
-    }
-    break
-  }
-  return null
 }
 
 type CleanSeekVariant = 'mobile' | 'desktop'
@@ -1025,7 +1021,7 @@ function XmarksLibraryPanel(props: {
     <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">XMarks library</div>
+          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">The Spot library</div>
           <div className="mt-1 text-[11px] text-slate-400">One-tap searches for consuming info.</div>
         </div>
         <a
@@ -1154,10 +1150,35 @@ function XmarksLibraryPanel(props: {
 type TickerWatchItem = { id: string; symbol: string; label?: string | null }
 type TickerHolding = { id: string; symbol: string; shares: number; avg_cost?: number | null }
 
+const DEFAULT_TICKER_SYMBOLS = ['NVDA', 'TSLA', 'PLTR', 'AMD', 'GOOGL', 'COIN']
+
+const TICKER_PULSE_TEMPLATES = [
+  {
+    label: 'X sentiment',
+    build: (symbol: string) =>
+      `${symbol} stock pulse: current trader sentiment on X, strongest bullish and bearish posts, notable news, and key risks. Cite links when possible.`,
+  },
+  {
+    label: 'Price drivers',
+    build: (symbol: string) =>
+      `${symbol} price drivers today: explain what is moving the stock, which narratives are real versus noisy, and what to watch next.`,
+  },
+  {
+    label: 'Risk check',
+    build: (symbol: string) =>
+      `${symbol} risk check: summarize the bear case, crowded assumptions, upcoming catalysts, and dissenting market voices from X and the web.`,
+  },
+  {
+    label: 'Compare basket',
+    build: (symbol: string) =>
+      `${symbol} versus closest public competitors: compare market narrative, recent X sentiment, valuation debate, catalysts, and risks.`,
+  },
+]
+
 function TickerSidebarPanel(props: {
   isSearching: boolean
   onSelectSymbol: (symbol: string) => void
-  onRunPulse: (symbol: string) => void
+  onRunPulse: (symbol: string, queryOverride?: string) => void
 }) {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
@@ -1261,8 +1282,11 @@ function TickerSidebarPanel(props: {
     <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Ticker</div>
-          <div className="mt-1 text-xs font-black text-slate-100">{selected}</div>
+          <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Market pulse</div>
+          <div className="mt-1 text-lg font-black text-slate-100">{selected}</div>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
+            Grok X for the live tape, web engines for receipts, models for the second opinion.
+          </p>
         </div>
         <button
           type="button"
@@ -1293,6 +1317,40 @@ function TickerSidebarPanel(props: {
         >
           Pulse
         </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {DEFAULT_TICKER_SYMBOLS.map((symbol) => (
+          <button
+            key={symbol}
+            type="button"
+            onClick={() => setSelected(symbol)}
+            className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${
+              selected === symbol
+                ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
+                : 'border-slate-700 bg-slate-900/30 text-slate-300 hover:border-slate-500'
+            }`}
+          >
+            {symbol}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5">
+        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">One-click runs</div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {TICKER_PULSE_TEMPLATES.map((template) => (
+            <button
+              key={template.label}
+              type="button"
+              disabled={props.isSearching}
+              onClick={() => props.onRunPulse(selected, template.build(selected))}
+              className="rounded-2xl border border-slate-700/70 bg-black/20 px-3 py-2 text-left text-[11px] font-black text-slate-200 hover:border-cyan-500/40 hover:bg-cyan-500/10 disabled:opacity-60"
+            >
+              {template.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="mt-5">
@@ -1543,15 +1601,8 @@ export function CleanSeekLite({
   disableGrokLive?: boolean
 }) {
   const backendUrlOrError = useMemo(() => {
-    // Vite only exposes client env vars prefixed with VITE_.
-    // Prefer VITE_BACKEND_URL in the browser, fall back to EXPO_PUBLIC_BACKEND_URL
-    // for server-side/edge rendering where process.env is available.
-    const viteUrl =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env
-      (import.meta as any)?.env?.VITE_BACKEND_URL as string | undefined
-    const raw = viteUrl ?? process.env.EXPO_PUBLIC_BACKEND_URL
     try {
-      return { url: normalizeBaseUrl(raw), error: null as string | null }
+      return { url: normalizeBaseUrl(readBackendUrlEnv()), error: null as string | null }
     } catch (e) {
       return { url: null as string | null, error: e instanceof Error ? e.message : 'Backend URL not configured' }
     }
@@ -1569,16 +1620,13 @@ export function CleanSeekLite({
   const [query, setQuery] = useState<string>('')
   const [useLatest, setUseLatest] = useState<boolean>(disableGrokLive ? false : (defaultUseLatest ?? true))
   const [activePreset, setActivePreset] = useState<PresetId>(defaultPreset ?? 'web')
-  /** Engines included when preset is All In — persisted like main CleanSeek’s settings engines. */
-  const [enabledEngineIds, setEnabledEngineIds] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return defaultEnabledEngineIds ?? loadEnabledEngines()
-    const loaded = loadEnabledEnginesFromKey(keys.enabledEnginesKey)
-    if (loaded.length) return loaded
-    return defaultEnabledEngineIds && defaultEnabledEngineIds.length ? defaultEnabledEngineIds : loaded
-  })
-  const [presetEngineOverrides, setPresetEngineOverrides] = useState<PresetEngineOverrides>(() =>
-    loadPresetEngineOverrides(),
+  const initialEngineIds = useMemo(
+    () => (defaultEnabledEngineIds && defaultEnabledEngineIds.length ? defaultEnabledEngineIds : ENGINE_CATALOG.map((e) => e.id)),
+    [defaultEnabledEngineIds],
   )
+  /** Engines included when preset is All In — persisted like main CleanSeek’s settings engines. */
+  const [enabledEngineIds, setEnabledEngineIds] = useState<string[]>(() => initialEngineIds)
+  const [presetEngineOverrides, setPresetEngineOverrides] = useState<PresetEngineOverrides>({})
   const presets = useMemo(() => {
     return PRESETS.map((p) => {
       if (p.id === 'allin') return p
@@ -1587,12 +1635,9 @@ export function CleanSeekLite({
     })
   }, [presetEngineOverrides])
   /** When `custom`, every search uses `enabledEngineIds`; when `preset`, only All In does. */
-  const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => {
-    if (typeof window === 'undefined') return defaultEnginePickMode ?? loadEnginePickMode()
-    return loadEnginePickModeFromKey(keys.enginePickModeKey)
-  })
+  const [enginePickMode, setEnginePickMode] = useState<EnginePickMode>(() => defaultEnginePickMode ?? 'custom')
   /** Response length, tone, persona, comprehension, reasoning — persisted; appended to query like `/cleanseek`. */
-  const [promptMods, setPromptMods] = useState<PromptModifierSnapshot>(() => loadPromptModsFromKey(keys.promptModsKey))
+  const [promptMods, setPromptMods] = useState<PromptModifierSnapshot>(() => ({ ...DEFAULT_PROMPT_MODS }))
   /** Analysis modes: fetched from Supabase `analysis_modes` with a fallback. */
   const [analysisModes, setAnalysisModes] = useState<AnalysisModeRow[]>(() => FALLBACK_ANALYSIS_MODES)
   const [analysisMode, setAnalysisMode] = useState<string>('none')
@@ -1611,11 +1656,13 @@ export function CleanSeekLite({
   const [streamError, setStreamError] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
-  const [roleLabel, setRoleLabel] = useState<string | null>(null)
+  const [profileSummary, setProfileSummary] = useState<AccountProfileSummary>(() => getLocalAccountProfileSummary())
+  const [personalizationSeed, setPersonalizationSeed] = useState<PersonalizationSeed>(() => loadPersonalizationSeed())
   const abortRef = useRef<AbortController | null>(null)
   const queryInputRef = useRef<HTMLInputElement | null>(null)
   const hydratedFromUrlRef = useRef<boolean>(false)
   const autorunRef = useRef<boolean>(false)
+  const [settingsHydrated, setSettingsHydrated] = useState<boolean>(false)
   /** Accumulate streamed deltas without triggering a React render per token (aligned with mobile `useStreamingSearch`). */
   const streamAccRef = useRef<Record<string, EngineResult>>({})
   const streamRafRef = useRef<number | null>(null)
@@ -1676,20 +1723,25 @@ export function CleanSeekLite({
       setPromptMods(loadPromptModsFromKey(keys.promptModsKey))
     } catch {
       // ignore
+    } finally {
+      setSettingsHydrated(true)
     }
   }, [defaultEnabledEngineIds, defaultPreset, keys.enabledEnginesKey, keys.enginePickModeKey, keys.promptModsKey, presets])
 
   useEffect(() => {
+    if (!settingsHydrated) return
     savePromptModsToKey(keys.promptModsKey, promptMods)
-  }, [keys.promptModsKey, promptMods])
+  }, [keys.promptModsKey, promptMods, settingsHydrated])
 
   useEffect(() => {
+    if (!settingsHydrated) return
     saveEnabledEnginesToKey(keys.enabledEnginesKey, enabledEngineIds)
-  }, [enabledEngineIds, keys.enabledEnginesKey])
+  }, [enabledEngineIds, keys.enabledEnginesKey, settingsHydrated])
 
   useEffect(() => {
+    if (!settingsHydrated) return
     saveEnginePickModeToKey(keys.enginePickModeKey, enginePickMode)
-  }, [enginePickMode, keys.enginePickModeKey])
+  }, [enginePickMode, keys.enginePickModeKey, settingsHydrated])
 
   // Preset pill long-press editor
   const [editingPresetId, setEditingPresetId] = useState<PresetId | null>(null)
@@ -1783,6 +1835,28 @@ export function CleanSeekLite({
     return n
   }, [promptMods])
 
+  useEffect(() => {
+    const refresh = () => setPersonalizationSeed(loadPersonalizationSeed())
+    refresh()
+    window.addEventListener('storage', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [])
+
+  const personalizationPreview = useMemo(
+    () =>
+      buildPersonalizationContext({
+        profile: profileSummary,
+        seed: personalizationSeed,
+        query,
+        explicitPersonaText: promptMods.personaEnabled ? promptMods.personaText : '',
+      }),
+    [personalizationSeed, profileSummary, promptMods.personaEnabled, promptMods.personaText, query],
+  )
+
   const idsActuallySent = useMemo(
     () =>
       resolveSearchEngineIds({
@@ -1845,15 +1919,16 @@ export function CleanSeekLite({
       const uid = u?.id ?? null
       setAuthEmail(email)
       setAuthUserId(uid)
-      setRoleLabel(null)
       if (uid) {
         try {
           await ensureAccount(u as any)
         } catch {
           // non-fatal
         }
-        const role = await fetchAccountRoleLabel(uid)
-        if (!cancelled) setRoleLabel(role)
+      }
+      const summary = await getAccountProfileSummary({ supabase: sb, user: u as any })
+      if (!cancelled) {
+        setProfileSummary(summary)
       }
     }
 
@@ -1915,7 +1990,12 @@ export function CleanSeekLite({
   }, [])
 
   const saveHistory = useCallback(
-    async (queryText: string, enabledProviders: string[], finalResults: Record<string, EngineResult>) => {
+    async (
+      queryText: string,
+      enabledProviders: string[],
+      finalResults: Record<string, EngineResult>,
+      historyClass?: SearchHistoryClassification,
+    ) => {
       const sb = isSupabaseConfigured ? supabase : null
       if (!sb) return
       try {
@@ -1924,7 +2004,8 @@ export function CleanSeekLite({
         if (!u) return
 
         const clientId = getClientId()
-        const searchMode = `cleanseekx_${activePreset}_${enginePickMode}_${useLatest ? 'latest1' : 'latest0'}_${enabledProviders.length}`
+        const classSuffix = historyClass?.primary ? `_class_${historyClass.primary}` : ''
+        const searchMode = `cleanseekx_${activePreset}_${enginePickMode}_${useLatest ? 'latest1' : 'latest0'}_${enabledProviders.length}${classSuffix}`
 
         const { data: sess, error: sessErr } = await sb
           .from('search_sessions')
@@ -1980,7 +2061,7 @@ export function CleanSeekLite({
     await sb.auth.signOut()
     setAuthEmail(null)
     setAuthUserId(null)
-    setRoleLabel(null)
+    setProfileSummary(getLocalAccountProfileSummary())
     if (typeof window !== 'undefined') window.location.href = '/cleanseek-x'
   }
 
@@ -2029,7 +2110,16 @@ export function CleanSeekLite({
     const liveInstr = useLatest ? (includesWebEngine ? RECENCY_INSTRUCTION_COMPACT : RECENCY_INSTRUCTION) : ''
     // Live mode should never be constrained by the response-length cap.
     const modsForThisRun = useLatest ? { ...promptMods, responseLengthEnabled: false } : promptMods
-    const qBuilt = composeCleanseekPrompt(augmentedRaw, modsForThisRun, liveInstr)
+    const personalizationContext: PersonalizationContext = buildPersonalizationContext({
+      profile: profileSummary,
+      seed: personalizationSeed,
+      query: raw,
+      explicitPersonaText: modsForThisRun.personaEnabled ? modsForThisRun.personaText : '',
+    })
+    const qBuilt = appendPersonalizationToQuery(
+      composeCleanseekPrompt(augmentedRaw, modsForThisRun, liveInstr),
+      personalizationContext,
+    )
 
     setStreamError(null)
     setIsSearching(true)
@@ -2109,6 +2199,9 @@ export function CleanSeekLite({
           ...(promptMods.personaEnabled && promptMods.personaText.trim()
             ? { persona: promptMods.personaText.trim() }
             : {}),
+          personalization: personalizationContext.metadata,
+          historyClass: personalizationContext.historyClass.primary,
+          historyClassConfidence: personalizationContext.historyClass.confidence,
           ...(promptMods.comprehensionEnabled
             ? {
                 comprehensionEnabled: true,
@@ -2159,6 +2252,13 @@ export function CleanSeekLite({
       setIsSearching(false)
       setStreamError('Search failed: empty response body.')
       return
+    }
+
+    if (!authUserId) {
+      const sessionSearchCount = incrementSessionSearchCount()
+      setProfileSummary((prev) =>
+        prev.signedIn ? prev : getLocalAccountProfileSummary({ sessionSearchCount }),
+      )
     }
 
     const reader = res.body.getReader()
@@ -2268,7 +2368,7 @@ export function CleanSeekLite({
       setIsSearching(false)
 
       if (!ac.signal.aborted && raw.trim()) {
-        void saveHistory(raw.trim(), enabledProviders, streamAccRef.current)
+        void saveHistory(raw.trim(), enabledProviders, streamAccRef.current, personalizationContext.historyClass)
       }
     }
   }
@@ -2317,6 +2417,74 @@ export function CleanSeekLite({
   const isRabbitHole = typeof window !== 'undefined' && window.location.pathname.endsWith('/rabbitholex')
   const isXmarks = layout === 'xmarks'
   const isTicker = layout === 'ticker'
+  const pageTitle = isXmarks ? 'The Spot by SeekBoxAi' : 'SeekBoxAi'
+  const signInReturnTo =
+    typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/cleanseek-x'
+  const profileBadge = (
+    <div className="group relative flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/80 bg-[#0A1128]/80 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-cyan-300/25 bg-cyan-500/20 text-sm font-black text-cyan-100"
+          title={profileSummary.email ?? profileSummary.roleLabel}
+        >
+          {profileSummary.avatarInitial ?? '?'}
+        </span>
+        <div className="hidden min-w-0 max-w-[170px] sm:block">
+          <div
+            className="truncate text-xs font-bold text-slate-100"
+            title={profileSummary.email ?? profileSummary.displayName ?? profileSummary.roleLabel}
+          >
+            {profileSummary.email ?? 'Not signed in'}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            <span className="inline-flex items-center gap-1 rounded-full border border-slate-600 bg-black/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-300">
+              <UserRound className="h-3 w-3 opacity-80" />
+              {profileSummary.roleLabel}
+            </span>
+            {profileSummary.searchesLeft !== null ? (
+              <span className="inline-flex rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-cyan-100">
+                {profileSummary.searchesLeft} left
+              </span>
+            ) : null}
+            {personalizationPreview.enabled ? (
+              <span className="inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-100">
+                personalized
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      <div className="pointer-events-auto absolute left-0 top-full z-50 mt-3 hidden w-72 rounded-2xl border border-slate-700 bg-[#08111F] p-4 text-left shadow-2xl shadow-black/40 group-hover:block">
+        <div className="text-xs font-black uppercase tracking-[0.2em] text-cyan-200">
+          {profileSummary.roleLabel}
+        </div>
+        <p className="mt-1 text-xs leading-5 text-slate-300">{profileSummary.roleDescription}</p>
+        {profileSummary.email ? (
+          <p className="mt-3 truncate text-xs font-bold text-slate-100" title={profileSummary.email}>
+            {profileSummary.email}
+          </p>
+        ) : (
+          <p className="mt-3 text-xs font-bold text-slate-100">Anonymous session</p>
+        )}
+        <div className="mt-3 space-y-2">
+          {profileSummary.tooltipLines.slice(1).map((line) => (
+            <p key={line} className="text-xs leading-5 text-slate-400">
+              {line}
+            </p>
+          ))}
+          {profileSummary.monthlySearches !== null ? (
+            <p className="text-xs leading-5 text-slate-400">
+              {profileSummary.monthlySearches} search{profileSummary.monthlySearches === 1 ? '' : 'es'} this month
+            </p>
+          ) : null}
+          <p className="text-xs leading-5 text-slate-400">
+            Personalization: {personalizationPreview.levelLabel}
+            {personalizationPreview.enabled ? `, ${personalizationPreview.historyClass.label}` : ', off'}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
@@ -2343,12 +2511,13 @@ export function CleanSeekLite({
 
         {/* Top bar */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-4">
-          <Link to="/" className="flex shrink-0 items-center gap-3 font-black text-lg">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-500/30">
-              <Search className="h-4 w-4 text-cyan-300" />
-            </span>
-            SeekBoxAi
-          </Link>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Link to="/" className="flex items-center gap-3 font-black text-lg">
+              <SeekBoxLogo tone="dark" size="md" />
+              {pageTitle}
+            </Link>
+            {profileBadge}
+          </div>
 
           <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-slate-700/60 bg-[#0A1128]/70 px-4 py-3">
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
@@ -2415,9 +2584,9 @@ export function CleanSeekLite({
             <a
               href="/xmarks"
               className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
-              title="XMarks: Grok X only dashboard"
+              title="The Spot: Grok X only dashboard"
             >
-              XMarks
+              {isXmarks ? 'The Spot' : 'XMarks'}
             </a>
             <a
               href={`/cleanseek-x/rabbitholex?q=${encodeURIComponent(query.trim())}&latest=${useLatest ? '1' : '0'}&autorun=1`}
@@ -2448,24 +2617,7 @@ export function CleanSeekLite({
             ) : null}
 
             {authUserId && authEmail ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/80 bg-[#0A1128]/80 px-3 py-2">
-                <span
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-sm font-black text-cyan-100"
-                  title={authEmail}
-                >
-                  {(authEmail[0] ?? '?').toUpperCase()}
-                </span>
-                <div className="hidden min-w-0 max-w-[160px] sm:block">
-                  <div className="truncate text-xs font-bold text-slate-100" title={authEmail}>
-                    {authEmail}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-600 bg-black/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-300">
-                      <UserRound className="h-3 w-3 opacity-80" />
-                      {roleLabel ?? 'member'}
-                    </span>
-                  </div>
-                </div>
+              <>
                 <Link
                   to="/account"
                   className="rounded-xl border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs font-black text-slate-200 hover:bg-slate-800/60"
@@ -2480,18 +2632,14 @@ export function CleanSeekLite({
                   <LogOut className="h-3.5 w-3.5" />
                   Sign out
                 </button>
-              </div>
-            ) : isSupabaseConfigured ? (
+              </>
+            ) : (
               <a
-                href="/signin?returnTo=/cleanseek-x"
+                href={`/signin?returnTo=${encodeURIComponent(signInReturnTo)}`}
                 className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
               >
                 Sign in
               </a>
-            ) : (
-              <span className="rounded-2xl border border-slate-800 bg-slate-900/20 px-4 py-3 text-sm font-black text-slate-500">
-                Sign in (soon)
-              </span>
             )}
           </div>
         </div>
@@ -2525,11 +2673,13 @@ export function CleanSeekLite({
                   setTickerSymbol(s)
                   setQuery(`${s} stock`)
                 }}
-                onRunPulse={(sym) => {
+                onRunPulse={(sym, queryOverride) => {
                   const s = sym.trim().toUpperCase()
                   if (!BACKEND_URL || !s) return
                   setTickerSymbol(s)
-                  const q = `${s} — stock pulse: price drivers, notable news, sentiment on X, and key risks. Include any notable posts if available and cite links when possible.`
+                  const q =
+                    queryOverride ??
+                    `${s} stock pulse: price drivers, notable news, sentiment on X, and key risks. Include any notable posts if available and cite links when possible.`
                   setQuery(q)
                   window.setTimeout(() => {
                     if (!isSearching) void run({ queryOverride: q })
@@ -2544,7 +2694,7 @@ export function CleanSeekLite({
         {!isRabbitHole ? (
           <details
             className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30"
-            defaultOpen={!isMobile}
+            open={!isMobile ? true : undefined}
           >
           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2">
@@ -2563,6 +2713,13 @@ export function CleanSeekLite({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="max-w-3xl text-xs leading-snug text-slate-400">
                 Response length, tone, persona, and comprehension append the same instruction suffixes as the main CleanSeek page; sliders and checkboxes persist locally.
+              </p>
+              <p className="max-w-3xl text-xs leading-snug text-violet-200/80">
+                Personalization seed: {personalizationPreview.levelLabel}; current history class{' '}
+                <span className="font-black text-violet-100">{personalizationPreview.historyClass.label}</span>.{' '}
+                <Link to="/account" className="font-black text-violet-100 underline decoration-violet-300/40 underline-offset-2">
+                  Edit in Account
+                </Link>
               </p>
               <button
                 type="button"
@@ -3434,5 +3591,3 @@ export function CleanSeekLite({
     </div>
   )
 }
-
-

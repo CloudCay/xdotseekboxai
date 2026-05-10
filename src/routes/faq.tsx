@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { SeekBoxLogo } from '../components/SeekBoxLogo'
 
 export const Route = createFileRoute('/faq')({
   component: FAQ,
@@ -134,7 +135,8 @@ function FAQ() {
     <div className="min-h-screen bg-[#050B14] text-slate-50 py-16 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between gap-4">
-          <a href="/" className="font-black text-lg tracking-tight">
+          <a href="/" className="inline-flex items-center gap-3 font-black text-lg tracking-tight">
+            <SeekBoxLogo tone="dark" size="sm" />
             SeekBoxAi
           </a>
           <div className="flex gap-2">

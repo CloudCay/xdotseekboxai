@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { SeekBoxLogo } from '../components/SeekBoxLogo'
 
 export const Route = createFileRoute('/success')({
   component: SuccessPage,
@@ -8,7 +9,10 @@ function SuccessPage() {
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
       <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
-        <div className="text-2xl font-black tracking-tight">Payment successful</div>
+        <div className="flex items-center gap-3">
+          <SeekBoxLogo tone="dark" size="md" />
+          <div className="text-2xl font-black tracking-tight">Payment successful</div>
+        </div>
         <div className="mt-2 text-slate-300">
           Thanks — you’re all set. It can take a few seconds for the subscription to show up while Stripe finishes processing.
         </div>
@@ -30,4 +34,3 @@ function SuccessPage() {
     </div>
   )
 }
-

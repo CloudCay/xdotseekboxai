@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
-import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase'
+import { optionalEnv } from '../lib/env'
+import { SeekBoxLogo } from '../components/SeekBoxLogo'
 
 // If the Turnstile script loads before React effects run (e.g. due to preloading/caching),
 // Cloudflare will look for the `onload` callback name immediately. Provide a stub early so
@@ -47,8 +49,9 @@ function formatAuthError(err: unknown): string {
 // Support both so you can share naming with the main app, but use VITE_ on this site.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vite env access
 const TURNSTILE_SITE_KEY =
-  ((import.meta as any)?.env?.VITE_TURNSTILE_SITE_KEY as string | undefined)?.trim() ||
-  (process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY ?? '').trim()
+  import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() ||
+  optionalEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY') ||
+  ''
 const CAPTCHA_REQUIRED = Boolean(TURNSTILE_SITE_KEY)
 
 export const Route = createFileRoute('/signin')({
@@ -56,30 +59,7 @@ export const Route = createFileRoute('/signin')({
 })
 
 function SignInPage() {
-  const sb = isSupabaseConfigured ? supabase : null
-  if (!sb) {
-    return (
-      <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
-        <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
-          <div className="text-2xl font-black tracking-tight">Sign in</div>
-          <div className="mt-3 text-slate-300">
-            Sign-in isn’t enabled on this site yet.
-          </div>
-          <div className="mt-6 text-sm text-slate-400">
-            To enable it, set <span className="font-mono">VITE_SUPABASE_URL</span> and{' '}
-            <span className="font-mono">VITE_SUPABASE_ANON_KEY</span> in Netlify and redeploy.
-          </div>
-          <a
-            href="/"
-            className="mt-6 inline-flex items-center justify-center rounded-2xl bg-cyan-500 text-[#050B14] font-black px-5 py-3"
-          >
-            Back to home
-          </a>
-        </div>
-      </div>
-    )
-  }
-
+  const sb = isSupabaseConfigured ? getSupabaseClient() : null
   const [email, setEmail] = useState<string>('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false)
@@ -129,6 +109,7 @@ function SignInPage() {
 
   useEffect(() => {
     let cancelled = false
+    if (!sb) return undefined
     ;(async () => {
       try {
         const { data } = await sb.auth.getSession()
@@ -144,9 +125,10 @@ function SignInPage() {
     return () => {
       cancelled = true
     }
-  }, [returnTo])
+  }, [returnTo, sb])
 
   const signInWithGoogle = async () => {
+    if (!sb) return
     setError(null)
     setIsGoogleLoading(true)
     try {
@@ -167,6 +149,7 @@ function SignInPage() {
   }
 
   const sendLink = async () => {
+    if (!sb) return
     const e = email.trim().toLowerCase()
     if (!e) {
       setError('Please enter your email.')
@@ -207,10 +190,53 @@ function SignInPage() {
     }
   }
 
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
+        <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
+          <div className="flex items-center gap-3">
+            <SeekBoxLogo tone="dark" size="md" />
+            <div className="text-2xl font-black tracking-tight">Sign in</div>
+          </div>
+          <div className="mt-3 text-slate-300">
+            Sign-in isn’t enabled on this site yet.
+          </div>
+          <div className="mt-6 text-sm text-slate-400">
+            To enable it, set <span className="font-mono">VITE_SUPABASE_URL</span> and{' '}
+            <span className="font-mono">VITE_SUPABASE_ANON_KEY</span> in Netlify and redeploy.
+          </div>
+          <a
+            href="/"
+            className="mt-6 inline-flex items-center justify-center rounded-2xl bg-cyan-500 text-[#050B14] font-black px-5 py-3"
+          >
+            Back to home
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isHydrated || !sb) {
+    return (
+      <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
+        <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
+          <div className="flex items-center gap-3">
+            <SeekBoxLogo tone="dark" size="md" />
+            <div className="text-2xl font-black tracking-tight">Sign in</div>
+          </div>
+          <div className="mt-3 text-slate-300">Loading secure sign-in...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
       <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
-        <div className="text-2xl font-black tracking-tight">Sign in</div>
+        <div className="flex items-center gap-3">
+          <SeekBoxLogo tone="dark" size="md" />
+          <div className="text-2xl font-black tracking-tight">Sign in</div>
+        </div>
         <div className="mt-2 text-slate-300">
           Enter your email and we’ll send a secure magic link.
         </div>
@@ -328,4 +354,3 @@ function SignInPage() {
     </div>
   )
 }
-

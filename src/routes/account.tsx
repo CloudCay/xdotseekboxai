@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ensureAccount } from '../lib/ensureAccount'
+import { SeekBoxLogo } from '../components/SeekBoxLogo'
 import {
   applySiteFontToDocument,
   applySiteThemeToDocument,
@@ -14,6 +15,14 @@ import {
   type SiteThemeMode,
 } from '../lib/siteTheme'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import {
+  defaultLensForLevel,
+  loadPersonalizationSeed,
+  personalizationLevelForRole,
+  personalizationLevelLabel,
+  savePersonalizationSeed,
+  type PersonalizationSeed,
+} from '../lib/personalization'
 
 export const Route = createFileRoute('/account')({
   component: AccountPage,
@@ -29,9 +38,18 @@ type AccountRow = {
   id?: string | null
   role?: string | null
   granted_role?: string | null
+  role_id?: string | null
   trial_ends_at?: string | null
   stripe_customer_id?: string | null
   stripe_subscription_id?: string | null
+}
+
+function normalizeRoleForDisplay(raw: string | null | undefined, email: string | null): string | null {
+  const role = raw?.trim()
+  if (!role) return null
+  if (role === 'guest') return email ? 'trial' : 'anon'
+  if (email && role === 'anon') return 'trial'
+  return role
 }
 
 function stringifyErr(e: unknown): string {
@@ -82,6 +100,7 @@ function AccountPage() {
 
   const [siteTheme, setSiteTheme] = useState<SiteThemeMode>(() => readSiteTheme())
   const [siteFont, setSiteFont] = useState<SiteFontScale>(() => readSiteFontScale())
+  const [personalizationSeed, setPersonalizationSeed] = useState<PersonalizationSeed>(() => loadPersonalizationSeed())
 
   const fromStripe = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -122,6 +141,15 @@ function AccountPage() {
           setEmail(em)
         }
 
+        // Magic-link redirects land here before any other app surface has a chance
+        // to create/update the account row. Ensure the signed-in user receives the
+        // default trial role before reading account state.
+        try {
+          await ensureAccount(u as any)
+        } catch (e) {
+          if (!cancelled) setAccountLoadError(`Account sync failed: ${stringifyErr(e)}`)
+        }
+
         // Pull latest subscription row (active/trialing preferred)
         const subRes = await sb
           .from('user_subscriptions')
@@ -139,13 +167,19 @@ function AccountPage() {
         try {
           const selectCandidates = [
             // "full" set (some DBs)
+            'id,role,granted_role,role_id,trial_ends_at,stripe_customer_id,stripe_subscription_id',
+            // no role_id
             'id,role,granted_role,trial_ends_at,stripe_customer_id,stripe_subscription_id',
             // no stripe_subscription_id
+            'id,role,granted_role,role_id,trial_ends_at,stripe_customer_id',
             'id,role,granted_role,trial_ends_at,stripe_customer_id',
             // minimal role/trial
+            'id,role,granted_role,role_id,trial_ends_at',
             'id,role,granted_role,trial_ends_at',
             // absolute minimal
+            'id,role,granted_role,role_id',
             'id,role,granted_role',
+            'id,role_id',
             'id,role',
             'id',
           ] as const
@@ -258,6 +292,21 @@ function AccountPage() {
 
   const isPaid =
     (subscription?.status === 'active' || subscription?.status === 'trialing') && Boolean(subscription?.plan)
+  const displayedRole = (() => {
+    const role = account?.granted_role ?? account?.role ?? account?.role_id ?? null
+    return normalizeRoleForDisplay(role, email)
+  })()
+  const personalizationLevel = personalizationLevelForRole(displayedRole ?? (email ? 'trial' : 'anon'))
+  const personalizationDefaultLens = defaultLensForLevel(personalizationLevel)
+  const personalizationLabel = personalizationLevelLabel(personalizationLevel)
+
+  const updatePersonalizationSeed = (patch: Partial<PersonalizationSeed>) => {
+    setPersonalizationSeed((current) => {
+      const next = { ...current, ...patch }
+      savePersonalizationSeed(next)
+      return next
+    })
+  }
 
   const syncAccountRow = async () => {
     const sb = isSupabaseConfigured ? supabase : null
@@ -281,10 +330,13 @@ function AccountPage() {
     <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
       <div className="max-w-2xl w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-2xl font-black tracking-tight">Account</div>
-            <div className="mt-1 text-slate-400 text-sm">
-              {email ? email : '—'} {userId ? <span className="font-mono opacity-70">({userId.slice(0, 8)}…)</span> : null}
+          <div className="flex min-w-0 items-center gap-3">
+            <SeekBoxLogo tone="dark" size="md" />
+            <div className="min-w-0">
+              <div className="text-2xl font-black tracking-tight">Account</div>
+              <div className="mt-1 truncate text-slate-400 text-sm">
+                {email ? email : '—'} {userId ? <span className="font-mono opacity-70">({userId.slice(0, 8)}…)</span> : null}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -387,7 +439,7 @@ function AccountPage() {
           </div>
           <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-4">
             <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Role</div>
-            <div className="mt-2 text-lg font-black">{account?.granted_role ?? account?.role ?? '—'}</div>
+            <div className="mt-2 text-lg font-black">{displayedRole ?? '—'}</div>
             <div className="mt-1 text-xs text-slate-400">
               Stripe customer: {account?.stripe_customer_id ? `${String(account.stripe_customer_id).slice(0, 10)}…` : '—'}
             </div>
@@ -399,6 +451,68 @@ function AccountPage() {
                 Couldn’t load <span className="font-mono">accounts</span>: {accountLoadError}
               </div>
             ) : null}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-slate-700/60 bg-black/20 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-violet-300">Personalization seed</div>
+              <h2 className="mt-1 text-xl font-black">{personalizationLabel}</h2>
+              <p className="mt-1 max-w-xl text-sm leading-6 text-slate-400">
+                This is the lightweight contract that search and history can use now. Full personas can replace or extend it later.
+              </p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/30 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-200">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-violet-500"
+                checked={personalizationSeed.enabled}
+                onChange={(event) => updatePersonalizationSeed({ enabled: event.target.checked })}
+              />
+              Enabled
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">Profile note</span>
+              <textarea
+                value={personalizationSeed.profileNote}
+                onChange={(event) => updatePersonalizationSeed({ profileNote: event.target.value })}
+                rows={4}
+                placeholder="Example: I am building SeekBox, care about live data, product architecture, GTM, and customer-ready summaries."
+                className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-violet-500/50"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">Default lens</span>
+              <textarea
+                value={personalizationSeed.preferredLens}
+                onChange={(event) => updatePersonalizationSeed({ preferredLens: event.target.value })}
+                rows={4}
+                placeholder={personalizationDefaultLens}
+                className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-violet-500/50"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700/70 bg-slate-950/40 px-4 py-3">
+            <div>
+              <div className="text-sm font-black text-slate-100">History classing</div>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                Searches get a broad class such as market watch, industry pulse, technical research, or customer support.
+              </p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-300">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-violet-500"
+                checked={personalizationSeed.historyClassing}
+                onChange={(event) => updatePersonalizationSeed({ historyClassing: event.target.checked })}
+              />
+              Classify
+            </label>
           </div>
         </div>
 
@@ -432,4 +546,3 @@ function AccountPage() {
     </div>
   )
 }
-

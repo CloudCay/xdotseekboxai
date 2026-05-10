@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Check, Zap } from 'lucide-react'
+import { SeekBoxLogo } from '../components/SeekBoxLogo'
 
 export const Route = createFileRoute('/pricing')({
   component: PricingPage,
@@ -10,7 +11,8 @@ function PricingPage() {
     <div className="min-h-screen bg-[#050B14] text-slate-50">
       <div className="max-w-6xl mx-auto px-6 py-14">
         <div className="flex items-center justify-between gap-4">
-          <Link to="/" className="font-black text-lg tracking-tight">
+          <Link to="/" className="inline-flex items-center gap-3 font-black text-lg tracking-tight">
+            <SeekBoxLogo tone="dark" size="sm" />
             SeekBoxAi
           </Link>
           <div className="flex items-center gap-2">
@@ -103,4 +105,3 @@ function PricingPage() {
     </div>
   )
 }
-

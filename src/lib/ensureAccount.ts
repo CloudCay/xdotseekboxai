@@ -40,8 +40,8 @@ export async function ensureAccount(user: User): Promise<void> {
     p_user_id: user.id,
     p_email: user.email ?? '',
     p_slug: slug,
-    // DB function forces 'anon' -> 'trial' for signed-in users.
-    p_role: 'anon',
+    // Signed-in magic-link/OAuth users should enter as trial. Anonymous rows remain anon.
+    p_role: user.email ? 'trial' : 'anon',
     p_ref: ref,
     p_client_id: clientId,
     p_created_via: user.email ? 'otp_email' : 'anonymous',
@@ -59,4 +59,3 @@ export async function ensureAccount(user: User): Promise<void> {
     p_cookie_consent: '',
   })
 }
-

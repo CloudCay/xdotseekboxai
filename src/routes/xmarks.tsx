@@ -2,6 +2,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { CleanSeekLite } from './cleanseek-x'
 
 export const Route = createFileRoute('/xmarks')({
+  head: () => ({
+    meta: [{ title: 'The Spot by SeekBoxAi' }],
+  }),
   component: XMarksPage,
 })
 
@@ -23,4 +26,3 @@ function XMarksPage() {
     />
   )
 }
-

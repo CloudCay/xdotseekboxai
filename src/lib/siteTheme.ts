@@ -19,16 +19,16 @@ export const SITE_THEME_OPTIONS: { id: SiteThemeMode; label: string; description
 ]
 
 export function readSiteTheme(): SiteThemeMode {
-  if (typeof window === 'undefined') return 'dark'
+  if (typeof window === 'undefined') return 'light'
   try {
     const v = window.localStorage.getItem(SITE_THEME_STORAGE_KEY)
     if (v === 'light' || v === 'dark' || v === 'newspaper' || v === 'seekbox') return v
     const legacy = window.localStorage.getItem(SITE_THEME_LEGACY_KEY)
     if (legacy === 'light') return 'light'
     if (legacy === 'dark') return 'dark'
-    return 'dark'
+    return 'light'
   } catch {
-    return 'dark'
+    return 'light'
   }
 }
 

@@ -13,17 +13,24 @@ import { Route as XmarksRouteImport } from './routes/xmarks'
 import { Route as TickerRouteImport } from './routes/ticker'
 import { Route as SuccessRouteImport } from './routes/success'
 import { Route as SigninRouteImport } from './routes/signin'
+import { Route as SeeklyRouteImport } from './routes/seekly'
+import { Route as PulseRouteImport } from './routes/pulse'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as HelperRouteImport } from './routes/helper'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as CleanseekXRouteImport } from './routes/cleanseek-x'
 import { Route as CleanseekRouteImport } from './routes/cleanseek'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
+import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as IndustriesIndexRouteImport } from './routes/industries/index'
+import { Route as IndustriesVerticalRouteImport } from './routes/industries/$vertical'
 import { Route as CleanseekXRabbitholexRouteImport } from './routes/cleanseek-x/rabbitholex'
 import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
 import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desktop'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
+import { Route as ApiPulseRunsRouteImport } from './routes/api/pulse-runs'
 
 const XmarksRoute = XmarksRouteImport.update({
   id: '/xmarks',
@@ -45,9 +52,24 @@ const SigninRoute = SigninRouteImport.update({
   path: '/signin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SeeklyRoute = SeeklyRouteImport.update({
+  id: '/seekly',
+  path: '/seekly',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PulseRoute = PulseRouteImport.update({
+  id: '/pulse',
+  path: '/pulse',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelperRoute = HelperRouteImport.update({
+  id: '/helper',
+  path: '/helper',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -75,9 +97,24 @@ const AccountRoute = AccountRouteImport.update({
   path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndustriesIndexRoute = IndustriesIndexRouteImport.update({
+  id: '/industries/',
+  path: '/industries/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndustriesVerticalRoute = IndustriesVerticalRouteImport.update({
+  id: '/industries/$vertical',
+  path: '/industries/$vertical',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CleanseekXRabbitholexRoute = CleanseekXRabbitholexRouteImport.update({
@@ -100,126 +137,180 @@ const ApiSupplementaryRoute = ApiSupplementaryRouteImport.update({
   path: '/api/supplementary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPulseRunsRoute = ApiPulseRunsRouteImport.update({
+  id: '/api/pulse-runs',
+  path: '/api/pulse-runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
+  '/helper': typeof HelperRoute
   '/pricing': typeof PricingRoute
+  '/pulse': typeof PulseRoute
+  '/seekly': typeof SeeklyRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
+  '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
+  '/industries/$vertical': typeof IndustriesVerticalRoute
+  '/industries/': typeof IndustriesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
+  '/helper': typeof HelperRoute
   '/pricing': typeof PricingRoute
+  '/pulse': typeof PulseRoute
+  '/seekly': typeof SeeklyRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
+  '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
+  '/industries/$vertical': typeof IndustriesVerticalRoute
+  '/industries': typeof IndustriesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
+  '/helper': typeof HelperRoute
   '/pricing': typeof PricingRoute
+  '/pulse': typeof PulseRoute
+  '/seekly': typeof SeeklyRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
+  '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
+  '/industries/$vertical': typeof IndustriesVerticalRoute
+  '/industries/': typeof IndustriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$'
     | '/account'
     | '/checkout'
     | '/cleanseek'
     | '/cleanseek-x'
     | '/faq'
+    | '/helper'
     | '/pricing'
+    | '/pulse'
+    | '/seekly'
     | '/signin'
     | '/success'
     | '/ticker'
     | '/xmarks'
+    | '/api/pulse-runs'
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
+    | '/industries/$vertical'
+    | '/industries/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$'
     | '/account'
     | '/checkout'
     | '/cleanseek'
     | '/cleanseek-x'
     | '/faq'
+    | '/helper'
     | '/pricing'
+    | '/pulse'
+    | '/seekly'
     | '/signin'
     | '/success'
     | '/ticker'
     | '/xmarks'
+    | '/api/pulse-runs'
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
+    | '/industries/$vertical'
+    | '/industries'
   id:
     | '__root__'
     | '/'
+    | '/$'
     | '/account'
     | '/checkout'
     | '/cleanseek'
     | '/cleanseek-x'
     | '/faq'
+    | '/helper'
     | '/pricing'
+    | '/pulse'
+    | '/seekly'
     | '/signin'
     | '/success'
     | '/ticker'
     | '/xmarks'
+    | '/api/pulse-runs'
     | '/api/supplementary'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
+    | '/industries/$vertical'
+    | '/industries/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
   AccountRoute: typeof AccountRoute
   CheckoutRoute: typeof CheckoutRoute
   CleanseekRoute: typeof CleanseekRoute
   CleanseekXRoute: typeof CleanseekXRouteWithChildren
   FaqRoute: typeof FaqRoute
+  HelperRoute: typeof HelperRoute
   PricingRoute: typeof PricingRoute
+  PulseRoute: typeof PulseRoute
+  SeeklyRoute: typeof SeeklyRoute
   SigninRoute: typeof SigninRoute
   SuccessRoute: typeof SuccessRoute
   TickerRoute: typeof TickerRoute
   XmarksRoute: typeof XmarksRoute
+  ApiPulseRunsRoute: typeof ApiPulseRunsRoute
   ApiSupplementaryRoute: typeof ApiSupplementaryRoute
+  IndustriesVerticalRoute: typeof IndustriesVerticalRoute
+  IndustriesIndexRoute: typeof IndustriesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,11 +343,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SigninRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/seekly': {
+      id: '/seekly'
+      path: '/seekly'
+      fullPath: '/seekly'
+      preLoaderRoute: typeof SeeklyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pulse': {
+      id: '/pulse'
+      path: '/pulse'
+      fullPath: '/pulse'
+      preLoaderRoute: typeof PulseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/helper': {
+      id: '/helper'
+      path: '/helper'
+      fullPath: '/helper'
+      preLoaderRoute: typeof HelperRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -294,11 +406,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/industries/': {
+      id: '/industries/'
+      path: '/industries'
+      fullPath: '/industries/'
+      preLoaderRoute: typeof IndustriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/industries/$vertical': {
+      id: '/industries/$vertical'
+      path: '/industries/$vertical'
+      fullPath: '/industries/$vertical'
+      preLoaderRoute: typeof IndustriesVerticalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cleanseek-x/rabbitholex': {
@@ -329,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSupplementaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pulse-runs': {
+      id: '/api/pulse-runs'
+      path: '/api/pulse-runs'
+      fullPath: '/api/pulse-runs'
+      preLoaderRoute: typeof ApiPulseRunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -350,17 +490,24 @@ const CleanseekXRouteWithChildren = CleanseekXRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
   AccountRoute: AccountRoute,
   CheckoutRoute: CheckoutRoute,
   CleanseekRoute: CleanseekRoute,
   CleanseekXRoute: CleanseekXRouteWithChildren,
   FaqRoute: FaqRoute,
+  HelperRoute: HelperRoute,
   PricingRoute: PricingRoute,
+  PulseRoute: PulseRoute,
+  SeeklyRoute: SeeklyRoute,
   SigninRoute: SigninRoute,
   SuccessRoute: SuccessRoute,
   TickerRoute: TickerRoute,
   XmarksRoute: XmarksRoute,
+  ApiPulseRunsRoute: ApiPulseRunsRoute,
   ApiSupplementaryRoute: ApiSupplementaryRoute,
+  IndustriesVerticalRoute: IndustriesVerticalRoute,
+  IndustriesIndexRoute: IndustriesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

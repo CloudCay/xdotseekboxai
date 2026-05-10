@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
 import { createCheckoutSession } from '../server/stripe.functions'
+import { SeekBoxLogo } from '../components/SeekBoxLogo'
 
 // Stripe TEST MODE — SeekBoxAi Power with Grok X Live (monthly)
 // NOTE: Test-mode price IDs have changed more than once. This site defaults
@@ -87,7 +88,10 @@ function CheckoutPage() {
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50 flex items-center justify-center px-6">
       <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
-        <div className="text-2xl font-black tracking-tight">Checkout</div>
+        <div className="flex items-center gap-3">
+          <SeekBoxLogo tone="dark" size="md" />
+          <div className="text-2xl font-black tracking-tight">Checkout</div>
+        </div>
         {status === 'loading' || status === 'starting' ? (
           <div className="mt-4 text-slate-300">
             {status === 'loading' ? 'Loading…' : 'Starting Stripe checkout…'}
@@ -115,4 +119,3 @@ function CheckoutPage() {
     </div>
   )
 }
-

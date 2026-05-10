@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 import netlify from '@netlify/vite-plugin-tanstack-start'
 
 const config = defineConfig({
+  envPrefix: ['VITE_', 'EXPO_PUBLIC_'],
   plugins: [
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],

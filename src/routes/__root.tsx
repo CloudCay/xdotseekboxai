@@ -21,6 +21,8 @@ import {
   type SiteFontScale,
   type SiteThemeMode,
 } from '../lib/siteTheme'
+import { SeeklyOverlay } from '../components/seekly/SeeklyOverlay'
+import { LegalFooter } from '../components/LegalFooter'
 
 import '../styles.css'
 
@@ -35,7 +37,7 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'SeekBoxAi',
+        title: 'SeekBoX Pulse',
       },
     ],
     links: [
@@ -193,6 +195,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         {children}
+        <LegalFooter />
+        <SeeklyOverlay />
         <Scripts />
       </body>
     </html>

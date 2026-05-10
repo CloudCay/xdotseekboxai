@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Link2, Play, RefreshCw, Trash2 } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { ensureAccount } from '../../lib/ensureAccount'
+import { SeekBoxLogo } from '../../components/SeekBoxLogo'
 
 export const Route = createFileRoute('/cleanseek-x/history')({
   component: CleanSeekXHistoryPage,
@@ -177,8 +178,11 @@ function CleanSeekXHistoryPage() {
           </button>
 
           <div className="flex-1 min-w-0">
-            <div data-testid="history-title" className="text-2xl font-black tracking-tight">
-              CleanSeek X · History
+            <div className="flex items-center gap-3">
+              <SeekBoxLogo tone="dark" size="sm" />
+              <div data-testid="history-title" className="text-2xl font-black tracking-tight">
+                CleanSeek X · History
+              </div>
             </div>
             <div className="mt-1 text-xs text-slate-400">
               {email ? email : userId ? `User ${userId.slice(0, 8)}…` : '—'} · last 100 sessions
@@ -369,4 +373,3 @@ function CleanSeekXHistoryPage() {
     </div>
   )
 }
-
