@@ -31,6 +31,7 @@ import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/hist
 import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desktop'
 import { Route as ApiUnusualWhalesRouteImport } from './routes/api/unusual-whales'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
+import { Route as ApiSecondOpinionRouteImport } from './routes/api/second-opinion'
 import { Route as ApiPulseRunsRouteImport } from './routes/api/pulse-runs'
 
 const XmarksRoute = XmarksRouteImport.update({
@@ -143,6 +144,11 @@ const ApiSupplementaryRoute = ApiSupplementaryRouteImport.update({
   path: '/api/supplementary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSecondOpinionRoute = ApiSecondOpinionRouteImport.update({
+  id: '/api/second-opinion',
+  path: '/api/second-opinion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPulseRunsRoute = ApiPulseRunsRouteImport.update({
   id: '/api/pulse-runs',
   path: '/api/pulse-runs',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
+  '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
+  '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
+  '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/ticker'
     | '/xmarks'
     | '/api/pulse-runs'
+    | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
     | '/cleanseek-x/desktop'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/ticker'
     | '/xmarks'
     | '/api/pulse-runs'
+    | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
     | '/cleanseek-x/desktop'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/ticker'
     | '/xmarks'
     | '/api/pulse-runs'
+    | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
     | '/cleanseek-x/desktop'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   TickerRoute: typeof TickerRoute
   XmarksRoute: typeof XmarksRoute
   ApiPulseRunsRoute: typeof ApiPulseRunsRoute
+  ApiSecondOpinionRoute: typeof ApiSecondOpinionRoute
   ApiSupplementaryRoute: typeof ApiSupplementaryRoute
   ApiUnusualWhalesRoute: typeof ApiUnusualWhalesRoute
   IndustriesVerticalRoute: typeof IndustriesVerticalRoute
@@ -482,6 +495,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSupplementaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/second-opinion': {
+      id: '/api/second-opinion'
+      path: '/api/second-opinion'
+      fullPath: '/api/second-opinion'
+      preLoaderRoute: typeof ApiSecondOpinionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/pulse-runs': {
       id: '/api/pulse-runs'
       path: '/api/pulse-runs'
@@ -525,6 +545,7 @@ const rootRouteChildren: RootRouteChildren = {
   TickerRoute: TickerRoute,
   XmarksRoute: XmarksRoute,
   ApiPulseRunsRoute: ApiPulseRunsRoute,
+  ApiSecondOpinionRoute: ApiSecondOpinionRoute,
   ApiSupplementaryRoute: ApiSupplementaryRoute,
   ApiUnusualWhalesRoute: ApiUnusualWhalesRoute,
   IndustriesVerticalRoute: IndustriesVerticalRoute,

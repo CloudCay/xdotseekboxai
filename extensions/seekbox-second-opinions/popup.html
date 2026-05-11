@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SeekBox Second Opinions</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand">
+        <img src="icons/seekbox-mark.svg" alt="" class="mark" />
+        <div>
+          <div class="eyebrow">SeekBox</div>
+          <h1>Second Opinions</h1>
+        </div>
+      </header>
+
+      <section class="page-card">
+        <div class="label">Current page</div>
+        <div id="pageTitle" class="page-title">Reading active tab...</div>
+        <div id="pageUrl" class="page-url"></div>
+      </section>
+
+      <section class="auth-card">
+        <div>
+          <div class="label">Bookmarking</div>
+          <div id="authStatus" class="muted">Free transient read</div>
+        </div>
+        <div class="auth-actions">
+          <button id="syncSignIn" type="button" class="button ghost">Sync sign-in</button>
+          <button id="openAccount" type="button" class="button linklike">Account</button>
+        </div>
+      </section>
+
+      <label class="question">
+        <span class="label">Optional question</span>
+        <textarea id="question" rows="2" placeholder="What should I be skeptical of here?"></textarea>
+      </label>
+
+      <div class="actions">
+        <button id="quickOpinion" type="button" class="button primary">Get second opinion</button>
+        <button id="compareOpinion" type="button" class="button secondary">Ask 4/5 reads</button>
+      </div>
+
+      <button id="openSeekBox" type="button" class="button quiet">Open in SeekBox</button>
+
+      <section id="status" class="status" hidden></section>
+      <section id="results" class="results" hidden></section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

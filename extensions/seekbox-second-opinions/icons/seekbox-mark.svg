@@ -1,0 +1,8 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SeekBox">
+  <rect x="14" y="14" width="100" height="100" rx="22" fill="#0f172a"/>
+  <rect x="25" y="25" width="78" height="78" rx="16" fill="#e8f4ff"/>
+  <path d="M48 45c11-10 29-10 40 0 6 6 9 14 9 22 0 8-3 16-9 22-11 10-29 10-40 0-6-6-9-14-9-22 0-8 3-16 9-22Z" fill="#1d9bf0"/>
+  <path d="M59 55c6-5 16-5 22 0 3 3 5 8 5 12s-2 9-5 12c-6 5-16 5-22 0-3-3-5-8-5-12s2-9 5-12Z" fill="#f8fafc"/>
+  <path d="M80 80l17 17" stroke="#0f172a" stroke-width="10" stroke-linecap="round"/>
+  <path d="M43 96h36" stroke="#0f172a" stroke-width="8" stroke-linecap="round"/>
+</svg>

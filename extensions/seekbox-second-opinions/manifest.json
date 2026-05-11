@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "SeekBox Second Opinions",
+  "version": "0.1.0",
+  "description": "Get a quiet SeekBox second opinion on the page or selected text.",
+  "action": {
+    "default_title": "SeekBox Second Opinions",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://x.seekboxai.com/*",
+    "https://www.seekboxai.com/*",
+    "https://seekboxai.com/*",
+    "https://seekbox.ai/*"
+  ]
+}
