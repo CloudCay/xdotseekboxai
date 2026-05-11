@@ -4,7 +4,9 @@ import { sanitizeHelperChatRequest } from './sanitize'
 
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL?.trim() || import.meta.env.EXPO_PUBLIC_SUPABASE_URL?.trim()
-const SUPABASE_ANON_KEY =
+const SUPABASE_PUBLIC_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+  import.meta.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
   import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ||
   import.meta.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim()
 
@@ -16,11 +18,11 @@ function functionUrl(): string | null {
 export async function helperChat(req: HelperChatRequest): Promise<HelperChatResponse> {
   const start = Date.now()
   const url = functionUrl()
-  if (!url || !SUPABASE_ANON_KEY) {
+  if (!url || !SUPABASE_PUBLIC_KEY) {
     return failure(start, req.intent, 'Seekly backend is not configured on this site.')
   }
 
-  let bearer = SUPABASE_ANON_KEY
+  let bearer = ''
   try {
     const client = getSupabaseClient()
     const timeout = new Promise<null>((resolve) => {
@@ -31,7 +33,7 @@ export async function helperChat(req: HelperChatRequest): Promise<HelperChatResp
       bearer = result.data.session.access_token
     }
   } catch {
-    // Anonymous calls still work with the anon key.
+    // Anonymous calls still work because the helper function has verify_jwt = false.
   }
 
   const body = sanitizeHelperChatRequest({
@@ -46,7 +48,7 @@ export async function helperChat(req: HelperChatRequest): Promise<HelperChatResp
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${bearer}`,
-        apikey: SUPABASE_ANON_KEY,
+        apikey: SUPABASE_PUBLIC_KEY,
       },
       body: JSON.stringify(body),
     })

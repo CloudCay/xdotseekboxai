@@ -318,6 +318,7 @@ export function WhalesEditionPanel({
   const tapeRead = useMemo(() => deriveTapeRead(payload), [payload])
   const selectedLabKeys = useMemo(() => UW_LAB_PACKS.filter((pack) => selectedLabs[pack.key]).map((pack) => pack.key), [selectedLabs])
   const watchlistText = useMemo(() => watchlistSymbols.map((profile) => profile.label).join(', '), [watchlistSymbols])
+  const hasUserKey = apiKey.trim().length > 0
 
   const runLab = useCallback(async () => {
     if (!selectedLabKeys.length) return
@@ -343,8 +344,8 @@ export function WhalesEditionPanel({
           </div>
           <div className="mt-2 text-lg font-black text-slate-100">{cleanSymbol} tape scanner</div>
           <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
-            Uses the hosted SeekBox key when available. Paste your own Unusual Whales key to override it for this
-            request.
+            Connect your own Unusual Whales key for BYOK whale-flow reads, or use hosted SeekBox access when your
+            role allows it.
           </p>
         </div>
         <div className={`rounded-2xl border px-3 py-2 text-center ${biasClass(biasTone)}`}>
@@ -354,19 +355,51 @@ export function WhalesEditionPanel({
       </div>
 
       <div className="mt-4 space-y-3">
+        <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-cyan-100">
+                <KeyRound className="h-3.5 w-3.5" />
+                Connect your own Unusual Whales
+              </div>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">
+                Paste your personal UW API key to run this page against your plan. SeekBox does not save the key
+                unless you choose to remember it on this device.
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
+              hasUserKey
+                ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+                : 'border-slate-600/70 bg-slate-900/45 text-slate-300'
+            }`}>
+              {hasUserKey ? 'Connected' : 'BYOK'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof document !== 'undefined') document.getElementById('seekbox-whales-api-key')?.focus()
+            }}
+            className="mt-3 rounded-xl border border-cyan-400/35 bg-slate-950/30 px-3 py-2 text-[11px] font-black text-cyan-100 hover:bg-cyan-400/10"
+          >
+            {hasUserKey ? 'Manage key' : 'Connect key'}
+          </button>
+        </div>
+
         <label className="block">
           <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
             <KeyRound className="h-3.5 w-3.5" />
-            Optional Unusual Whales API key
+            Your Unusual Whales API key
           </span>
           <div className="mt-1 flex gap-2">
             <input
+              id="seekbox-whales-api-key"
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
               type={showKey ? 'text' : 'password'}
               autoComplete="off"
               spellCheck={false}
-              placeholder="Optional, overrides hosted key"
+              placeholder="Paste your UW API key"
               className="min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-950/45 px-3 py-2 text-sm font-semibold text-slate-100 outline-none focus:border-cyan-400/50"
             />
             <button
@@ -417,7 +450,7 @@ export function WhalesEditionPanel({
             onChange={(event) => setRememberKey(event.target.checked)}
             className="h-4 w-4 accent-cyan-400"
           />
-          Remember this key on this device
+          Remember this key on this device only
         </label>
 
         <div className="flex gap-2">
@@ -717,10 +750,11 @@ export function WhalesEditionPanel({
         <div className="mt-5 rounded-2xl border border-slate-700/60 bg-black/20 p-3">
           <div className="flex items-center gap-2 text-xs font-black text-slate-200">
             <Lock className="h-4 w-4 text-cyan-300" />
-            Private key mode
+            Bring your own UW key
           </div>
           <p className="mt-2 text-xs leading-5 text-slate-400">
-            Hosted mode reads `UW_API_KEY` from Netlify. Users can still paste their own key for BYO mode.
+            Hosted mode reads `UW_API_KEY` from Netlify for approved SeekBox users. Everyone else can connect their
+            own Unusual Whales key and keep usage tied to their UW account.
           </p>
         </div>
       )}

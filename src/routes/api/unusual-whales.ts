@@ -349,12 +349,12 @@ async function requireHostedKeyAccess(request: Request): Promise<void> {
   if (!token) throw new Error('Sign in to use the hosted Unusual Whales key, or paste your own key.')
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !anonKey) throw new Error('Hosted Unusual Whales mode needs Supabase env for sign-in checks.')
+  const publicKey = getSupabasePublicKey()
+  if (!supabaseUrl || !publicKey) throw new Error('Hosted Unusual Whales mode needs Supabase env for sign-in checks.')
 
   const userResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
     headers: {
-      apikey: anonKey,
+      apikey: publicKey,
       Authorization: `Bearer ${token}`,
     },
     signal: AbortSignal.timeout(8_000),
@@ -367,6 +367,15 @@ async function requireHostedKeyAccess(request: Request): Promise<void> {
   if (allowedEmails.length && !allowedEmails.includes(email)) {
     throw new Error('This hosted Unusual Whales key is limited to approved SeekBox users.')
   }
+}
+
+function getSupabasePublicKey(): string | undefined {
+  return (
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.VITE_SUPABASE_ANON_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+  )
 }
 
 function readBearerToken(value: string | null): string | null {

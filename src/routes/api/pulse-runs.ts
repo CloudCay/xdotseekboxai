@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { scopeValuesForIndustrySlug } from '../../lib/industryCatalog'
 
 const PULSE_SELECT = [
   'id',
@@ -32,24 +33,28 @@ export const Route = createFileRoute('/api/pulse-runs')({
         const scopeValue = url.searchParams.get('scope_value')
 
         const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL
-        const anonKey = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+        const publicKey =
+          process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+          process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+          process.env.VITE_SUPABASE_ANON_KEY ??
+          process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 
-        if (!supabaseUrl || !anonKey) {
+        if (!supabaseUrl || !publicKey) {
           return Response.json({ rows: [], error: 'Supabase env is not configured.' }, { status: 200 })
         }
 
         const endpoint = new URL(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/pulse_runs`)
         endpoint.searchParams.set('select', PULSE_SELECT)
         if (scopeType) endpoint.searchParams.set('scope_type', `eq.${scopeType}`)
-        if (scopeValue) endpoint.searchParams.set('scope_value', `eq.${scopeValue}`)
+        if (scopeValue) {
+          const scopeValues = scopeType === 'industry' ? scopeValuesForIndustrySlug(scopeValue) : [scopeValue]
+          endpoint.searchParams.set('scope_value', scopeValues.length > 1 ? `in.(${scopeValues.join(',')})` : `eq.${scopeValues[0]}`)
+        }
         endpoint.searchParams.set('order', 'created_at.desc')
         endpoint.searchParams.set('limit', String(limit))
 
         const res = await fetch(endpoint, {
-          headers: {
-            apikey: anonKey,
-            Authorization: `Bearer ${anonKey}`,
-          },
+          headers: supabasePublicHeaders(publicKey),
         })
 
         const text = await res.text()
@@ -64,10 +69,17 @@ export const Route = createFileRoute('/api/pulse-runs')({
           status: 200,
           headers: {
             'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'public, max-age=60',
+            'cache-control': 'no-store',
           },
         })
       },
     },
   },
 })
+
+function supabasePublicHeaders(publicKey: string): HeadersInit {
+  return {
+    apikey: publicKey,
+    ...(publicKey.startsWith('eyJ') ? { Authorization: `Bearer ${publicKey}` } : {}),
+  }
+}

@@ -294,12 +294,12 @@ function summarizeOpinions(opinions: ProviderOpinion[], upstreamError: string | 
 
 async function verifySupabaseUser(token: string): Promise<SupabaseUser | null> {
   const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !anonKey) return null
+  const publicKey = getSupabasePublicKey()
+  if (!supabaseUrl || !publicKey) return null
 
   const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
     headers: {
-      apikey: anonKey,
+      apikey: publicKey,
       Authorization: `Bearer ${token}`,
     },
     signal: AbortSignal.timeout(8_000),
@@ -321,14 +321,14 @@ async function saveSecondOpinion(args: {
   summary: string
 }): Promise<{ id: string | null; error: string | null }> {
   const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !anonKey) return { id: null, error: 'Supabase env is not configured.' }
+  const publicKey = getSupabasePublicKey()
+  if (!supabaseUrl || !publicKey) return { id: null, error: 'Supabase env is not configured.' }
 
   const sourceDomain = safeHostname(args.payload.url)
   const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/seekbox_second_opinions`, {
     method: 'POST',
     headers: {
-      apikey: anonKey,
+      apikey: publicKey,
       Authorization: `Bearer ${args.token}`,
       'Content-Type': 'application/json',
       Prefer: 'return=representation',
@@ -359,6 +359,15 @@ async function saveSecondOpinion(args: {
   } catch {
     return { id: null, error: null }
   }
+}
+
+function getSupabasePublicKey(): string | undefined {
+  return (
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.VITE_SUPABASE_ANON_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+  )
 }
 
 function safeHostname(value: string): string | null {

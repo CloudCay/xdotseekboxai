@@ -14,6 +14,15 @@ SeekBox Whales Edition is the ticker-page layer for Unusual Whales data. It supp
 - The seeded board currently watches `OKE` (ONEOK), `AAPL`, `SPY`, and `VIX`.
 - When the `uw_symbols` migration exists, the ticker page reads the seeded public watchlist from Supabase and falls back to the bundled four-symbol list if the table is missing.
 
+## User-Facing Copy
+
+Use "Connect your own Unusual Whales key" for the BYO key prompt. Avoid copy that implies SeekBox includes, resells, or redistributes Unusual Whales data for general users.
+
+- Hosted mode: private SeekBox access for approved signed-in users.
+- BYO key mode: the user supplies their own UW key and usage stays tied to their UW account.
+- Remembered keys stay in browser local storage on that device only.
+- The page should continue to describe output as a research surface, not financial advice.
+
 ## License Posture
 
 Unusual Whales' non-professional API acknowledgement says the API is for personal use and that redistribution, including derived data, can revoke access or terminate the subscription. For that reason:

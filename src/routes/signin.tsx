@@ -32,7 +32,7 @@ function formatAuthError(err: unknown): string {
 
     // Add one targeted hint for the most common “mysterious 400”.
     if (status === 400 && msg && /api key|invalid api key|jwt/i.test(msg)) {
-      return `${joined}\n\nHint: this usually means the Supabase anon key or URL is wrong/rotated. Update VITE_SUPABASE_ANON_KEY + VITE_SUPABASE_URL in Netlify and redeploy.`
+      return `${joined}\n\nHint: this usually means the Supabase public key or URL is wrong/rotated. Update VITE_SUPABASE_PUBLISHABLE_KEY + VITE_SUPABASE_URL in Netlify and redeploy.`
     }
     if (status === 400 && msg && /redirect/i.test(msg)) {
       return `${joined}\n\nHint: check Supabase Auth “Redirect URLs” / “Site URL” for this deployment origin.`
@@ -203,7 +203,7 @@ function SignInPage() {
           </div>
           <div className="mt-6 text-sm text-slate-400">
             To enable it, set <span className="font-mono">VITE_SUPABASE_URL</span> and{' '}
-            <span className="font-mono">VITE_SUPABASE_ANON_KEY</span> in Netlify and redeploy.
+            <span className="font-mono">VITE_SUPABASE_PUBLISHABLE_KEY</span> in Netlify and redeploy.
           </div>
           <a
             href="/"

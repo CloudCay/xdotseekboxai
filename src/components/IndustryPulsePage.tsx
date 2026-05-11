@@ -423,7 +423,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function formatAge(createdAt: string): string {
-  const mins = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000))
+  const timestamp = new Date(createdAt).getTime()
+  if (!Number.isFinite(timestamp)) return 'just now'
+  const mins = Math.max(0, Math.floor((Date.now() - timestamp) / 60000))
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
   const hours = Math.floor(mins / 60)

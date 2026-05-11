@@ -14,7 +14,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { getIndustryPage } from '../lib/industryCatalog'
+import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
@@ -555,8 +555,9 @@ function labelScope(raw: string): string {
 }
 
 function canonicalIndustry(row: PulseRow): { key: string; label: string } | null {
-  const text = [row.scope_value, ...(row.tags ?? [])].filter(Boolean).join(' ').toLowerCase()
-  const configured = getIndustryPage(row.scope_value)
+  const canonicalScope = canonicalizeIndustrySlug(row.scope_value)
+  const text = [canonicalScope, row.scope_value, ...(row.tags ?? [])].filter(Boolean).join(' ').toLowerCase()
+  const configured = getIndustryPage(canonicalScope)
   if (configured) return { key: `industry:${configured.slug}`, label: configured.label }
   if (text.includes('health')) return { key: 'industry:healthcare', label: 'Healthcare' }
   if (text.includes('tech') || text.includes('saas') || text.includes('artificial intelligence') || /\bai\b/.test(text)) {
@@ -664,7 +665,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function formatAge(createdAt: string): string {
-  const mins = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000))
+  const timestamp = new Date(createdAt).getTime()
+  if (!Number.isFinite(timestamp)) return 'just now'
+  const mins = Math.max(0, Math.floor((Date.now() - timestamp) / 60000))
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
   const hours = Math.floor(mins / 60)
