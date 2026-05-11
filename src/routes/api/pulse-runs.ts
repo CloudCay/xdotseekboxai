@@ -27,10 +27,11 @@ export const Route = createFileRoute('/api/pulse-runs')({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url)
-        const limitRaw = Number(url.searchParams.get('limit') ?? 90)
-        const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.round(limitRaw), 1), 150) : 90
         const scopeType = url.searchParams.get('scope_type')
         const scopeValue = url.searchParams.get('scope_value')
+        const defaultLimit = scopeType === 'industry' && !scopeValue ? 500 : 90
+        const limitRaw = Number(url.searchParams.get('limit') ?? defaultLimit)
+        const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.round(limitRaw), 1), 500) : defaultLimit
 
         const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL
         const publicKey =
@@ -50,6 +51,8 @@ export const Route = createFileRoute('/api/pulse-runs')({
           const scopeValues = scopeType === 'industry' ? scopeValuesForIndustrySlug(scopeValue) : [scopeValue]
           endpoint.searchParams.set('scope_value', scopeValues.length > 1 ? `in.(${scopeValues.join(',')})` : `eq.${scopeValues[0]}`)
         }
+        endpoint.searchParams.append('summary', 'not.is.null')
+        endpoint.searchParams.append('summary', 'neq.')
         endpoint.searchParams.set('order', 'created_at.desc')
         endpoint.searchParams.set('limit', String(limit))
 

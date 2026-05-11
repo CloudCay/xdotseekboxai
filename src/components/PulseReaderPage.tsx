@@ -426,7 +426,7 @@ export function PulseReaderPage() {
 }
 
 async function loadRowsFromApi(): Promise<PulseRow[]> {
-  const res = await fetch('/api/pulse-runs?limit=90&scope_type=industry')
+  const res = await fetch('/api/pulse-runs?limit=500&scope_type=industry')
   if (!res.ok) throw new Error(`pulse API failed: ${res.status}`)
   const json = (await res.json()) as { rows?: PulseRow[] }
   return cleanRows(json.rows ?? [])
@@ -438,8 +438,10 @@ async function loadRowsFromBrowserSupabase(): Promise<PulseRow[]> {
     .from('pulse_runs')
     .select(PULSE_SELECT)
     .eq('scope_type', 'industry')
+    .not('summary', 'is', null)
+    .neq('summary', '')
     .order('created_at', { ascending: false })
-    .limit(90)
+    .limit(500)
   if (error) throw error
   return cleanRows((data as PulseRow[]) ?? [])
 }

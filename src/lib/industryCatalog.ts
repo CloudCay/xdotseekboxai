@@ -11,37 +11,243 @@ export type IndustryPageConfig = {
   operatorView: string[]
 }
 
+type IndustrySeed = Pick<IndustryPageConfig, 'slug' | 'label' | 'description' | 'handles' | 'tags'>
+
 const INDUSTRY_SLUG_ALIASES: Record<string, string> = {
+  ag: 'agriculture',
   ai: 'tech-saas',
+  advertising: 'marketing-advertising',
   artificialintelligence: 'tech-saas',
   artificial_intelligence: 'tech-saas',
   'artificial-intelligence': 'tech-saas',
+  auto: 'automotive',
+  beauty: 'beauty-cosmetics',
+  beauty_and_cosmetics: 'beauty-cosmetics',
+  'beauty-and-cosmetics': 'beauty-cosmetics',
+  charity: 'nonprofit-charity',
+  climate: 'energy-sustainability',
+  construction: 'construction-trades',
+  construction_and_trades: 'construction-trades',
+  'construction-and-trades': 'construction-trades',
+  cosmetics: 'beauty-cosmetics',
+  dtc: 'ecommerce-retail',
+  ecommerce: 'ecommerce-retail',
+  ecommerce_and_retail: 'ecommerce-retail',
+  'ecommerce-and-retail': 'ecommerce-retail',
+  'e-commerce': 'ecommerce-retail',
+  'e-commerce-and-retail': 'ecommerce-retail',
+  edtech: 'education',
+  education: 'education',
+  energy: 'energy-sustainability',
+  ev: 'automotive',
+  farming: 'agriculture',
+  finance_and_markets: 'finance',
+  'finance-and-markets': 'finance',
   finance_markets: 'finance',
   'finance-markets': 'finance',
   financial: 'finance',
   financial_services: 'finance',
   'financial-services': 'finance',
+  fitness: 'fitness-wellness',
+  fitness_and_wellness: 'fitness-wellness',
+  'fitness-and-wellness': 'fitness-wellness',
+  food: 'food-beverage',
+  food_and_beverage: 'food-beverage',
+  'food-and-beverage': 'food-beverage',
+  government: 'government-public',
+  government_and_public_sector: 'government-public',
+  'government-and-public-sector': 'government-public',
+  growth: 'marketing-advertising',
   health: 'healthcare',
+  hospitality: 'travel-tourism',
+  law: 'legal-services',
+  legal: 'legal-services',
+  learning: 'education',
+  longevity: 'fitness-wellness',
+  manufacturing: 'manufacturing',
   market: 'finance',
   markets: 'finance',
+  marketing: 'marketing-advertising',
+  marketing_and_advertising: 'marketing-advertising',
+  'marketing-and-advertising': 'marketing-advertising',
   media: 'sports-entertainment',
   medical: 'healthcare',
   medicine: 'healthcare',
+  nonprofit: 'nonprofit-charity',
+  nonprofit_and_charity: 'nonprofit-charity',
+  'nonprofit-and-charity': 'nonprofit-charity',
+  philanthropy: 'nonprofit-charity',
+  policy: 'government-public',
+  public: 'government-public',
+  public_sector: 'government-public',
+  'public-sector': 'government-public',
   real_estate: 'real-estate',
   realestate: 'real-estate',
+  restaurant: 'food-beverage',
+  restaurants: 'food-beverage',
+  retail: 'ecommerce-retail',
   saas: 'tech-saas',
   software: 'tech-saas',
   sport: 'sports-entertainment',
   sports: 'sports-entertainment',
+  sports_and_entertainment: 'sports-entertainment',
+  'sports-and-entertainment': 'sports-entertainment',
+  sustainability: 'energy-sustainability',
+  energy_and_sustainability: 'energy-sustainability',
+  'energy-and-sustainability': 'energy-sustainability',
   tech: 'tech-saas',
   technology: 'tech-saas',
   tourism: 'travel-tourism',
+  trades: 'construction-trades',
   travel: 'travel-tourism',
-  web3: 'crypto',
+  wellness: 'fitness-wellness',
 }
 
+const INDUSTRY_SEEDS: IndustrySeed[] = [
+  {
+    slug: 'healthcare',
+    label: 'Healthcare',
+    description: 'What clinicians, researchers, and health-policy voices are saying right now.',
+    handles: ['PeterAttiaMD', 'hubermanlab', 'drericding', 'AaronSiriSG', 'EricTopol', 'RWMaloneMD', 'drmarkhyman'],
+    tags: ['health', 'medicine', 'wellness'],
+  },
+  {
+    slug: 'tech-saas',
+    label: 'Tech & SaaS',
+    description: 'Founders, researchers, and operators building AI and software.',
+    handles: ['sama', 'karpathy', 'ylecun', 'swyx', 'paulg', 'levie', 'dharmesh', 'geoffreyhinton', 'elonmusk'],
+    tags: ['ai', 'startups', 'software'],
+  },
+  {
+    slug: 'finance',
+    label: 'Finance & Markets',
+    description: 'Macro, equities, and the people moving capital - without the noise.',
+    handles: ['RayDalio', 'michaelburry', 'CathieDWood', 'WallStreetMav', 'FinancialJuice', 'LizAnnSonders', 'zerohedge'],
+    tags: ['markets', 'macro', 'investing'],
+  },
+  {
+    slug: 'real-estate',
+    label: 'Real Estate',
+    description: 'Operators, agents, and investors on the residential and commercial markets.',
+    handles: ['sweatystartup', 'grantcardone', 'MikeFhomes', 'JoshAltman', 'tomferry', 'redfinrachel'],
+    tags: ['real-estate', 'investing'],
+  },
+  {
+    slug: 'food-beverage',
+    label: 'Food & Beverage',
+    description: 'Chefs, food writers, and restaurant operators on what is actually happening.',
+    handles: ['DavidChang', 'AlisonRoman', 'claire_saffitz'],
+    tags: ['food', 'restaurants'],
+  },
+  {
+    slug: 'travel-tourism',
+    label: 'Travel & Tourism',
+    description: 'Where people are going, what is broken, and what is finally back.',
+    handles: ['NomadicMatt', 'TravelLeisure', 'lonelyplanet', 'secretescapes'],
+    tags: ['travel', 'hospitality'],
+  },
+  {
+    slug: 'education',
+    label: 'Education',
+    description: 'Educators, ed-tech founders, and learning-science researchers.',
+    handles: ['khanacademy', 'SalmanKhan', 'RobertCialdini', 'AngelaDuckw', 'RickHess99'],
+    tags: ['edtech', 'learning'],
+  },
+  {
+    slug: 'ecommerce-retail',
+    label: 'E-commerce & Retail',
+    description: 'DTC operators, platform leaders, and the retail experts moving SKUs.',
+    handles: ['harleyf', 'shopify', 'tobi', 'scottbelsky'],
+    tags: ['ecommerce', 'dtc'],
+  },
+  {
+    slug: 'fitness-wellness',
+    label: 'Fitness & Wellness',
+    description: 'Performance science, longevity, and what actually works in the gym.',
+    handles: ['hubermanlab', 'PeterAttiaMD', 'RhondaPatrick', 'drmarkhyman', 'garyvee'],
+    tags: ['fitness', 'longevity'],
+  },
+  {
+    slug: 'marketing-advertising',
+    label: 'Marketing & Advertising',
+    description: 'Positioning, growth, and the operators shipping campaigns this week.',
+    handles: ['neilpatel', 'AprilDunford', 'growthtwt', 'amandanat', 'RandFish'],
+    tags: ['marketing', 'growth'],
+  },
+  {
+    slug: 'construction-trades',
+    label: 'Construction & Trades',
+    description: 'Builders, contractors, and small-business operators in the field.',
+    handles: ['sweatystartup', 'codie_sanchez', 'buildwitt'],
+    tags: ['trades', 'construction'],
+  },
+  {
+    slug: 'legal-services',
+    label: 'Legal Services',
+    description: 'Practicing attorneys, legal scholars, and litigation watchers.',
+    handles: ['kovarsky', 'joshblackman', 'elliotdorfman'],
+    tags: ['law', 'legal'],
+  },
+  {
+    slug: 'manufacturing',
+    label: 'Manufacturing',
+    description: 'Industry leaders on supply chain, automation, and the factory floor.',
+    handles: ['JimCramer'],
+    tags: ['manufacturing', 'supply-chain'],
+  },
+  {
+    slug: 'nonprofit-charity',
+    label: 'Nonprofit & Charity',
+    description: 'Foundations, advocates, and the orgs deploying capital into good.',
+    handles: ['BillGates', 'gatesfoundation', 'MalalaFund', 'propublica'],
+    tags: ['nonprofit', 'philanthropy'],
+  },
+  {
+    slug: 'energy-sustainability',
+    label: 'Energy & Sustainability',
+    description: 'Climate, clean-tech, and grid economics from people building it.',
+    handles: ['cleantechnica', 'BloombergNEF', 'MichaelEMann'],
+    tags: ['climate', 'energy'],
+  },
+  {
+    slug: 'beauty-cosmetics',
+    label: 'Beauty & Cosmetics',
+    description: 'Founders, formulators, and culture watchers in beauty.',
+    handles: ['beautypie', 'estee_laundry'],
+    tags: ['beauty', 'dtc'],
+  },
+  {
+    slug: 'automotive',
+    label: 'Automotive',
+    description: 'OEMs, EVs, and the auto press tracking the transition.',
+    handles: ['SawyerMerritt', 'teslarati', 'MotorTrend', 'Jalopnik'],
+    tags: ['automotive', 'ev'],
+  },
+  {
+    slug: 'agriculture',
+    label: 'Agriculture',
+    description: 'Producers, ag-tech operators, and the policy that shapes the farm.',
+    handles: ['AgWeb', 'ModernFarmer', 'USDA', 'FarmBureau'],
+    tags: ['agriculture', 'farming'],
+  },
+  {
+    slug: 'sports-entertainment',
+    label: 'Sports & Entertainment',
+    description: 'The leagues, the athletes, and the deals reshaping the business.',
+    handles: ['StephenCurry30', 'espn', 'TheAthletic', 'ChampagnePapi'],
+    tags: ['sports', 'entertainment'],
+  },
+  {
+    slug: 'government-public',
+    label: 'Government & Public Sector',
+    description: 'Federal-policy and civic-tech voices - institutional handles only.',
+    handles: ['GovTrack', 'StateDept', 'SecBlinken'],
+    tags: ['government', 'policy'],
+  },
+]
+
 export function canonicalizeIndustrySlug(slug: string | undefined | null): string {
-  const clean = (slug ?? '').toLowerCase().trim()
+  const clean = cleanIndustrySlug(slug)
   return INDUSTRY_SLUG_ALIASES[clean] ?? clean
 }
 
@@ -54,172 +260,39 @@ export function scopeValuesForIndustrySlug(slug: string | undefined | null): str
   return Array.from(new Set([canonical, ...aliases]))
 }
 
-export const INDUSTRY_PAGES: IndustryPageConfig[] = [
-  {
-    slug: 'healthcare',
-    label: 'Healthcare',
-    eyebrow: 'clinicians, researchers, and health-policy voices',
-    description:
-      'A cached X pulse for clinicians, researchers, public-health disputes, wellness narratives, and the health-policy voices shaping the feed.',
-    customer: 'clinicians, health founders, advisors, analysts, and care operators who need the live narrative layer',
-    whyGrok:
-      'Healthcare buyers need a fast read without losing provenance. The page should surface clinical themes, public-health mood, dissent, and source trails before anyone pays for a deeper pull.',
-    handles: ['PeterAttiaMD', 'hubermanlab', 'drericding', 'AaronSiriSG', 'EricTopol', 'RWMaloneMD', 'drmarkhyman'],
-    tags: ['healthcare', 'medicine', 'policy', 'wellness'],
-    questions: [
-      'What healthcare narrative changed this week and who is driving it?',
-      'Where are clinicians split from public-health institutions?',
-      'Which posts are getting outsized attention or backlash?',
-      'What topic deserves a deeper live Grok pull?',
-    ],
-    operatorView: [
-      'This page is a read layer, not medical advice. Keep citations visible and opinion labels plain.',
-      'The product value is knowing which health narratives are moving before conventional coverage packages them.',
-      'Future structure should separate clinical, policy, wellness, and dissent signals.',
-    ],
-  },
-  {
-    slug: 'tech-saas',
-    label: 'Tech & SaaS',
-    eyebrow: 'builders, model labs, and software operators',
-    description:
-      'A cached X pulse for AI, SaaS, platform shifts, model launches, developer tools, and enterprise deployment narratives.',
-    customer: 'founders, operators, analysts, and sales teams selling into AI/software accounts',
-    whyGrok:
-      'This customer wants the first version of the story: product launches, founder reactions, model-war sentiment, and the practical constraints people complain about before they become blog posts.',
-    handles: ['sama', 'karpathy', 'ylecun', 'swyx', 'paulg', 'levie', 'dharmesh', 'geoffreyhinton', 'elonmusk'],
-    tags: ['AI', 'SaaS', 'agents', 'developer tools'],
-    questions: [
-      'What changed in AI/SaaS this week and who is driving it?',
-      'Which product or model launches are getting operator attention?',
-      'Where are enterprise buyers excited versus blocked?',
-      'Which dissenting voices are pushing back on the hype?',
-    ],
-    operatorView: [
-      'Cached pulse is the default surface; deep live pulls should be for named accounts, competitor moments, and launch weeks.',
-      'The sales angle is not generic AI news. It is "what are builders already reacting to on X?"',
-      'Trend charts should graduate from heuristics to structured topic scores once the Worker writes them.',
-    ],
-  },
-  {
-    slug: 'finance',
-    label: 'Finance & Markets',
-    eyebrow: 'macro, equities, and capital flows',
-    description:
-      'A markets-focused X pulse for macro takes, equity narratives, risk-on/risk-off language, and the finance voices pushing a trade into the timeline.',
-    customer: 'market watchers, advisors, creators, founders, and research teams that need the live narrative layer',
-    whyGrok:
-      'Finance customers pay for speed, but they also need provenance. Grok/X is useful when the question is "what are traders saying right now?" and not just "what did the close print?"',
-    handles: ['RayDalio', 'michaelburry', 'CathieDWood', 'WallStreetMav', 'FinancialJuice', 'LizAnnSonders', 'zerohedge'],
-    tags: ['macro', 'equities', 'rates', 'sentiment'],
-    questions: [
-      'What market narrative is getting louder today?',
-      'Which tickers, sectors, or macro prints are showing up repeatedly?',
-      'Where is consensus fragile or overconfident?',
-      'What deserves a deeper ticker pulse?',
-    ],
-    operatorView: [
-      'This page should avoid pretending to be a brokerage terminal. Its job is narrative discovery and source trails.',
-      'The ticker page becomes the paid-work surface: pick a symbol, pull Grok/X, then compare against web and model reasoning.',
-      'Charts should eventually separate topic frequency, sentiment, source influence, and ticker mentions.',
-    ],
-  },
-  {
-    slug: 'real-estate',
-    label: 'Real Estate',
-    eyebrow: 'housing, agents, rates, and property operators',
-    description:
-      'A cached X pulse for housing narratives, real-estate operators, rate sensitivity, listings, affordability, and the local-market stories starting to travel.',
-    customer: 'agents, brokers, investors, lenders, operators, and local-market analysts',
-    whyGrok:
-      'Real estate is local and emotional. Grok/X is useful when rates, affordability, inventory, or neighborhood narratives start moving before the polished market note arrives.',
-    handles: ['Redfin', 'Zillow', 'Realtor', 'WSJrealestate', 'CNBChousing'],
-    tags: ['housing', 'rates', 'inventory', 'property'],
-    questions: [
-      'Which housing narrative is getting louder this week?',
-      'Where are agents, buyers, and market watchers disagreeing?',
-      'Which rate, inventory, or affordability signal deserves follow-up?',
-      'What local-market story is crossing into national attention?',
-    ],
-    operatorView: [
-      'This should read like a housing desk: useful for spotting narratives, not pricing homes.',
-      'Keep institutional and operator voices visible so users can tell source type at a glance.',
-      'Future charts should separate affordability, inventory, rates, and regional heat.',
-    ],
-  },
-  {
-    slug: 'crypto',
-    label: 'Crypto',
-    eyebrow: 'protocols, exchanges, regulation, and web3 builders',
-    description:
-      'A cached X pulse for crypto market narratives, protocol debates, exchange chatter, policy shifts, and the builder/investor voices moving web3 attention.',
-    customer: 'market watchers, builders, analysts, advisors, and creators tracking web3 narratives',
-    whyGrok:
-      'Crypto lives on X. The cheap layer should catch narrative velocity and dissent first, then send users to ticker or live search only when the source trail justifies it.',
-    handles: ['VitalikButerin', 'cz_binance', 'aantonop', 'coinbase', 'CoinDesk'],
-    tags: ['crypto', 'web3', 'regulation', 'markets'],
-    questions: [
-      'What crypto narrative is moving right now?',
-      'Which protocol, exchange, or policy story is getting repeated?',
-      'Where are builders and traders disagreeing?',
-      'What deserves a ticker or token-level deeper pull?',
-    ],
-    operatorView: [
-      'Keep this framed as narrative intelligence, not trading advice.',
-      'The useful cut is source-backed momentum: what keeps appearing, who is amplifying, and what dissent exists.',
-      'Future data should split token mentions, policy/regulatory chatter, protocol debates, and exchange risk.',
-    ],
-  },
-  {
-    slug: 'travel-tourism',
-    label: 'Travel & Tourism',
-    eyebrow: 'destinations, airlines, lodging, and travel operators',
-    description:
-      'A cached X pulse for travel demand, destination chatter, airline friction, hospitality narratives, and tourism stories worth reading before a live pull.',
-    customer: 'travel operators, hospitality teams, local marketers, creators, and analysts',
-    whyGrok:
-      'Travel narratives can move from a complaint, storm, event, fare, or creator post into business impact quickly. This page should preserve the early signal and receipts.',
-    handles: ['NomadicMatt', 'TravelLeisure', 'lonelyplanet', 'secretescapes'],
-    tags: ['travel', 'tourism', 'hospitality', 'destinations'],
-    questions: [
-      'What travel or tourism story is getting attention this week?',
-      'Where are travelers frustrated versus excited?',
-      'Which destination, airline, or lodging narrative deserves follow-up?',
-      'What local story is becoming a broader travel trend?',
-    ],
-    operatorView: [
-      'This should read like a compact travel desk, not a booking site.',
-      'The product value is catching emerging attention and complaint clusters with citations attached.',
-      'Future structure should split destinations, lodging, airlines, events, and weather/disruption signals.',
-    ],
-  },
-  {
-    slug: 'sports-entertainment',
-    label: 'Sports & Entertainment',
-    eyebrow: 'leagues, athletes, creators, rights, and culture',
-    description:
-      'A pulse page for sports, entertainment, creator economics, media rights, fandom, athlete narratives, and culture moments crossing over into business.',
-    customer: 'agencies, creators, analysts, sponsors, and teams watching what fans and insiders are amplifying',
-    whyGrok:
-      'The value is the crossover signal: when a player, league, artist, sponsor, or fandom story starts moving before conventional coverage packages it.',
-    handles: ['StephenCurry30', 'espn', 'TheAthletic', 'ChampagnePapi'],
-    tags: ['sports', 'media rights', 'creators', 'culture'],
-    questions: [
-      'Which sports or entertainment story is crossing into business impact?',
-      'Who is amplifying the narrative: leagues, athletes, creators, or press?',
-      'Where are fans split from official coverage?',
-      'What sponsor, rights, or creator angle is emerging?',
-    ],
-    operatorView: [
-      'This should read more like a highlights desk than an analyst memo.',
-      'The product can win by catching the cultural turn early, then preserving citations for follow-up.',
-      'Structured future data should track fandom velocity, sponsor mentions, rights chatter, and cross-handle engagement.',
-    ],
-  },
-]
+export const INDUSTRY_PAGES: IndustryPageConfig[] = INDUSTRY_SEEDS.map(toIndustryPage)
 
 export function getIndustryPage(slug: string | undefined | null): IndustryPageConfig | null {
   const clean = canonicalizeIndustrySlug(slug)
   if (!clean) return null
   return INDUSTRY_PAGES.find((industry) => industry.slug === clean) ?? null
+}
+
+function toIndustryPage(seed: IndustrySeed): IndustryPageConfig {
+  return {
+    ...seed,
+    eyebrow: `${seed.tags.slice(0, 3).join(', ')} voices`,
+    customer: `${seed.label.toLowerCase()} operators, analysts, founders, and advisors tracking the live X narrative`,
+    whyGrok: `${seed.label} buyers need the fast version of the story before it becomes a polished recap. This page keeps the cached X pulse, source trails, dissent, and repeated themes close together so a deeper pull starts from context.`,
+    questions: [
+      `What changed in ${seed.label} this week and who is driving it?`,
+      `Which ${seed.label.toLowerCase()} narratives are getting repeated across credible voices?`,
+      'Where are operators, customers, or institutions disagreeing?',
+      'What deserves a deeper live Grok pull next?',
+    ],
+    operatorView: [
+      `This page should read like a compact ${seed.label.toLowerCase()} desk: useful for spotting narratives, not pretending to be a final report.`,
+      'Keep institutional, operator, and creator voices visible so source type is obvious.',
+      'Future structured data should split topic frequency, sentiment, source influence, and dissent.',
+    ],
+  }
+}
+
+function cleanIndustrySlug(slug: string | undefined | null): string {
+  return (slug ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, 'and')
+    .replace(/\+/g, ' ')
+    .replace(/\s+/g, '-')
 }
