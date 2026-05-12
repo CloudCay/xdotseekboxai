@@ -53,13 +53,13 @@ export function IndustryHubPage() {
       <IndustryHeader />
       <section className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
         <div className="mb-7 max-w-4xl">
-          <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">Grok customer pages</div>
+          <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">Live intelligence pages</div>
           <h1 className="mt-2 text-3xl font-black leading-[1.05] tracking-tight sm:text-4xl lg:text-5xl">
             Industry pulse pages that read before they ask.
           </h1>
           <p className="mt-5 max-w-3xl text-base font-medium leading-7 text-neutral-600">
             These pages are the cheap, scalable layer: cached X intelligence, source trails, and just enough charts
-            to show where a deeper Grok pull is worth paying for.
+            to show where a deeper live pull is worth paying for.
           </p>
         </div>
 
@@ -219,7 +219,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
         </div>
 
         <aside className="space-y-5">
-          <ChartPanel title="Grok customer fit" icon={<Sparkles className="h-5 w-5" />}>
+          <ChartPanel title="Customer fit" icon={<Sparkles className="h-5 w-5" />}>
             <div className="space-y-3">
               {questions.map((question, index) => (
                 <SearchLink key={question} industry={industry} question={question} index={index + 1} />
@@ -261,7 +261,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
             <h2 className="mt-1 text-3xl font-black tracking-tight">Open the receipts</h2>
             <p className="mt-3 max-w-xl text-sm font-semibold leading-7 text-neutral-600">
               The page is meant to be read fast, but every cached pulse keeps the source trail visible so a customer
-              can decide when to run a fresh Grok pull.
+              can decide when to run a fresh live pull.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -293,7 +293,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
             <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-400">Deep pull</div>
             <div className="mt-1 text-xl font-black sm:text-2xl">Turn the cached read into a customer question.</div>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-300">
-              This is where Grok earns the click: fresh X posts, dissent, trader/fan/operator sentiment, and citations.
+              This is where live search earns the click: fresh X posts, dissent, trader/fan/operator sentiment, and citations.
             </p>
           </div>
           <a

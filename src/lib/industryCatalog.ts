@@ -278,7 +278,7 @@ function toIndustryPage(seed: IndustrySeed): IndustryPageConfig {
       `What changed in ${seed.label} this week and who is driving it?`,
       `Which ${seed.label.toLowerCase()} narratives are getting repeated across credible voices?`,
       'Where are operators, customers, or institutions disagreeing?',
-      'What deserves a deeper live Grok pull next?',
+      'What deserves a deeper live pull next?',
     ],
     operatorView: [
       `This page should read like a compact ${seed.label.toLowerCase()} desk: useful for spotting narratives, not pretending to be a final report.`,

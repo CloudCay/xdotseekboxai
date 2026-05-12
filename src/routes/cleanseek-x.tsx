@@ -67,13 +67,25 @@ const ENGINE_CATALOG: { id: string; label: string }[] = [
   { id: 'chatgpt', label: 'ChatGPT' },
   { id: 'claude', label: 'Claude' },
   { id: 'gemini', label: 'Gemini' },
-  { id: 'grok', label: 'Grok' },
-  { id: 'grok4', label: 'Grok 4' },
+  { id: 'grok', label: 'xAI' },
+  { id: 'grok4', label: 'xAI Reasoning' },
   { id: 'brave', label: 'Brave' },
   { id: 'chatgptsearch', label: 'GPT Search' },
-  { id: 'groksearch', label: 'Grok Web' },
-  { id: 'grokx', label: 'Grok X' },
+  { id: 'groksearch', label: 'Live Web' },
+  { id: 'grokx', label: 'Live X' },
 ]
+
+const ENGINE_LABEL_BY_ID = new Map(ENGINE_CATALOG.map((engine) => [engine.id, engine.label]))
+
+function displayEngineName(providerId: string, rawName?: string | null): string {
+  const mapped = ENGINE_LABEL_BY_ID.get(providerId)
+  if (mapped) return mapped
+  return (rawName ?? providerId)
+    .replace(/\bGrok\s*X\b/gi, 'Live X')
+    .replace(/\bGrok\s*Web\b/gi, 'Live Web')
+    .replace(/\bGrok\s*4\b/gi, 'xAI Reasoning')
+    .replace(/\bGrok\b/gi, 'xAI')
+}
 
 const ENABLED_ENGINES_STORAGE_KEY = 'seekbox_cleanseek_x_enabled_engines_v1'
 const ENGINE_PICK_MODE_KEY = 'seekbox_cleanseek_x_engine_pick_mode_v1'
@@ -390,7 +402,7 @@ function savePromptModsToKey(storageKey: string, m: PromptModifierSnapshot) {
 
 type ShowcasePrompt = { text: string; featured?: boolean; hint?: string }
 
-/** Copy-paste demos tuned for Grok Live + side-by-side engines (CleanSeek-X niche path). */
+/** Copy-paste demos tuned for Live X + side-by-side engines (CleanSeek-X niche path). */
 const GROK_SHOWCASE_SECTIONS: { category: string; prompts: ShowcasePrompt[] }[] = [
   {
     category: 'Market & investing',
@@ -398,7 +410,7 @@ const GROK_SHOWCASE_SECTIONS: { category: string; prompts: ShowcasePrompt[] }[] 
       {
         text: "What is the real market reaction to Nvidia's latest earnings?",
         featured: true,
-        hint: 'Great with Grok Live — fresh sentiment',
+        hint: 'Great with Live X — fresh sentiment',
       },
       {
         text: 'Compare Tesla FSD v13 vs Waymo current performance and public sentiment',
@@ -418,7 +430,7 @@ const GROK_SHOWCASE_SECTIONS: { category: string; prompts: ShowcasePrompt[] }[] 
     category: 'Tech & product launches',
     prompts: [
       {
-        text: 'Compare Grok-4 vs Claude Sonnet 4 vs GPT-5.2 — which is best for coding?',
+        text: 'Compare xAI reasoning vs Claude Sonnet 4 vs GPT-5.2 — which is best for coding?',
         featured: true,
         hint: 'Side-by-side model compare',
       },
@@ -501,19 +513,19 @@ function syncCleanseekUrl(q: string, useLatest: boolean, preset: PresetId) {
   window.history.replaceState({}, '', `${window.location.pathname}?${sp.toString()}`)
 }
 
-/** Product narrative — Grok’s differentiated native X access + how SeekBox exploits it */
+/** Product narrative — differentiated live X access + how SeekBox exploits it */
 const GROK_WHY_LIVE = {
-  headline: 'Why Grok Live is different',
+  headline: 'Why Live X is different',
   sub:
-    'Grok pulls fresh posts, trends, sentiment, and context from X minutes after they surface — not just crawl-delayed web pages or training snapshots.',
+    'Live X pulls fresh posts, trends, sentiment, and context minutes after they surface — not just crawl-delayed web pages or training snapshots.',
   bullets: [
     'Native real-time X signal alongside classic models → consensus vs contradiction in one run.',
     'Ideal every time “what people are saying *right now*” beats yesterday’s SEO summaries.',
-    'SeekBoxAi stacks Grok search next to Tavily / GPT / Claude / Gemini so you verify narratives fast.',
+    'SeekBoxAi stacks live search next to Tavily / GPT / Claude / Gemini so you verify narratives fast.',
   ],
 }
 
-/** One-shot “modes” — product framing, not generic demos (Grok Live + Web preset recommended). */
+/** One-shot “modes” — product framing, not generic demos (Live X + Web preset recommended). */
 const GROK_SEARCH_MODES: { id: string; label: string; prompt: string }[] = [
   {
     id: 'earnings-reaction',
@@ -543,7 +555,7 @@ const GROK_SEARCH_MODES: { id: string; label: string; prompt: string }[] = [
   {
     id: 'competitor-comparison',
     label: 'Competitor comparison',
-    prompt: 'Trader reactions to Grok-4 vs Claude Sonnet 4 announcements',
+    prompt: 'Trader reactions to xAI reasoning vs Claude Sonnet 4 announcements',
   },
   {
     id: 'post-trade-validation',
@@ -557,7 +569,7 @@ const GROK_SEARCH_MODES: { id: string; label: string; prompt: string }[] = [
   },
 ]
 
-/** Five strategic angles — tap prompts to fill (keep Grok Live on). */
+/** Five strategic angles — tap prompts to fill (keep Live X on). */
 const GROK_USE_CASE_PLAYS: { title: string; audience: string; prompts: string[] }[] = [
   {
     title: 'Live market & sentiment',
@@ -1369,7 +1381,7 @@ function TickerSidebarPanel(props: {
           <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Market pulse</div>
           <div className="mt-1 text-lg font-black text-slate-100">{selected}</div>
           <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
-            Grok X for the live tape, web engines for receipts, models for the second opinion.
+            Live X for the tape, web engines for receipts, models for the second opinion.
           </p>
         </div>
         <button
@@ -2825,7 +2837,7 @@ export function CleanSeekLite({
             <a
               href="/xmarks"
               className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
-              title="The Spot: Grok X only dashboard"
+              title="The Spot: X-only dashboard"
             >
               {isXmarks ? 'The Spot' : 'XMarks'}
             </a>
@@ -2860,7 +2872,7 @@ export function CleanSeekLite({
                     : 'border-slate-700 bg-slate-900/30 text-slate-200'
                 }`}
               >
-                {useLatest ? 'Grok Live' : 'Grok Live off'}
+                {useLatest ? 'Live X' : 'Live X off'}
               </button>
             ) : null}
 
@@ -3271,9 +3283,9 @@ export function CleanSeekLite({
 
           <div className="mt-3 rounded-xl border border-slate-700/60 bg-slate-950/30 px-3 py-2 text-[11px] leading-snug text-slate-400">
             <span className="font-black uppercase tracking-wide text-slate-500">Next request · </span>
-            <span className="font-mono text-slate-200">{idsActuallySent.join(', ') || '—'}</span>
+            <span className="font-mono text-slate-200">{idsActuallySent.map((id) => displayEngineName(id)).join(', ') || '—'}</span>
             {!disableGrokLive && useLatest && idsActuallySent.length && !idsActuallySent.includes('groksearch') ? (
-              <span className="text-slate-500"> (+ groksearch when Grok Live is on)</span>
+              <span className="text-slate-500"> (+ live web when Live X is on)</span>
             ) : null}
           </div>
 
@@ -3503,7 +3515,7 @@ export function CleanSeekLite({
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="font-black flex items-center gap-2">
-                        {isGrokLive ? 'Grok X' : (r.providerName ?? r.provider)}
+                        {isGrokLive ? 'Live X' : displayEngineName(r.provider, r.providerName)}
                         {isGrokLive ? (
                           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[10px] font-black tracking-widest text-emerald-100">
                             LIVE <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -3615,16 +3627,16 @@ export function CleanSeekLite({
                           <div>
                             <div className="inline-flex items-center gap-2 text-emerald-100">
                               <Sparkles className="h-5 w-5 shrink-0 text-emerald-300" />
-                              <span className="text-lg font-black tracking-tight">Grok Live showcase</span>
+                              <span className="text-lg font-black tracking-tight">Live X showcase</span>
                             </div>
                             <p className="mt-2 max-w-2xl text-sm text-slate-400 leading-relaxed">
                               Twenty copy-paste demos built for side-by-side answers plus live X verification.{' '}
-                              <span className="text-slate-300 font-semibold">Featured</span> runs instantly (keep Grok Live on). Others fill the
+                              <span className="text-slate-300 font-semibold">Featured</span> runs instantly (keep Live X on). Others fill the
                               search box — tap Search when ready.
                             </p>
                           </div>
                           <div className="shrink-0 rounded-2xl border border-slate-700/80 bg-black/25 px-4 py-3 text-[11px] font-semibold text-slate-400 leading-snug max-w-xs">
-                            Tip: Use <span className="text-slate-200">Web</span> preset for Tavily + Grok search breadth;{' '}
+                            Tip: Use <span className="text-slate-200">Web</span> preset for broad live/web search;{' '}
                             <span className="text-slate-200">Research</span> for pure model compare.
                           </div>
                         </div>
@@ -3643,7 +3655,7 @@ export function CleanSeekLite({
                           <div className="text-[11px] font-black uppercase tracking-widest text-cyan-400/90">Eight search modes</div>
                           <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
                             Not just demos — <span className="text-slate-300 font-semibold">modes</span> you can drop users into. Each card loads a tuned prompt;
-                            keep <span className="text-emerald-300 font-semibold">Grok Live</span> on and use <span className="text-slate-200 font-semibold">Web</span>{' '}
+                            keep <span className="text-emerald-300 font-semibold">Live X</span> on and use <span className="text-slate-200 font-semibold">Web</span>{' '}
                             for breadth.
                           </p>
                           <div className="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
@@ -3682,7 +3694,7 @@ export function CleanSeekLite({
                         </div>
 
                         <div className="mt-8">
-                          <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Five plays to exploit Grok X</div>
+                          <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Five live-X plays</div>
                           <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
                             Starter prompts mapped to high-leverage workflows — tap one to fill, then Search (or use Run now on featured cards below).
                           </p>

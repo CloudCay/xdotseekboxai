@@ -56,7 +56,7 @@ export const XDOT_SITE_PROFILE = {
   productName: 'SeekBoX Pulse',
   stagingHost: 'x.seekboxai.com',
   localHost: '127.0.0.1:3001',
-  positioning: 'LIVE SEEKBOX CACHE for reading X/Grok-oriented industry, ticker, and highlight data before searching live.',
+  positioning: 'LIVE SEEKBOX CACHE for reading X-oriented industry, ticker, and highlight data before searching live.',
   canonicalSurfaces: ['pulse_reader', 'industry_pages', 'cleanseek_x', 'ticker', 'xmarks', 'account_signin'],
 } as const
 
@@ -99,7 +99,7 @@ export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
     label: 'CleanSeek-X',
     routes: ['/cleanseek-x', '/cleanseek-x/desktop'],
     routePrefix: '/cleanseek-x/',
-    description: 'Live multi-engine search console with Grok/X-forward prompts, modifiers, personas, and history.',
+    description: 'Live multi-engine search console with X-forward prompts, modifiers, personas, and history.',
     support: [
       'Help choose engines, presets, prompt modifiers, and live mode.',
       'Explain personalization seed, persona text, and saved history classes.',
@@ -131,7 +131,7 @@ export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
     id: 'xmarks',
     label: 'The Spot by SeekBoxAi',
     routes: ['/xmarks'],
-    description: 'Prompt/library surface for saved XMarks prompts and Grok-first customer use cases.',
+    description: 'Prompt/library surface for saved XMarks prompts and live-search customer use cases.',
     support: [
       'Help users understand saved prompt sets and XMarks use cases.',
       'Collect prompt ideas or missing customer workflows.',
@@ -140,7 +140,7 @@ export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
     starters: [
       'What is The Spot?',
       'How do I save useful prompts?',
-      'What Grok-first workflow should I try?',
+      'What live-search workflow should I try?',
     ],
   },
   {

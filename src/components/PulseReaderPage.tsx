@@ -412,7 +412,7 @@ export function PulseReaderPage() {
             <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-400">Deep mode</div>
             <div className="mt-1 text-2xl font-black">Need a fresh pull or custom angle?</div>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-300">
-              Keep reading cached highlights here. Use the Grok X console when the question deserves a new run.
+              Keep reading cached highlights here. Use the live search console when the question deserves a new run.
             </p>
           </div>
           <a

@@ -16,7 +16,7 @@ const faqs = [
   {
     question: 'What is CleanSeek‑X?',
     answer:
-      'CleanSeek‑X is the main multi-engine search experience: streaming answers, engine selection, presets, prompt modifiers, and optional “Grok Live” behavior for recency-focused queries.',
+      'CleanSeek‑X is the main multi-engine search experience: streaming answers, engine selection, presets, prompt modifiers, and optional “Live X” behavior for recency-focused queries.',
   },
   {
     question: 'What is XMarks?',
@@ -36,7 +36,7 @@ const faqs = [
   {
     question: 'Which engines can run?',
     answer:
-      'CleanSeek‑X includes a mix of model engines (e.g. ChatGPT, Claude, Gemini, Grok) and web engines (e.g. Tavily, Brave, GPT Search, Grok Web). You can choose which engines run per query.',
+      'CleanSeek‑X includes a mix of model engines (e.g. ChatGPT, Claude, Gemini, xAI) and web engines (e.g. Tavily, Brave, GPT Search, Live Web). You can choose which engines run per query.',
   },
   {
     question: 'What’s the difference between presets and “My picks only”?',
@@ -49,12 +49,12 @@ const faqs = [
       'The UI shows a “Next request” line listing the exact provider ids that will be sent on your next search.',
   },
   {
-    question: 'What does “Grok Live” do?',
+    question: 'What does “Live X” do?',
     answer:
       'It adds a recency-focused instruction so results prioritize the last ~7 days when possible. It’s designed for fast-changing topics like markets, news, and launches.',
   },
   {
-    question: 'Does Grok Live override response length?',
+    question: 'Does Live X override response length?',
     answer:
       'Yes — Live mode disables the response-length cap so engines have room to include fresh context and citations.',
   },
@@ -101,7 +101,7 @@ const faqs = [
   {
     question: 'Is there direct Twitter/X API integration?',
     answer:
-      'Not on this site. “X pull” is achieved through engines that have X/web access (e.g. Grok X) and the Pulse prompt — not by calling the X REST API directly.',
+      'Not on this site. “X pull” is achieved through engines that have X/web access and the Pulse prompt — not by calling the X REST API directly.',
   },
   {
     question: 'What data is stored locally vs in Supabase?',

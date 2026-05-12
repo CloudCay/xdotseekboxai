@@ -34,20 +34,20 @@ function PricingPage() {
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-xs font-black text-cyan-200">
-              <Zap className="h-3.5 w-3.5" /> Grok Live · Multi-model search
+              <Zap className="h-3.5 w-3.5" /> Live X · Multi-model search
             </div>
             <h1 className="mt-5 text-4xl md:text-5xl font-black tracking-tight text-white">
               One plan. All models. Live X context.
             </h1>
             <p className="mt-4 text-slate-300 leading-relaxed">
-              Compare answers side-by-side across top AI models and web engines. Turn on Grok Live mode for recency-first results and
+              Compare answers side-by-side across top AI models and web engines. Turn on Live X mode for recency-first results and
               live-context formatting.
             </p>
 
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {[
                 '10+ model/providers in one run',
-                'Grok Live mode + Deep Live Dive',
+                'Live X mode + Deep Live Dive',
                 'Search history (when signed in)',
                 'Stripe checkout + role/subscription status',
                 'Magic link + Google sign-in',
@@ -65,7 +65,7 @@ function PricingPage() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs font-black tracking-widest text-slate-400 uppercase">Power tier</div>
-                <div className="mt-1 text-2xl font-black text-white">SeekBoxAi + Grok Live</div>
+                <div className="mt-1 text-2xl font-black text-white">SeekBoxAi + Live X</div>
               </div>
               <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100">
                 Monthly
