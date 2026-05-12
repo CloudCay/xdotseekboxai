@@ -24,6 +24,194 @@ html[data-theme="dark"] body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Guard a few utility colors used by dense dashboards and overlays. */
+.bg-black { background-color: #000000 !important; }
+.bg-neutral-950 { background-color: #0a0a0a !important; }
+.bg-neutral-900 { background-color: #171717 !important; }
+.bg-blue-600 { background-color: #2563eb !important; }
+.bg-cyan-300 { background-color: #67e8f9 !important; }
+.bg-cyan-400 { background-color: #22d3ee !important; }
+.bg-cyan-500 { background-color: #06b6d4 !important; }
+.bg-emerald-400 { background-color: #34d399 !important; }
+.bg-emerald-500 { background-color: #10b981 !important; }
+.text-white { color: #ffffff !important; }
+
+/* Theme bridge for routes authored with hardcoded dark Tailwind utilities. */
+html[data-theme="light"] {
+  --xd-bg: #f8fafc;
+  --xd-card: #ffffff;
+  --xd-card-muted: #eef2f7;
+  --xd-ink: #0f172a;
+  --xd-ink-soft: #334155;
+  --xd-muted: #64748b;
+  --xd-rule: rgba(15, 23, 42, 0.18);
+  --xd-rule-strong: rgba(15, 23, 42, 0.34);
+  --xd-accent: #0f172a;
+  --xd-accent-ink: #ffffff;
+}
+
+html[data-theme="seekbox"] {
+  --xd-bg: #fafbff;
+  --xd-card: #ffffff;
+  --xd-card-muted: #eef2ff;
+  --xd-ink: #1b2a4a;
+  --xd-ink-soft: #344b78;
+  --xd-muted: #52617d;
+  --xd-rule: #d6e0f0;
+  --xd-rule-strong: #bfdbfe;
+  --xd-accent: #2563eb;
+  --xd-accent-ink: #ffffff;
+}
+
+html[data-theme="light"] body,
+html[data-theme="seekbox"] body {
+  background-color: var(--xd-bg);
+  color: var(--xd-ink);
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-[#050B14]"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-[#0A1128]"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-[#08111F]"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-slate-950,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-slate-900,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-slate-950/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-slate-900/"] {
+  background-color: var(--xd-card) !important;
+  background-image: none !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-black/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-cyan-"][class*="/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-emerald-"][class*="/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-amber-"][class*="/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-red-"][class*="/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-rose-"][class*="/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-violet-"][class*="/"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-blue-"][class*="/"] {
+  background-color: var(--xd-card-muted) !important;
+  background-image: none !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-black,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-neutral-950,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-neutral-900,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-cyan-300,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-cyan-400,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-cyan-500,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-blue-600,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-emerald-400,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-emerald-500 {
+  background-color: var(--xd-accent) !important;
+  color: var(--xd-accent-ink) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-slate-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-cyan-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-emerald-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-amber-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-red-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-rose-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-violet-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="border-blue-"] {
+  border-color: var(--xd-rule) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="ring-cyan-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="ring-emerald-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="ring-violet-"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="ring-blue-"] {
+  --tw-ring-color: var(--xd-rule-strong) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-white,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-50,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-100,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-200,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-cyan-50,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-cyan-100,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-emerald-100,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-emerald-100\/95,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-amber-50,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-amber-100,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-red-100,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-violet-50,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-violet-100 {
+  color: var(--xd-ink) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-200\/90,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-300,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-cyan-200,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-violet-200,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-violet-200\/80,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-emerald-200,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-emerald-200\/80,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-red-200,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-red-300,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-amber-200 {
+  color: var(--xd-ink-soft) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-400,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-500,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-slate-600,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-cyan-300,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-cyan-400,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-cyan-400\/90,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-emerald-300,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-emerald-400,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-emerald-400\/90,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .text-violet-300 {
+  color: var(--xd-muted) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-black.text-white,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-neutral-950.text-white,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-neutral-900.text-white,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-blue-600.text-white,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-cyan-300.text-neutral-950,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-cyan-400.text-\[\#050B14\],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-cyan-500.text-\[\#050B14\],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-emerald-400.text-\[\#050B14\],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-emerald-500.text-\[\#050B14\],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-black .text-white,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) .bg-neutral-950 .text-white,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-cyan-"][class*="text-[#050B14]"],
+:is(html[data-theme="light"], html[data-theme="seekbox"]) [class*="bg-emerald-"][class*="text-[#050B14]"] {
+  color: var(--xd-accent-ink) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) input:not(.bg-transparent),
+:is(html[data-theme="light"], html[data-theme="seekbox"]) textarea,
+:is(html[data-theme="light"], html[data-theme="seekbox"]) select {
+  background-color: var(--xd-card) !important;
+  color: var(--xd-ink) !important;
+  border-color: var(--xd-rule-strong) !important;
+}
+
+:is(html[data-theme="light"], html[data-theme="seekbox"]) ::placeholder {
+  color: var(--xd-muted) !important;
+}
+
+/* Make font controls affect the small fixed-pixel labels in dense dashboards. */
+html[data-font-scale="1"] [class*="text-[9px]"] { font-size: 0.625rem !important; }
+html[data-font-scale="1"] [class*="text-[10px]"] { font-size: 0.6875rem !important; }
+html[data-font-scale="1"] [class*="text-[11px]"] { font-size: 0.75rem !important; }
+html[data-font-scale="1"] [class*="text-[13px]"] { font-size: 0.875rem !important; }
+html[data-font-scale="2"] [class*="text-[9px]"] { font-size: 0.6875rem !important; }
+html[data-font-scale="2"] [class*="text-[10px]"] { font-size: 0.75rem !important; }
+html[data-font-scale="2"] [class*="text-[11px]"] { font-size: 0.8125rem !important; }
+html[data-font-scale="2"] [class*="text-[13px]"] { font-size: 0.9375rem !important; }
+
+html[data-theme="dark"] [aria-label="Theme and text size"] .bg-white {
+  background-color: #0f172a !important;
+}
+
+html[data-theme="dark"] [aria-label="Theme and text size"] .text-slate-700,
+html[data-theme="dark"] [aria-label="Theme and text size"] .text-slate-900 {
+  color: #cbd5e1 !important;
+}
+
 /* Newspaper — greyscale, print-like, high legibility */
 html[data-theme="newspaper"] {
   color-scheme: light;

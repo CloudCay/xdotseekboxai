@@ -245,6 +245,9 @@ export function PulseReaderPage() {
               <a href="/xmarks" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
                 XMarks
               </a>
+              <a href="/ticker" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
+                Tickers
+              </a>
             </nav>
           </header>
 

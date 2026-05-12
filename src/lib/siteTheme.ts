@@ -96,5 +96,6 @@ export function applySiteThemeToDocument(theme: SiteThemeMode): void {
 export function applySiteFontToDocument(scale: SiteFontScale): void {
   if (typeof document === 'undefined') return
   const viewportWidth = typeof window === 'undefined' ? 0 : window.innerWidth
+  document.documentElement.dataset.fontScale = String(scale)
   document.documentElement.style.fontSize = `${siteFontPxForViewport(scale, viewportWidth)}px`
 }

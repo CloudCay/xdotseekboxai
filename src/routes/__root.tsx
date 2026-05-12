@@ -67,19 +67,32 @@ export const Route = createRootRoute({
 function RootDocument({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<SiteThemeMode>(() => readSiteTheme())
   const [font, setFont] = useState<SiteFontScale>(() => readSiteFontScale())
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    const storedTheme = readSiteTheme()
+    const storedFont = readSiteFontScale()
+    setTheme(storedTheme)
+    setFont(storedFont)
+    applySiteThemeToDocument(storedTheme)
+    applySiteFontToDocument(storedFont)
+    setReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!ready) return
     writeSiteTheme(theme)
     applySiteThemeToDocument(theme)
-  }, [theme])
+  }, [ready, theme])
 
   useEffect(() => {
+    if (!ready) return
     writeSiteFontScale(font)
     const apply = () => applySiteFontToDocument(font)
     apply()
     window.addEventListener('resize', apply)
     return () => window.removeEventListener('resize', apply)
-  }, [font])
+  }, [font, ready])
 
   const chrome = useMemo(() => {
     switch (theme) {
@@ -129,7 +142,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   }, [theme])
 
   return (
-    <html lang="en" data-theme={theme} className={theme === 'dark' ? 'dark' : ''}>
+    <html lang="en" data-theme={theme} data-font-scale={font} className={theme === 'dark' ? 'dark' : ''}>
       <head>
         <HeadContent />
       </head>

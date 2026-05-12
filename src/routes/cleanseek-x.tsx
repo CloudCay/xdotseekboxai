@@ -2590,6 +2590,13 @@ export function CleanSeekLite({
               {isXmarks ? 'The Spot' : 'XMarks'}
             </a>
             <a
+              href="/ticker"
+              className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
+              title="Ticker watchlist and market pulse"
+            >
+              {isTicker ? 'Ticker' : 'Tickers'}
+            </a>
+            <a
               href={`/cleanseek-x/rabbitholex?q=${encodeURIComponent(query.trim())}&latest=${useLatest ? '1' : '0'}&autorun=1`}
               className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
               title="Open a dedicated page that prints all results."
