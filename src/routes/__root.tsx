@@ -50,14 +50,17 @@ export const Route = createRootRoute({
         rel: 'stylesheet',
         href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..900;1,14..32,400..900&display=swap',
       },
-      // Cache-bust so browsers pick up changes quickly.
-      { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2', sizes: '32x32' },
-      { rel: 'apple-touch-icon', href: '/favicon.png?v=2' },
+      // Cache-bust so browsers pick up the cube favicon quickly.
+      { rel: 'icon', type: 'image/png', href: '/favicon-32x32.png?v=4', sizes: '32x32' },
+      { rel: 'icon', type: 'image/png', href: '/favicon-16x16.png?v=4', sizes: '16x16' },
+      { rel: 'apple-touch-icon', href: '/apple-touch-icon.png?v=4', sizes: '180x180' },
+      { rel: 'manifest', href: '/site.webmanifest?v=4' },
       // Many browsers still prefer .ico; cache-bust it too.
-      { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico?v=2' },
-      { rel: 'shortcut icon', href: '/favicon.ico?v=2' },
+      { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico?v=4' },
+      { rel: 'shortcut icon', href: '/favicon.ico?v=4' },
       // Some clients ignore querystrings for favicons; keep plain fallbacks.
-      { rel: 'icon', type: 'image/png', href: '/favicon.png', sizes: '32x32' },
+      { rel: 'icon', type: 'image/png', href: '/favicon.png', sizes: '512x512' },
+      { rel: 'icon', type: 'image/png', href: '/favicon-32x32.png', sizes: '32x32' },
       { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
     ],
   }),
