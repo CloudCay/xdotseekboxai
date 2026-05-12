@@ -3,7 +3,7 @@ import { CleanSeekLite } from './cleanseek-x'
 
 export const Route = createFileRoute('/xmarks')({
   head: () => ({
-    meta: [{ title: 'The Spot by SeekBoxAi' }],
+    meta: [{ title: 'The Spot by X.SeekBoxAI' }],
   }),
   component: XMarksPage,
 })

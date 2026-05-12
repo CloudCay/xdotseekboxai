@@ -13,7 +13,7 @@ export const BASELINE_INTENT_PILLS: IntentMeta[] = [
     pillId: 'help',
     intent: 'help',
     label: 'Help',
-    tagline: 'Find your way around this SeekBox surface',
+    tagline: 'Find your way around this X.SeekBoxAI surface',
     placeholder: 'What does this page do?',
   },
   {
@@ -48,22 +48,22 @@ export const BASELINE_INTENT_PILLS: IntentMeta[] = [
     pillId: 'ideas',
     intent: 'idea',
     label: 'Ideas',
-    tagline: 'Brainstorm something SeekBox could do',
-    placeholder: 'I wish SeekBox could ___',
+    tagline: 'Brainstorm something X.SeekBoxAI could do',
+    placeholder: 'I wish X.SeekBoxAI could ___',
   },
   {
     pillId: 'must-haves',
     intent: 'must_have',
     label: 'Must-haves',
     tagline: 'The thing you need before you can commit',
-    placeholder: 'I would only use SeekBox if it ___',
+    placeholder: 'I would only use X.SeekBoxAI if it ___',
   },
   {
     pillId: 'roadmap',
     intent: 'roadmap',
     label: 'Roadmap',
     tagline: 'What is planned and when',
-    placeholder: 'When will SeekBox have ___?',
+    placeholder: 'When will X.SeekBoxAI have ___?',
   },
 ]
 
@@ -98,13 +98,13 @@ export const STARTERS_BY_PILL: Record<string, string[]> = {
     'I want to report a rough edge.',
   ],
   ideas: [
-    'I wish SeekBox could...',
-    'Can SeekBox be used to...',
-    'What if SeekBox had...',
+    'I wish X.SeekBoxAI could...',
+    'Can X.SeekBoxAI be used to...',
+    'What if X.SeekBoxAI had...',
   ],
   'must-haves': [
-    'I need SeekBox to...',
-    'I would only use SeekBox for ___ if it had...',
+    'I need X.SeekBoxAI to...',
+    'I would only use X.SeekBoxAI for ___ if it had...',
     'Without ___ I cannot recommend it to my team.',
   ],
   roadmap: [
@@ -117,10 +117,10 @@ export const STARTERS_BY_PILL: Record<string, string[]> = {
 
 export function placeholderForPill(pillId: string): string {
   const found = INTENT_PILLS.find((pill) => pill.pillId === pillId)
-  return found?.placeholder ?? 'Ask anything about SeekBox...'
+  return found?.placeholder ?? 'Ask anything about X.SeekBoxAI...'
 }
 
 export function placeholderFor(intent: HelperIntent): string {
   const found = INTENT_PILLS.find((pill) => pill.intent === intent)
-  return found?.placeholder ?? 'Ask anything about SeekBox...'
+  return found?.placeholder ?? 'Ask anything about X.SeekBoxAI...'
 }

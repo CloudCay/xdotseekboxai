@@ -9,9 +9,9 @@ export const Route = createFileRoute('/faq')({
 
 const faqs = [
   {
-    question: 'What is SeekBoxAi?',
+    question: 'What is X.SeekBoxAI?',
     answer:
-      'SeekBoxAi is a multi-engine AI search UI that runs several models and web-search engines side-by-side. You ask once, then compare answers, sources, and perspectives in one place.',
+      'X.SeekBoxAI is a multi-engine AI search UI that runs several models and web-search engines side-by-side. You ask once, then compare answers, sources, and perspectives in one place.',
   },
   {
     question: 'What is CleanSeek‑X?',
@@ -119,9 +119,9 @@ const faqs = [
       'Paper is a greyscale, newsprint-inspired theme designed for reading: serif typography, high contrast, and minimal color distraction.',
   },
   {
-    question: 'What is the “SeekBox” theme?',
+    question: 'What is the brand theme?',
     answer:
-      'SeekBox uses the official brand palette (cool white background, navy text, cobalt links, signal-red accents) and Inter typography.',
+      'The brand theme uses the X.SeekBoxAI palette: cool white background, navy text, cobalt links, signal-red accents, and Inter typography.',
   },
   {
     question: 'What do I need configured for full functionality?',
@@ -137,7 +137,7 @@ function FAQ() {
         <div className="flex items-center justify-between gap-4">
           <a href="/" className="inline-flex items-center gap-3 font-black text-lg tracking-tight">
             <SeekBoxLogo tone="dark" size="sm" />
-            SeekBoxAi
+            X.SeekBoxAI
           </a>
           <div className="flex gap-2">
             <a

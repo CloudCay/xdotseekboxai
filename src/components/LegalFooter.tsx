@@ -30,7 +30,7 @@ export function LegalFooter() {
     <footer className={`border-t px-4 py-5 sm:px-6 lg:px-8 ${classes.wrap}`}>
       <div className="mx-auto flex max-w-7xl flex-col gap-2 text-[11px] font-semibold leading-5 sm:text-xs">
         <p className={classes.text}>
-          SeekBoxAI is not affiliated with or endorsed by X Corp. X is a trademark of X Corp.
+          X.SeekBoxAI is not affiliated with or endorsed by X Corp. X is a trademark of X Corp.
         </p>
       </div>
     </footer>

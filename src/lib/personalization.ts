@@ -195,7 +195,7 @@ export function buildPersonalizationContext(args: {
     : historyClass('general_research', [], 'low')
   const enabled = seed.enabled && (Boolean(profileNote) || Boolean(preferredLens) || Boolean(explicitPersonaText))
   const promptSuffix = enabled
-    ? ` [SeekBox personalization v1: role=${roleId}; level=${level}; history_class=${historyClass.primary}; lens=${preferredLens}${
+    ? ` [X.SeekBoxAI personalization v1: role=${roleId}; level=${level}; history_class=${historyClass.primary}; lens=${preferredLens}${
         profileNote ? `; profile_note=${profileNote}` : ''
       }. Use only explicit user-provided personalization. Do not infer sensitive traits.]`
     : ''

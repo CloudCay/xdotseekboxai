@@ -365,7 +365,7 @@ async function requireHostedKeyAccess(request: Request): Promise<void> {
   const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : ''
   const allowedEmails = parseAllowedEmails(process.env.UW_ALLOWED_EMAILS)
   if (allowedEmails.length && !allowedEmails.includes(email)) {
-    throw new Error('This hosted Unusual Whales key is limited to approved SeekBox users.')
+    throw new Error('This hosted Unusual Whales key is limited to approved X.SeekBoxAI users.')
   }
 }
 
@@ -679,7 +679,7 @@ function buildWhalesPrompt(args: {
   const topDarkpool = args.darkpoolRows[0]
   const tide = args.metrics.marketTideNetPremium
   return [
-    `${args.symbol} SeekBox Whales Edition read: use the whale-flow snapshot below as private context, then compare it against current X/web narratives and company news.`,
+    `${args.symbol} X.SeekBoxAI Whales Edition read: use the whale-flow snapshot below as private context, then compare it against current X/web narratives and company news.`,
     `Bias: ${args.metrics.bias}. Options net premium: ${money(args.metrics.netOptionsPremium)}. Calls: ${money(args.metrics.callPremium)}. Puts: ${money(args.metrics.putPremium)}.`,
     `Dark pool total: ${money(args.metrics.darkpoolPremium)} across ${args.metrics.darkpoolCount} prints.`,
     topAlert

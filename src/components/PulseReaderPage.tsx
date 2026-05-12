@@ -225,9 +225,9 @@ export function PulseReaderPage() {
             <a href="/" className="flex items-center gap-3">
               <SeekBoxLogo tone="light" size="lg" />
               <div>
-                <div className="text-2xl font-black tracking-tight">SeekBoX Pulse</div>
+                <div className="text-2xl font-black tracking-tight">X.SeekBoxAI Pulse</div>
                 <div className="text-[11px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                  live SeekBox cache
+                  live X.SeekBoxAI cache
                 </div>
               </div>
             </a>
@@ -317,7 +317,7 @@ export function PulseReaderPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            Live SeekBox cache rows did not load, so the page is showing the built-in mock rows. {error}
+            Live X.SeekBoxAI cache rows did not load, so the page is showing the built-in mock rows. {error}
           </div>
         </div>
       ) : null}

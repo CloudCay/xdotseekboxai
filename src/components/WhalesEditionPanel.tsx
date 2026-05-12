@@ -340,11 +340,11 @@ export function WhalesEditionPanel({
         <div className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-cyan-100">
             <Database className="h-3.5 w-3.5" />
-            SeekBox Whales Edition
+            X.SeekBoxAI Whales Edition
           </div>
           <div className="mt-2 text-lg font-black text-slate-100">{cleanSymbol} tape scanner</div>
           <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
-            Connect your own Unusual Whales key for BYOK whale-flow reads, or use hosted SeekBox access when your
+            Connect your own Unusual Whales key for BYOK whale-flow reads, or use hosted X.SeekBoxAI access when your
             role allows it.
           </p>
         </div>
@@ -363,7 +363,7 @@ export function WhalesEditionPanel({
                 Connect your own Unusual Whales
               </div>
               <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">
-                Paste your personal UW API key to run this page against your plan. SeekBox does not save the key
+                Paste your personal UW API key to run this page against your plan. X.SeekBoxAI does not save the key
                 unless you choose to remember it on this device.
               </p>
             </div>
@@ -660,9 +660,9 @@ export function WhalesEditionPanel({
           ) : null}
 
           <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">SeekBox read</div>
+            <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">X.SeekBoxAI read</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-              Key mode: {payload.keySource === 'server' ? 'SeekBox hosted' : 'User supplied'}
+              Key mode: {payload.keySource === 'server' ? 'X.SeekBoxAI hosted' : 'User supplied'}
             </div>
             <div className="mt-2 space-y-2">
               {tapeRead.map((item) => (
@@ -753,7 +753,7 @@ export function WhalesEditionPanel({
             Bring your own UW key
           </div>
           <p className="mt-2 text-xs leading-5 text-slate-400">
-            Hosted mode reads `UW_API_KEY` from Netlify for approved SeekBox users. Everyone else can connect their
+            Hosted mode reads `UW_API_KEY` from Netlify for approved X.SeekBoxAI users. Everyone else can connect their
             own Unusual Whales key and keep usage tied to their UW account.
           </p>
         </div>

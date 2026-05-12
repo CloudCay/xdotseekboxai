@@ -53,7 +53,7 @@ export const HELPER_BASELINE_FUNCTIONS: HelperBaselineFunction[] = [
 
 export const XDOT_SITE_PROFILE = {
   siteId: 'seekbox-xdot',
-  productName: 'SeekBoX Pulse',
+  productName: 'X.SeekBoxAI Pulse',
   stagingHost: 'x.seekboxai.com',
   localHost: '127.0.0.1:3001',
   positioning: 'LIVE SEEKBOX CACHE for reading X-oriented industry, ticker, and highlight data before searching live.',
@@ -129,7 +129,7 @@ export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
   },
   {
     id: 'xmarks',
-    label: 'The Spot by SeekBoxAi',
+    label: 'The Spot by X.SeekBoxAI',
     routes: ['/xmarks'],
     description: 'Prompt/library surface for saved XMarks prompts and live-search customer use cases.',
     support: [

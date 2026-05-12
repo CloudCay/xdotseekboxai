@@ -316,7 +316,7 @@ function IndustryHeader() {
         <a href="/" className="flex items-center gap-3">
           <SeekBoxLogo tone="light" size="md" />
           <div>
-            <div className="text-xl font-black tracking-tight">SeekBoX Pulse</div>
+            <div className="text-xl font-black tracking-tight">X.SeekBoxAI Pulse</div>
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">industry desk</div>
           </div>
         </a>
@@ -503,7 +503,7 @@ function EmptyState({ industry, loading }: { industry: IndustryPageConfig; loadi
       <h2 className="mt-2 text-2xl font-black sm:text-3xl">{loading ? 'Checking the pulse table.' : 'This vertical is ready for data.'}</h2>
       <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-neutral-600">
         The page shell is built. Once the Worker writes a completed pulse for {industry.slug}, the executive read,
-        charts, citations, and voice rail will fill from the SeekBox cache.
+        charts, citations, and voice rail will fill from the X.SeekBoxAI cache.
       </p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {industry.questions.map((question) => (

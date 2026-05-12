@@ -13,7 +13,7 @@ function PricingPage() {
         <div className="flex items-center justify-between gap-4">
           <Link to="/" className="inline-flex items-center gap-3 font-black text-lg tracking-tight">
             <SeekBoxLogo tone="dark" size="sm" />
-            SeekBoxAi
+            X.SeekBoxAI
           </Link>
           <div className="flex items-center gap-2">
             <Link
@@ -65,7 +65,7 @@ function PricingPage() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs font-black tracking-widest text-slate-400 uppercase">Power tier</div>
-                <div className="mt-1 text-2xl font-black text-white">SeekBoxAi + Live X</div>
+                <div className="mt-1 text-2xl font-black text-white">X.SeekBoxAI + Live X</div>
               </div>
               <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100">
                 Monthly

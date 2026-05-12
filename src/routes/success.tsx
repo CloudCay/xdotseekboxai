@@ -27,7 +27,7 @@ function SuccessPage() {
             href="https://www.seekboxai.com/account"
             className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/40 text-white font-bold px-5 py-3"
           >
-            Open SeekBox account
+            Open X.SeekBoxAI account
           </a>
         </div>
       </div>

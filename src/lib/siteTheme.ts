@@ -13,8 +13,8 @@ export const SITE_THEME_OPTIONS: { id: SiteThemeMode; label: string; description
   { id: 'newspaper', label: 'Paper', description: 'Greyscale newsprint style, serif body.' },
   {
     id: 'seekbox',
-    label: 'SeekBox',
-    description: 'Official brand palette — cool white bg, navy text, cobalt accents.',
+    label: 'Brand',
+    description: 'X.SeekBoxAI brand palette — cool white bg, navy text, cobalt accents.',
   },
 ]
 

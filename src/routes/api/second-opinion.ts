@@ -34,7 +34,7 @@ export const Route = createFileRoute('/api/second-opinion')({
             mode: payload.mode,
           })
         } catch (error) {
-          upstreamError = error instanceof Error ? error.message : 'SeekBox backend did not return a second opinion.'
+          upstreamError = error instanceof Error ? error.message : 'X.SeekBoxAI backend did not return a second opinion.'
         }
 
         const summary = summarizeOpinions(opinions, upstreamError)
@@ -149,7 +149,7 @@ function parseProviderList(value: unknown, fallback: string[]): string[] {
 function buildSecondOpinionPrompt(payload: CleanSecondOpinionRequest): string {
   const context = payload.selectedText || payload.pageText
   return [
-    'You are SeekBox Second Opinions: a quiet browser utility that gives another read before the user trusts a page.',
+    'You are X.SeekBoxAI Second Opinions: a quiet browser utility that gives another read before the user trusts a page.',
     'Do not be breathless. Do not pretend certainty. Do not give legal, medical, financial, or safety-critical advice.',
     payload.question ? `User question: ${payload.question}` : 'User question: Give me a second opinion on this page.',
     `Page title: ${payload.title || 'Untitled'}`,
@@ -170,7 +170,7 @@ async function runSearchStream(args: {
   mode: SecondOpinionMode
 }): Promise<ProviderOpinion[]> {
   const backendUrl = cleanBackendUrl(process.env.VITE_BACKEND_URL ?? process.env.EXPO_PUBLIC_BACKEND_URL)
-  if (!backendUrl) throw new Error('SeekBox backend URL is not configured.')
+  if (!backendUrl) throw new Error('X.SeekBoxAI backend URL is not configured.')
 
   const response = await fetch(`${backendUrl}/api/search/stream`, {
     method: 'POST',
@@ -381,7 +381,7 @@ function safeHostname(value: string): string | null {
 function buildSeekBoxUrl(payload: CleanSecondOpinionRequest): string {
   const origin = process.env.SEEKBOX_SECOND_OPINION_APP_ORIGIN?.trim().replace(/\/$/, '') || 'https://x.seekboxai.com'
   const query = [
-    'SeekBox Second Opinion',
+    'X.SeekBoxAI Second Opinion',
     payload.title ? `Page: ${payload.title}` : '',
     `URL: ${payload.url}`,
     payload.selectedText ? `Selected text: ${payload.selectedText.slice(0, 1400)}` : `Page excerpt: ${payload.pageText.slice(0, 1400)}`,

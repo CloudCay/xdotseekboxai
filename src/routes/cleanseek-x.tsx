@@ -521,7 +521,7 @@ const GROK_WHY_LIVE = {
   bullets: [
     'Native real-time X signal alongside classic models → consensus vs contradiction in one run.',
     'Ideal every time “what people are saying *right now*” beats yesterday’s SEO summaries.',
-    'SeekBoxAi stacks live search next to Tavily / GPT / Claude / Gemini so you verify narratives fast.',
+    'X.SeekBoxAI stacks live search next to Tavily / GPT / Claude / Gemini so you verify narratives fast.',
   ],
 }
 
@@ -2670,7 +2670,7 @@ export function CleanSeekLite({
   const isRabbitHole = typeof window !== 'undefined' && window.location.pathname.endsWith('/rabbitholex')
   const isXmarks = layout === 'xmarks'
   const isTicker = layout === 'ticker'
-  const pageTitle = isXmarks ? 'The Spot by SeekBoxAi' : 'SeekBoxAi'
+  const pageTitle = isXmarks ? 'The Spot by X.SeekBoxAI' : 'X.SeekBoxAI'
   const signInReturnTo =
     typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/cleanseek-x'
   const profileBadge = (
@@ -2947,7 +2947,7 @@ export function CleanSeekLite({
         {!isRabbitHole ? (
           <details
             className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30"
-            open={!isMobile && !isTicker ? true : undefined}
+            open={!isMobile && !isTicker && !isXmarks ? true : undefined}
           >
           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2">
@@ -3327,7 +3327,7 @@ export function CleanSeekLite({
             </>
           )
 
-          if (isMobile || isTicker) {
+          if (isMobile || isTicker || isXmarks) {
             return (
               <details className="mt-4 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 open:border-cyan-500/30">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">

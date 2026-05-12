@@ -36,7 +36,7 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'SeekBoX Pulse',
+        title: 'X.SeekBoxAI Pulse',
       },
     ],
     links: [
@@ -163,7 +163,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 ['light', 'Light'] as const,
                 ['dark', 'Dark'] as const,
                 ['newspaper', 'Paper'] as const,
-                ['seekbox', 'SeekBox'] as const,
+                ['seekbox', 'Brand'] as const,
               ] as const
             ).map(([id, label]) => (
               <button

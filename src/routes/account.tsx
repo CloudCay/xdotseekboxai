@@ -481,7 +481,7 @@ function AccountPage() {
                 value={personalizationSeed.profileNote}
                 onChange={(event) => updatePersonalizationSeed({ profileNote: event.target.value })}
                 rows={4}
-                placeholder="Example: I am building SeekBox, care about live data, product architecture, GTM, and customer-ready summaries."
+                placeholder="Example: I am building X.SeekBoxAI, care about live data, product architecture, GTM, and customer-ready summaries."
                 className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-[#050B14]/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-violet-500/50"
               />
             </label>
