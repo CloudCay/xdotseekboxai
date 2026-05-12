@@ -27,17 +27,27 @@ html[data-theme="dark"] body {
 /* Newspaper — greyscale, print-like, high legibility */
 html[data-theme="newspaper"] {
   color-scheme: light;
+  --paper-bg: #f2efe6;
+  --paper-page: #f8f6ef;
+  --paper-card: #fffdf7;
+  --paper-card-muted: #ebe6d9;
+  --paper-ink: #0a0a0a;
+  --paper-ink-soft: #27231d;
+  --paper-muted: #5b554a;
+  --paper-rule: rgba(22, 18, 12, 0.24);
+  --paper-rule-strong: rgba(22, 18, 12, 0.42);
+  --paper-black: #080808;
+  --paper-reverse: #f8f3e8;
 }
 
 html[data-theme="newspaper"] body {
   margin: 0;
-  background-color: #e8e6df;
-  background-image: linear-gradient(180deg, #f2f0ea 0%, #e4e2db 35%, #dddad2 100%);
-  color: #111111;
+  background-color: var(--paper-bg);
+  background-image: linear-gradient(180deg, #f8f6ef 0%, #f1ede3 48%, #e7e1d2 100%);
+  color: var(--paper-ink);
   font-family: "Georgia", "Times New Roman", "Times", ui-serif, serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: auto;
-  filter: grayscale(1);
   /* Subtle print texture without harming contrast */
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
@@ -50,6 +60,21 @@ html[data-theme="newspaper"] body {
  * outranks plain Tailwind utility specificity.
  * ------------------------------------------------------------------------- */
 
+/* Page surfaces — hardcoded route backgrounds → paper */
+html[data-theme="newspaper"] .bg-\[\#f7f8f4\],
+html[data-theme="newspaper"] .bg-\[\#F7F7F2\],
+html[data-theme="newspaper"] .bg-\[\#fbfbf7\],
+html[data-theme="newspaper"] .bg-neutral-50 {
+  background-color: var(--paper-bg) !important;
+  background-image: none !important;
+}
+
+html[data-theme="newspaper"] .bg-white,
+html[data-theme="newspaper"] .bg-neutral-100 {
+  background-color: var(--paper-card) !important;
+  background-image: none !important;
+}
+
 /* Surfaces / cards — dark navy → cream paper */
 html[data-theme="newspaper"] .bg-\[\#0A1128\],
 html[data-theme="newspaper"] .bg-\[\#0A1128\]\/40,
@@ -60,7 +85,7 @@ html[data-theme="newspaper"] .bg-\[\#0A1128\]\/90,
 html[data-theme="newspaper"] .bg-\[\#050B14\],
 html[data-theme="newspaper"] .bg-\[\#050B14\]\/80,
 html[data-theme="newspaper"] .bg-\[\#050B14\]\/90 {
-  background-color: #faf8f3 !important;
+  background-color: var(--paper-card) !important;
   background-image: none !important;
 }
 
@@ -73,50 +98,178 @@ html[data-theme="newspaper"] .bg-slate-900\/80,
 html[data-theme="newspaper"] .bg-slate-950,
 html[data-theme="newspaper"] .bg-slate-950\/30,
 html[data-theme="newspaper"] .bg-slate-950\/90 {
-  background-color: #f4f1ea !important;
+  background-color: var(--paper-card-muted) !important;
   background-image: none !important;
 }
 
 html[data-theme="newspaper"] .bg-black\/20,
 html[data-theme="newspaper"] .bg-black\/25,
-html[data-theme="newspaper"] .bg-black\/30 {
-  background-color: #ede9df !important;
+html[data-theme="newspaper"] .bg-black\/30,
+html[data-theme="newspaper"] .bg-black\/35 {
+  background-color: var(--paper-card-muted) !important;
+}
+
+html[data-theme="newspaper"] .bg-amber-50,
+html[data-theme="newspaper"] .bg-emerald-50,
+html[data-theme="newspaper"] .bg-rose-50,
+html[data-theme="newspaper"] [class*="bg-cyan-"][class*="/"],
+html[data-theme="newspaper"] [class*="bg-emerald-"][class*="/"],
+html[data-theme="newspaper"] [class*="bg-amber-"][class*="/"],
+html[data-theme="newspaper"] [class*="bg-red-"][class*="/"],
+html[data-theme="newspaper"] [class*="bg-rose-"][class*="/"],
+html[data-theme="newspaper"] [class*="bg-violet-"][class*="/"],
+html[data-theme="newspaper"] [class*="bg-blue-"][class*="/"] {
+  background-color: var(--paper-card-muted) !important;
+  background-image: none !important;
+}
+
+/* Intentional inverse controls stay black with light ink. */
+html[data-theme="newspaper"] .bg-black,
+html[data-theme="newspaper"] .bg-neutral-950,
+html[data-theme="newspaper"] .bg-neutral-900 {
+  background-color: var(--paper-black) !important;
+  background-image: none !important;
+  color: var(--paper-reverse) !important;
+}
+
+html[data-theme="newspaper"] .bg-cyan-300,
+html[data-theme="newspaper"] .bg-cyan-400,
+html[data-theme="newspaper"] .bg-cyan-500,
+html[data-theme="newspaper"] .bg-blue-600,
+html[data-theme="newspaper"] .bg-emerald-400,
+html[data-theme="newspaper"] .bg-emerald-500,
+html[data-theme="newspaper"] .bg-amber-400,
+html[data-theme="newspaper"] .bg-amber-500,
+html[data-theme="newspaper"] .bg-rose-400,
+html[data-theme="newspaper"] .bg-rose-500 {
+  background-color: var(--paper-black) !important;
+  color: var(--paper-reverse) !important;
 }
 
 /* Borders — slate → neutral newsprint */
+html[data-theme="newspaper"] [class*="border-neutral-"],
 html[data-theme="newspaper"] [class*="border-slate-600"],
 html[data-theme="newspaper"] [class*="border-slate-700"],
-html[data-theme="newspaper"] [class*="border-slate-800"] {
-  border-color: rgba(23, 23, 23, 0.25) !important;
+html[data-theme="newspaper"] [class*="border-slate-800"],
+html[data-theme="newspaper"] [class*="border-cyan-"],
+html[data-theme="newspaper"] [class*="border-emerald-"],
+html[data-theme="newspaper"] [class*="border-amber-"],
+html[data-theme="newspaper"] [class*="border-red-"],
+html[data-theme="newspaper"] [class*="border-rose-"],
+html[data-theme="newspaper"] [class*="border-violet-"],
+html[data-theme="newspaper"] [class*="border-blue-"] {
+  border-color: var(--paper-rule) !important;
+}
+
+html[data-theme="newspaper"] [class*="ring-cyan-"],
+html[data-theme="newspaper"] [class*="ring-emerald-"],
+html[data-theme="newspaper"] [class*="ring-amber-"],
+html[data-theme="newspaper"] [class*="ring-violet-"],
+html[data-theme="newspaper"] [class*="ring-blue-"] {
+  --tw-ring-color: var(--paper-rule-strong) !important;
 }
 
 /* Text — light slate → near-black ink with hierarchy */
+html[data-theme="newspaper"] .text-neutral-950,
+html[data-theme="newspaper"] .text-neutral-900,
+html[data-theme="newspaper"] .text-neutral-800,
+html[data-theme="newspaper"] .text-slate-50,
 html[data-theme="newspaper"] .text-white,
 html[data-theme="newspaper"] .text-slate-100,
 html[data-theme="newspaper"] .text-slate-200,
+html[data-theme="newspaper"] .text-cyan-50,
 html[data-theme="newspaper"] .text-emerald-100,
 html[data-theme="newspaper"] .text-emerald-100\/95,
+html[data-theme="newspaper"] .text-amber-50,
+html[data-theme="newspaper"] .text-amber-100,
+html[data-theme="newspaper"] .text-red-100,
+html[data-theme="newspaper"] .text-rose-100,
+html[data-theme="newspaper"] .text-violet-50,
 html[data-theme="newspaper"] .text-cyan-100,
 html[data-theme="newspaper"] .text-violet-100 {
-  color: #111111 !important;
+  color: var(--paper-ink) !important;
 }
 
+html[data-theme="newspaper"] .text-neutral-700,
+html[data-theme="newspaper"] .text-neutral-600,
 html[data-theme="newspaper"] .text-slate-200\/90,
 html[data-theme="newspaper"] .text-slate-300 {
-  color: #1f1f1f !important;
+  color: var(--paper-ink-soft) !important;
 }
 
+html[data-theme="newspaper"] .text-neutral-500,
+html[data-theme="newspaper"] .text-neutral-400,
 html[data-theme="newspaper"] .text-slate-400,
 html[data-theme="newspaper"] .text-slate-500,
 html[data-theme="newspaper"] .text-slate-600,
+html[data-theme="newspaper"] .text-red-200,
+html[data-theme="newspaper"] .text-red-300,
+html[data-theme="newspaper"] .text-red-400,
+html[data-theme="newspaper"] .text-rose-200,
+html[data-theme="newspaper"] .text-rose-300,
+html[data-theme="newspaper"] .text-amber-200,
+html[data-theme="newspaper"] .text-amber-800,
+html[data-theme="newspaper"] .text-amber-900,
+html[data-theme="newspaper"] .text-violet-200,
+html[data-theme="newspaper"] .text-violet-200\/80,
+html[data-theme="newspaper"] .text-violet-300,
 html[data-theme="newspaper"] .text-emerald-200\/80,
+html[data-theme="newspaper"] .text-emerald-800,
 html[data-theme="newspaper"] .text-cyan-300,
 html[data-theme="newspaper"] .text-cyan-400,
 html[data-theme="newspaper"] .text-cyan-400\/90,
 html[data-theme="newspaper"] .text-emerald-300,
 html[data-theme="newspaper"] .text-emerald-400,
 html[data-theme="newspaper"] .text-emerald-400\/90 {
-  color: #4a4a4a !important;
+  color: var(--paper-muted) !important;
+}
+
+/* Restore contrast inside intentional black controls, badges, bars, and CTAs. */
+html[data-theme="newspaper"] .bg-black.text-white,
+html[data-theme="newspaper"] .bg-neutral-950.text-white,
+html[data-theme="newspaper"] .bg-neutral-900.text-white,
+html[data-theme="newspaper"] .bg-cyan-300.text-neutral-950,
+html[data-theme="newspaper"] .bg-cyan-400.text-\[\#050B14\],
+html[data-theme="newspaper"] .bg-cyan-500.text-\[\#050B14\],
+html[data-theme="newspaper"] .bg-emerald-400.text-\[\#050B14\],
+html[data-theme="newspaper"] .bg-emerald-500.text-\[\#050B14\],
+html[data-theme="newspaper"] .bg-blue-600.text-white,
+html[data-theme="newspaper"] .bg-neutral-950 .text-white,
+html[data-theme="newspaper"] .bg-neutral-950 .text-neutral-300,
+html[data-theme="newspaper"] .bg-neutral-950 .text-neutral-400,
+html[data-theme="newspaper"] .bg-neutral-950 .text-slate-100,
+html[data-theme="newspaper"] .bg-neutral-950 .text-slate-200,
+html[data-theme="newspaper"] .bg-neutral-950 .text-slate-300,
+html[data-theme="newspaper"] .bg-black .text-white,
+html[data-theme="newspaper"] .bg-black .text-slate-100,
+html[data-theme="newspaper"] .bg-black .text-slate-200,
+html[data-theme="newspaper"] .bg-black .text-slate-300,
+html[data-theme="newspaper"] .bg-black .text-amber-50 {
+  color: var(--paper-reverse) !important;
+}
+
+html[data-theme="newspaper"] .bg-neutral-950 .text-neutral-400,
+html[data-theme="newspaper"] .bg-neutral-950 .text-slate-400,
+html[data-theme="newspaper"] .bg-black .text-slate-400 {
+  color: rgba(248, 243, 232, 0.72) !important;
+}
+
+html[data-theme="newspaper"] input,
+html[data-theme="newspaper"] textarea,
+html[data-theme="newspaper"] select {
+  background-color: var(--paper-card) !important;
+  color: var(--paper-ink) !important;
+  border-color: var(--paper-rule-strong) !important;
+}
+
+html[data-theme="newspaper"] ::placeholder {
+  color: var(--paper-muted) !important;
+}
+
+html[data-theme="newspaper"] .shadow-\[3px_3px_0_rgba\(0\,0\,0\,0\.05\)\],
+html[data-theme="newspaper"] .shadow-\[4px_4px_0_rgba\(0\,0\,0\,0\.05\)\],
+html[data-theme="newspaper"] .shadow-\[6px_6px_0_rgba\(0\,0\,0\,0\.08\)\] {
+  box-shadow: 4px 4px 0 rgba(22, 18, 12, 0.12) !important;
 }
 
 /* Streaming markdown cards — `prose prose-invert` is dark-mode prose. Flip it. */
