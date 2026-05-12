@@ -1151,7 +1151,88 @@ function XmarksLibraryPanel(props: {
 type TickerWatchItem = { id: string; symbol: string; label?: string | null }
 type TickerHolding = { id: string; symbol: string; shares: number; avg_cost?: number | null }
 
+const DEFAULT_TICKER_SYMBOL = 'NVDA'
 const DEFAULT_TICKER_SYMBOLS = ['NVDA', 'TSLA', 'PLTR', 'AMD', 'GOOGL', 'COIN']
+const TICKER_SELECTED_SYMBOL_STORAGE_KEY = 'seekbox_ticker_selected_symbol_v1'
+
+function normalizeTickerSymbol(raw: string | null | undefined): string {
+  const s = (raw ?? '').trim().toUpperCase().replace(/^\$/, '').replace(/[^A-Z0-9.-]/g, '')
+  if (!s || s.length > 10) return DEFAULT_TICKER_SYMBOL
+  return s
+}
+
+function readTickerSeedSymbol(): string {
+  if (typeof window === 'undefined') return DEFAULT_TICKER_SYMBOL
+  try {
+    return normalizeTickerSymbol(window.localStorage.getItem(TICKER_SELECTED_SYMBOL_STORAGE_KEY))
+  } catch {
+    return DEFAULT_TICKER_SYMBOL
+  }
+}
+
+function writeTickerSeedSymbol(symbol: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(TICKER_SELECTED_SYMBOL_STORAGE_KEY, normalizeTickerSymbol(symbol))
+  } catch {
+    /* noop */
+  }
+}
+
+function buildTickerPulseQuery(symbol: string): string {
+  const s = normalizeTickerSymbol(symbol)
+  return `${s} stock pulse: price drivers, notable news, sentiment on X, and key risks. Include any notable posts if available and cite links when possible.`
+}
+
+function tickerSeedRead(symbol: string) {
+  const s = normalizeTickerSymbol(symbol)
+  const reads: Record<string, { thesis: string; drivers: string[]; watch: string[] }> = {
+    NVDA: {
+      thesis:
+        'NVDA is the planted seed because it behaves like the market temperature check for AI infrastructure, hyperscaler capex, chip supply, and speculative risk appetite.',
+      drivers: ['AI capex commentary', 'Blackwell supply cadence', 'data-center margins'],
+      watch: ['export controls', 'gross margin pressure', 'hyperscaler spending tone'],
+    },
+    TSLA: {
+      thesis:
+        'TSLA is a sentiment-heavy tape where price action can swing on delivery expectations, autonomy headlines, margin pressure, and CEO/news-cycle velocity.',
+      drivers: ['delivery revisions', 'robotaxi/autonomy claims', 'EV demand and pricing'],
+      watch: ['margin compression', 'regulatory headlines', 'China competition'],
+    },
+    PLTR: {
+      thesis:
+        'PLTR is a software multiple and government/commercial AI adoption read, useful for separating real enterprise demand from hype-cycle rerating.',
+      drivers: ['AIP adoption stories', 'government contract flow', 'commercial expansion'],
+      watch: ['valuation debate', 'lumpy contract timing', 'AI monetization proof'],
+    },
+    AMD: {
+      thesis:
+        'AMD is the challenger read on AI accelerators and CPUs, with the tape often reacting to share-gain evidence versus NVDA expectations.',
+      drivers: ['MI-series demand', 'server CPU share', 'AI accelerator guidance'],
+      watch: ['margin mix', 'execution versus NVDA', 'inventory digestion'],
+    },
+    GOOGL: {
+      thesis:
+        'GOOGL is the AI platform and ad-market read: search durability, Gemini distribution, cloud growth, and capex discipline all matter at once.',
+      drivers: ['search/ad checks', 'cloud AI demand', 'Gemini product traction'],
+      watch: ['AI capex intensity', 'regulatory pressure', 'search share anxiety'],
+    },
+    COIN: {
+      thesis:
+        'COIN is a crypto risk-on proxy where spot volumes, regulatory tone, stablecoin economics, and BTC/ETH volatility dominate the short-term tape.',
+      drivers: ['crypto spot volume', 'BTC/ETH trend', 'regulatory headlines'],
+      watch: ['fee compression', 'SEC/policy shifts', 'retail volume durability'],
+    },
+  }
+
+  return (
+    reads[s] ?? {
+      thesis: `${s} is loaded as the ticker seed. Use the live pulse to turn this static setup into a current read across price drivers, news, X sentiment, and risk.`,
+      drivers: ['recent price action', 'company-specific news', 'sector narrative'],
+      watch: ['crowded consensus', 'upcoming catalysts', 'liquidity and sentiment shifts'],
+    }
+  )
+}
 
 const TICKER_PULSE_TEMPLATES = [
   {
@@ -1184,12 +1265,14 @@ function TickerSidebarPanel(props: {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [err, setErr] = useState<string | null>(null)
-  const [selected, setSelected] = useState<string>('NVDA')
+  const [selected, setSelected] = useState<string>(() => readTickerSeedSymbol())
   const [watch, setWatch] = useState<TickerWatchItem[]>([])
 
   useEffect(() => {
-    props.onSelectSymbol(selected)
-  }, [props, selected])
+    const s = normalizeTickerSymbol(selected)
+    writeTickerSeedSymbol(s)
+    props.onSelectSymbol(s)
+  }, [selected])
 
   useEffect(() => {
     const sb = isSupabaseConfigured ? supabase : null
@@ -1257,7 +1340,7 @@ function TickerSidebarPanel(props: {
       const { error } = await sb.from('ticker_watchlist').insert({ user_id: userId, symbol: sym, label: null })
       if (error) throw error
       await load()
-      setSelected(sym)
+      setSelected(normalizeTickerSymbol(sym))
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to add.')
     }
@@ -1305,7 +1388,7 @@ function TickerSidebarPanel(props: {
       <div className="mt-3 flex gap-2">
         <input
           value={selected}
-          onChange={(e) => setSelected(e.target.value.toUpperCase())}
+          onChange={(e) => setSelected(e.target.value.toUpperCase().replace(/^\$/, '').replace(/[^A-Z0-9.-]/g, '').slice(0, 10))}
           className="w-full rounded-2xl border border-slate-700 bg-slate-900/30 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-cyan-500/50"
           aria-label="Selected symbol"
         />
@@ -1325,7 +1408,7 @@ function TickerSidebarPanel(props: {
           <button
             key={symbol}
             type="button"
-            onClick={() => setSelected(symbol)}
+            onClick={() => setSelected(normalizeTickerSymbol(symbol))}
             className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${
               selected === symbol
                 ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
@@ -1364,7 +1447,7 @@ function TickerSidebarPanel(props: {
               <div key={w.id} className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
                 <button
                   type="button"
-                  onClick={() => setSelected(w.symbol)}
+                  onClick={() => setSelected(normalizeTickerSymbol(w.symbol))}
                   className="w-full text-left text-xs font-black text-slate-100 hover:text-cyan-200"
                 >
                   {w.symbol}
@@ -1387,7 +1470,13 @@ function TickerSidebarPanel(props: {
   )
 }
 
-function TickerContextPanel(props: { symbol: string }) {
+function TickerContextPanel(props: {
+  symbol: string
+  prominent?: boolean
+  isSearching?: boolean
+  onRunPulse?: (symbol: string, queryOverride?: string) => void
+  onFillPrompt?: (prompt: string) => void
+}) {
   const [loading, setLoading] = useState<boolean>(false)
   const [err, setErr] = useState<string | null>(null)
   const [companyName, setCompanyName] = useState<string | null>(null)
@@ -1454,8 +1543,10 @@ function TickerContextPanel(props: { symbol: string }) {
   }, [load])
 
   const quote = payload?.quotes?.[0]
+  const symbol = normalizeTickerSymbol(props.symbol)
+  const seed = tickerSeedRead(symbol)
   const relevantNews = useMemo(() => {
-    const s = props.symbol.trim().toUpperCase()
+    const s = normalizeTickerSymbol(props.symbol)
     const nm = (companyName ?? '').trim()
     const keys = [s, `$${s}`]
     if (nm) keys.push(nm)
@@ -1469,6 +1560,136 @@ function TickerContextPanel(props: { symbol: string }) {
     }
     return out.slice(0, 12)
   }, [companyName, payload?.rss, props.symbol])
+
+  if (props.prominent) {
+    const seedTrail = seed.drivers.map((item) => `${symbol}: ${item}`)
+    const trailHasLiveMatches = relevantNews.length > 0
+
+    return (
+      <section className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 p-5 backdrop-blur-2xl sm:p-6" aria-label="Ticker market pulse">
+        <div className="flex flex-col gap-5 2xl:flex-row 2xl:items-start 2xl:justify-between">
+          <div className="min-w-0">
+            <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400/90">Ticker output</div>
+            <h1 className="mt-2 text-3xl font-black leading-none tracking-tight text-slate-100 sm:text-4xl">
+              {symbol} market pulse
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-300">{seed.thesis}</p>
+          </div>
+          <div className="grid w-full max-w-xl grid-cols-3 gap-2 2xl:min-w-[420px]">
+            <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Symbol</div>
+              <div className="mt-1 text-xl font-black text-slate-100">{symbol}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quote</div>
+              <div className="mt-1 truncate text-xl font-black text-slate-100">
+                {quote && !quote.error ? (quote.price ?? '—') : loading ? '…' : '—'}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Move</div>
+              <div className="mt-1 truncate text-xl font-black text-slate-100">
+                {quote && !quote.error && quote.changePercent != null ? `${quote.changePercent}%` : loading ? '…' : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {err ? (
+          <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs font-semibold text-amber-100">{err}</div>
+        ) : null}
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1fr_1.15fr]">
+          <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-4">
+            <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Drivers</div>
+            <div className="mt-3 space-y-2">
+              {seed.drivers.map((item) => (
+                <div key={item} className="border-l-2 border-emerald-400/50 pl-3 text-sm font-bold leading-5 text-slate-200">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-4">
+            <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Watch</div>
+            <div className="mt-3 space-y-2">
+              {seed.watch.map((item) => (
+                <div key={item} className="border-l-2 border-cyan-400/50 pl-3 text-sm font-bold leading-5 text-slate-200">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                  {trailHasLiveMatches ? 'Recent trail' : 'Seed trail'}
+                </div>
+                {companyName ? <div className="mt-1 text-xs font-black text-slate-200">{companyName}</div> : null}
+              </div>
+              {loading ? <div className="text-[11px] font-black text-slate-500">Loading…</div> : null}
+            </div>
+            <div className="mt-3 space-y-2">
+              {trailHasLiveMatches
+                ? relevantNews.slice(0, 4).map((it) => (
+                    <a
+                      key={`${it.feed}:${it.title}`}
+                      href={it.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-xs font-semibold leading-5 text-slate-300 hover:text-cyan-200"
+                      title={`${it.feed} · ${it.title}`}
+                    >
+                      {it.title}
+                      <span className="text-slate-500"> · {it.feed}</span>
+                    </a>
+                  ))
+                : seedTrail.slice(0, 4).map((item) => (
+                    <div key={item} className="text-xs font-semibold leading-5 text-slate-300">
+                      {item}
+                    </div>
+                  ))}
+              {!loading && !trailHasLiveMatches && !seedTrail.length ? (
+                <div className="text-xs font-semibold text-slate-400">No fresh headline trail loaded for {symbol}.</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={props.isSearching}
+            onClick={() => props.onRunPulse?.(symbol, buildTickerPulseQuery(symbol))}
+            className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-[#050B14] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Live pulse
+          </button>
+          {TICKER_PULSE_TEMPLATES.slice(1, 3).map((template) => (
+            <button
+              key={template.label}
+              type="button"
+              disabled={props.isSearching}
+              onClick={() => props.onRunPulse?.(symbol, template.build(symbol))}
+              className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {template.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => props.onFillPrompt?.(buildTickerPulseQuery(symbol))}
+            className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-3 text-sm font-black text-slate-200 hover:border-slate-500 hover:bg-slate-800/50"
+          >
+            Fill prompt
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-4">
@@ -1652,7 +1873,7 @@ export function CleanSeekLite({
   const resultOrderRef = useRef<string[]>([])
   const [isSearching, setIsSearching] = useState<boolean>(false)
   const [results, setResults] = useState<Record<string, EngineResult>>({})
-  const [tickerSymbol, setTickerSymbol] = useState<string>('NVDA')
+  const [tickerSymbol, setTickerSymbol] = useState<string>(() => readTickerSeedSymbol())
   const [isDeepDive, setIsDeepDive] = useState<boolean>(false)
   const [streamError, setStreamError] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
@@ -2392,6 +2613,25 @@ export function CleanSeekLite({
     queryInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
+  const selectTickerSymbol = (sym: string) => {
+    const s = normalizeTickerSymbol(sym)
+    setTickerSymbol(s)
+    writeTickerSeedSymbol(s)
+    setQuery(`${s} stock`)
+  }
+
+  const runTickerPulse = (sym: string, queryOverride?: string) => {
+    const s = normalizeTickerSymbol(sym)
+    if (!BACKEND_URL || !s) return
+    setTickerSymbol(s)
+    writeTickerSeedSymbol(s)
+    const q = queryOverride ?? buildTickerPulseQuery(s)
+    setQuery(q)
+    window.setTimeout(() => {
+      if (!isSearching) void run({ queryOverride: q })
+    }, 0)
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!autorunRef.current) return
@@ -2671,38 +2911,31 @@ export function CleanSeekLite({
           ) : null}
 
           {isTicker ? (
-            <aside className="w-full lg:w-[360px] lg:shrink-0">
+            <aside className="order-2 w-full lg:w-[360px] lg:shrink-0">
               <TickerSidebarPanel
                 isSearching={isSearching}
-                onSelectSymbol={(sym) => {
-                  // Keep input in sync with symbol-focused mode.
-                  const s = sym.trim().toUpperCase()
-                  if (!s) return
-                  setTickerSymbol(s)
-                  setQuery(`${s} stock`)
-                }}
-                onRunPulse={(sym, queryOverride) => {
-                  const s = sym.trim().toUpperCase()
-                  if (!BACKEND_URL || !s) return
-                  setTickerSymbol(s)
-                  const q =
-                    queryOverride ??
-                    `${s} stock pulse: price drivers, notable news, sentiment on X, and key risks. Include any notable posts if available and cite links when possible.`
-                  setQuery(q)
-                  window.setTimeout(() => {
-                    if (!isSearching) void run({ queryOverride: q })
-                  }, 0)
-                }}
+                onSelectSymbol={selectTickerSymbol}
+                onRunPulse={runTickerPulse}
               />
             </aside>
           ) : null}
 
-          <div className={isXmarks || isTicker ? 'min-w-0 flex-1' : ''}>
+          <div className={`${isXmarks || isTicker ? 'min-w-0 flex-1' : ''} ${isTicker ? 'order-1' : ''}`}>
+        {isTicker ? (
+          <TickerContextPanel
+            symbol={tickerSymbol}
+            prominent
+            isSearching={isSearching}
+            onRunPulse={runTickerPulse}
+            onFillPrompt={fillSamplePrompt}
+          />
+        ) : null}
+
         {/* Prompt modifiers — hidden in RabbitHole view (results-only). */}
         {!isRabbitHole ? (
           <details
             className="mt-4 rounded-2xl border border-slate-700/70 bg-[#0A1128]/55 open:border-cyan-500/30"
-            open={!isMobile ? true : undefined}
+            open={!isMobile && !isTicker ? true : undefined}
           >
           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2">
@@ -3082,9 +3315,9 @@ export function CleanSeekLite({
             </>
           )
 
-          if (isMobile) {
+          if (isMobile || isTicker) {
             return (
-              <details className="mt-6 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 open:border-cyan-500/30">
+              <details className="mt-4 rounded-2xl border border-slate-700/60 bg-[#0A1128]/40 open:border-cyan-500/30">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-sm font-black text-slate-100 [&::-webkit-details-marker]:hidden">
                   <span>Engines to run</span>
                   <span className="text-[11px] font-black text-slate-500">Tap to expand ▾</span>
@@ -3225,6 +3458,7 @@ export function CleanSeekLite({
         ) : null}
 
         {/* Results — above demos; full-width responsive grid */}
+        {!isTicker || isSearching || Object.keys(results).length > 0 ? (
         <section className="mt-6 w-full min-w-0" aria-label="Search results">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Results</span>
@@ -3364,6 +3598,7 @@ export function CleanSeekLite({
           )}
           </div>
         </section>
+        ) : null}
 
         {!disableGrokLive ? (
         <details className="mt-10 rounded-2xl border border-slate-700/60 bg-[#050B14]/90 open:border-emerald-500/40 shadow-[0_-12px_40px_rgba(0,0,0,0.35)]">
@@ -3590,19 +3825,16 @@ export function CleanSeekLite({
           ) : null}
 
           {isTicker ? (
-            <aside className="w-full lg:w-[420px] lg:shrink-0">
-              <TickerContextPanel symbol={tickerSymbol} />
-              <div className="mt-4">
-                <WhalesEditionPanel
-                  symbol={tickerSymbol}
-                  onFillPrompt={(prompt) => {
-                    setQuery(prompt)
-                    if (typeof window !== 'undefined') {
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                    }
-                  }}
-                />
-              </div>
+            <aside className="order-3 w-full lg:w-[420px] lg:shrink-0">
+              <WhalesEditionPanel
+                symbol={tickerSymbol}
+                onFillPrompt={(prompt) => {
+                  setQuery(prompt)
+                  if (typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }
+                }}
+              />
             </aside>
           ) : null}
         </div>
