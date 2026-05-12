@@ -66,6 +66,13 @@ export function siteFontPx(scale: SiteFontScale): number {
   return scale === 2 ? 18 : scale === 1 ? 17 : 16
 }
 
+export function siteFontPxForViewport(scale: SiteFontScale, viewportWidth: number): number {
+  const base = siteFontPx(scale)
+  if (viewportWidth >= 1920) return base - 1
+  if (viewportWidth >= 1536) return base - 0.5
+  return base
+}
+
 /** Apply theme to `<html>` + `theme-color` (matches `__root` behavior). */
 export function applySiteThemeToDocument(theme: SiteThemeMode): void {
   if (typeof document === 'undefined') return
@@ -88,5 +95,6 @@ export function applySiteThemeToDocument(theme: SiteThemeMode): void {
 
 export function applySiteFontToDocument(scale: SiteFontScale): void {
   if (typeof document === 'undefined') return
-  document.documentElement.style.fontSize = `${siteFontPx(scale)}px`
+  const viewportWidth = typeof window === 'undefined' ? 0 : window.innerWidth
+  document.documentElement.style.fontSize = `${siteFontPxForViewport(scale, viewportWidth)}px`
 }

@@ -15,7 +15,6 @@ import {
   applySiteThemeToDocument,
   readSiteFontScale,
   readSiteTheme,
-  siteFontPx,
   writeSiteFontScale,
   writeSiteTheme,
   type SiteFontScale,
@@ -69,8 +68,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<SiteThemeMode>(() => readSiteTheme())
   const [font, setFont] = useState<SiteFontScale>(() => readSiteFontScale())
 
-  const rootFontPx = useMemo(() => siteFontPx(font), [font])
-
   useEffect(() => {
     writeSiteTheme(theme)
     applySiteThemeToDocument(theme)
@@ -78,8 +75,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     writeSiteFontScale(font)
-    applySiteFontToDocument(font)
-  }, [font, rootFontPx])
+    const apply = () => applySiteFontToDocument(font)
+    apply()
+    window.addEventListener('resize', apply)
+    return () => window.removeEventListener('resize', apply)
+  }, [font])
 
   const chrome = useMemo(() => {
     switch (theme) {

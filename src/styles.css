@@ -1,4 +1,4 @@
-@import "tailwindcss" source("../");
+@import "tailwindcss" source("./");
 
 /* -------------------------------------------------------------------------- */
 /* Global theme body chrome (set via <html data-theme="…"> from __root.tsx)   */

@@ -2489,7 +2489,7 @@ export function CleanSeekLite({
 
   return (
     <div className="min-h-screen bg-[#050B14] text-slate-50">
-      <div className="w-full max-w-none px-3 sm:px-5 xl:px-10 2xl:px-14 py-8">
+      <div className="w-full max-w-none px-3 py-5 sm:px-5 lg:py-6 xl:px-8 2xl:px-10">
         {!BACKEND_URL ? (
           <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {backendUrlOrError.error ?? 'Backend URL not configured.'} Set Netlify env var{' '}
@@ -2731,7 +2731,7 @@ export function CleanSeekLite({
               </button>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
               <div className="rounded-xl border border-slate-700/60 bg-black/20 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-black text-slate-100">
@@ -3404,7 +3404,7 @@ export function CleanSeekLite({
                             keep <span className="text-emerald-300 font-semibold">Grok Live</span> on and use <span className="text-slate-200 font-semibold">Web</span>{' '}
                             for breadth.
                           </p>
-                          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
                             {GROK_SEARCH_MODES.map((m) => (
                               <div
                                 key={m.id}
@@ -3444,7 +3444,7 @@ export function CleanSeekLite({
                           <p className="mt-2 max-w-3xl text-xs text-slate-500 leading-relaxed">
                             Starter prompts mapped to high-leverage workflows — tap one to fill, then Search (or use Run now on featured cards below).
                           </p>
-                          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
                             {GROK_USE_CASE_PLAYS.map((play) => (
                               <div
                                 key={play.title}

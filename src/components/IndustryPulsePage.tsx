@@ -54,10 +54,10 @@ export function IndustryHubPage() {
       <section className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
         <div className="mb-7 max-w-4xl">
           <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">Grok customer pages</div>
-          <h1 className="mt-2 text-5xl font-black leading-[0.95] tracking-tight sm:text-6xl">
+          <h1 className="mt-2 text-3xl font-black leading-[1.05] tracking-tight sm:text-4xl lg:text-5xl">
             Industry pulse pages that read before they ask.
           </h1>
-          <p className="mt-5 max-w-3xl text-lg font-medium leading-8 text-neutral-600">
+          <p className="mt-5 max-w-3xl text-base font-medium leading-7 text-neutral-600">
             These pages are the cheap, scalable layer: cached X intelligence, source trails, and just enough charts
             to show where a deeper Grok pull is worth paying for.
           </p>
@@ -68,7 +68,7 @@ export function IndustryHubPage() {
             <a
               key={industry.slug}
               href={`/industries/${industry.slug}`}
-              className="group flex min-h-[340px] flex-col border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)] transition hover:-translate-y-0.5 hover:shadow-[6px_6px_0_rgba(0,0,0,0.08)]"
+              className="group flex min-h-[300px] flex-col border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)] transition hover:-translate-y-0.5 hover:shadow-[6px_6px_0_rgba(0,0,0,0.08)]"
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="rounded-full border border-neutral-300 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-neutral-500">
@@ -76,7 +76,7 @@ export function IndustryHubPage() {
                 </span>
                 <ArrowRight className="h-4 w-4 text-neutral-400 transition group-hover:translate-x-1 group-hover:text-neutral-950" />
               </div>
-              <h2 className="mt-6 text-3xl font-black tracking-tight">{industry.label}</h2>
+              <h2 className="mt-6 text-2xl font-black tracking-tight">{industry.label}</h2>
               <p className="mt-3 flex-1 text-sm font-semibold leading-6 text-neutral-600">{industry.description}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {industry.tags.map((tag) => (
@@ -166,10 +166,10 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
               <span className={`h-2 w-2 rounded-full ${liveDot}`} />
               {liveCopy}
             </div>
-            <h1 className="max-w-5xl text-5xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="max-w-4xl text-3xl font-black leading-[1.05] tracking-tight sm:text-4xl lg:text-5xl">
               {industry.label} pulse
             </h1>
-            <p className="mt-5 max-w-3xl text-lg font-medium leading-8 text-neutral-600">{industry.description}</p>
+            <p className="mt-5 max-w-3xl text-base font-medium leading-7 text-neutral-600">{industry.description}</p>
             <div className="mt-5 flex flex-wrap gap-2">
               {industry.tags.map((tag) => (
                 <span key={tag} className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs font-black text-neutral-600">
@@ -181,7 +181,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
 
           <div className="border-l-4 border-neutral-950 bg-white p-5 shadow-[6px_6px_0_rgba(0,0,0,0.08)]">
             <div className="text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">My read</div>
-            <p className="mt-3 text-lg font-black leading-7">{industry.whyGrok}</p>
+            <p className="mt-3 text-base font-black leading-7">{industry.whyGrok}</p>
             <div className="mt-5 grid grid-cols-3 gap-2">
               <MiniMetric label="Rows" value={stats.count} />
               <MiniMetric label="Cites" value={stats.citations} />
@@ -291,7 +291,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
         <div className="flex flex-col gap-4 border border-neutral-300 bg-neutral-950 px-5 py-5 text-white md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-400">Deep pull</div>
-            <div className="mt-1 text-2xl font-black">Turn the cached read into a customer question.</div>
+            <div className="mt-1 text-xl font-black sm:text-2xl">Turn the cached read into a customer question.</div>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-300">
               This is where Grok earns the click: fresh X posts, dissent, trader/fan/operator sentiment, and citations.
             </p>
@@ -442,7 +442,7 @@ function MiniMetric({ label, value, text = false }: { label: string; value: numb
   return (
     <div className="border border-neutral-300 bg-[#f7f8f4] px-3 py-3">
       <div className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">{label}</div>
-      <div className={`${text ? 'text-lg' : 'text-3xl'} mt-1 font-black text-neutral-950`}>{value}</div>
+      <div className={`${text ? 'text-base' : 'text-2xl'} mt-1 font-black text-neutral-950`}>{value}</div>
     </div>
   )
 }
@@ -452,7 +452,7 @@ function StatCard({ icon, label, value }: { icon: ReactNode; label: string; valu
     <div className="flex items-center justify-between border border-neutral-300 bg-white px-4 py-4 shadow-[3px_3px_0_rgba(0,0,0,0.05)]">
       <div>
         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{label}</div>
-        <div className="mt-1 text-2xl font-black">{value}</div>
+        <div className="mt-1 text-xl font-black">{value}</div>
       </div>
       <div className="grid h-10 w-10 place-items-center border border-neutral-300 bg-[#f7f8f4] text-neutral-700">{icon}</div>
     </div>
@@ -500,7 +500,7 @@ function EmptyState({ industry, loading }: { industry: IndustryPageConfig; loadi
       <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">
         {loading ? 'Loading cached pulse' : 'No cached pulse yet'}
       </div>
-      <h2 className="mt-2 text-3xl font-black">{loading ? 'Checking the pulse table.' : 'This vertical is ready for data.'}</h2>
+      <h2 className="mt-2 text-2xl font-black sm:text-3xl">{loading ? 'Checking the pulse table.' : 'This vertical is ready for data.'}</h2>
       <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-neutral-600">
         The page shell is built. Once the Worker writes a completed pulse for {industry.slug}, the executive read,
         charts, citations, and voice rail will fill from the SeekBox cache.

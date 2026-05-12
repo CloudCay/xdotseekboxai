@@ -255,11 +255,11 @@ export function PulseReaderPage() {
                   <span className={`h-2 w-2 rounded-full ${source.dot}`} />
                   {source.label}
                 </div>
-                <h1 className="mt-3 max-w-5xl text-5xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
+                <h1 className="mt-3 max-w-4xl text-3xl font-black leading-[1.05] tracking-tight sm:text-4xl lg:text-5xl">
                   Read the room before you search it.
                 </h1>
               </div>
-              <p className="max-w-3xl text-lg font-medium leading-8 text-neutral-600">
+              <p className="max-w-3xl text-base font-medium leading-7 text-neutral-600">
                 A skimmable wire of generated X intelligence from cached industry rows: what changed,
                 who is shaping it, and where the narrative is gaining heat.
               </p>
@@ -322,7 +322,7 @@ export function PulseReaderPage() {
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_360px] lg:px-8">
         <div>
           <SectionHeader eyebrow="Top highlights" title="The pieces worth reading first" />
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 2xl:grid-cols-2">
             {topStories.length ? (
               topStories.map((pulse) => <HighlightCard key={pulse.row.id} pulse={pulse} />)
             ) : (
@@ -726,7 +726,7 @@ function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="mb-4">
       <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">{eyebrow}</div>
-      <h2 className="mt-1 text-3xl font-black tracking-tight text-neutral-950">{title}</h2>
+      <h2 className="mt-1 text-2xl font-black tracking-tight text-neutral-950 sm:text-3xl">{title}</h2>
     </div>
   )
 }
@@ -752,7 +752,7 @@ function MiniMetric({ label, value, text = false }: { label: string; value: numb
   return (
     <div className="border border-neutral-300 bg-[#f7f8f4] px-3 py-3">
       <div className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">{label}</div>
-      <div className={`${text ? 'text-lg' : 'text-3xl'} mt-1 font-black text-neutral-950`}>{value}</div>
+      <div className={`${text ? 'text-base' : 'text-2xl'} mt-1 font-black text-neutral-950`}>{value}</div>
     </div>
   )
 }
@@ -762,7 +762,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
     <div className="flex items-center justify-between border border-neutral-300 bg-white px-4 py-4 shadow-[3px_3px_0_rgba(0,0,0,0.05)]">
       <div>
         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{label}</div>
-        <div className="mt-1 text-2xl font-black">{value}</div>
+        <div className="mt-1 text-xl font-black">{value}</div>
       </div>
       <div className="grid h-10 w-10 place-items-center border border-neutral-300 bg-[#f7f8f4] text-neutral-700">{icon}</div>
     </div>
@@ -781,7 +781,7 @@ function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
         </div>
         <span className="text-xs font-bold text-neutral-500">{formatAge(pulse.row.created_at)}</span>
       </div>
-      <h3 className="mt-4 text-2xl font-black leading-tight">{pulse.headline}</h3>
+      <h3 className="mt-4 text-xl font-black leading-tight">{pulse.headline}</h3>
       <p className="mt-3 text-sm font-semibold leading-6 text-neutral-600">{pulse.dek}</p>
       <p className="mt-4 border-l-2 border-neutral-950 pl-3 text-sm font-bold leading-6 text-neutral-800">{pulse.why}</p>
       <div className="mt-5 grid grid-cols-3 gap-2">
@@ -871,7 +871,7 @@ function ScorePill({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-neutral-100 px-3 py-2">
       <div className="text-[10px] font-black uppercase tracking-wide text-neutral-500">{label}</div>
-      <div className="mt-0.5 text-xl font-black text-neutral-950">{value}</div>
+      <div className="mt-0.5 text-lg font-black text-neutral-950">{value}</div>
     </div>
   )
 }
