@@ -19,11 +19,6 @@ type PulseCitation = {
   url?: string | null
 }
 
-type PulseToolCall = {
-  name?: string | null
-  status?: string | null
-}
-
 type PulseRow = {
   id: string
   scope_type: string | null
@@ -32,16 +27,10 @@ type PulseRow = {
   from_date: string | null
   to_date: string | null
   handles: string[] | null
-  query_used: string | null
   summary: string | null
   citations: PulseCitation[] | null
-  tool_calls: PulseToolCall[] | null
-  cost_usd: number | null
-  latency_ms: number | null
   tags: string[] | null
-  metadata: Record<string, unknown> | null
   status: string | null
-  error: string | null
   created_at: string
 }
 
@@ -194,8 +183,8 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
       <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-4 lg:px-8">
         <StatCard icon={<Newspaper className="h-5 w-5" />} label="Briefs cached" value={String(stats.count)} />
         <StatCard icon={<ExternalLink className="h-5 w-5" />} label="Citations" value={String(stats.citations)} />
-        <StatCard icon={<Clock3 className="h-5 w-5" />} label="Median latency" value={stats.latencyLabel} />
-        <StatCard icon={<Activity className="h-5 w-5" />} label="Avg cost" value={stats.costLabel} />
+        <StatCard icon={<Activity className="h-5 w-5" />} label="Avg heat" value={stats.avgHeat ? String(stats.avgHeat) : '—'} />
+        <StatCard icon={<Clock3 className="h-5 w-5" />} label="Latest age" value={latest ? formatAge(latest.row.created_at) : '—'} />
       </section>
 
       {error ? (
@@ -230,7 +219,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
           <ChartPanel title="Heat history" icon={<LineChart className="h-5 w-5" />}>
             <Sparkline values={derived.history.map((row) => row.heat)} />
             <div className="mt-3 text-xs font-semibold leading-5 text-neutral-500">
-              Derived from citations, tool calls, summary depth, and recency across cached rows.
+              Derived from citations, summary depth, and recency across cached rows.
             </div>
           </ChartPanel>
 
@@ -356,23 +345,17 @@ type DerivedIndustryRow = {
   row: PulseRow
   heat: number
   citationCount: number
-  toolCallCount: number
-  costUsd: number
-  latencyMs: number
   handles: string[]
 }
 
 function deriveIndustryRow(row: PulseRow, industry: IndustryPageConfig): DerivedIndustryRow {
-  const citationCount = Array.isArray(row.citations) ? row.citations.length : numberFromMeta(row, 'citations_count')
-  const toolCallCount = Array.isArray(row.tool_calls) ? row.tool_calls.length : numberFromMeta(row, 'tool_calls_count')
-  const latencyMs = Number(row.latency_ms ?? 0)
-  const costUsd = Number(row.cost_usd ?? numberFromMeta(row, 'grok_cost_usd') ?? 0)
+  const citationCount = Array.isArray(row.citations) ? row.citations.length : 0
   const handles = Array.from(new Set([...(row.handles ?? []), ...industry.handles])).slice(0, 12)
   const ageHours = Math.max(0, (Date.now() - new Date(row.created_at).getTime()) / 3600000)
   const freshness = clamp(26 - ageHours * 0.9, 0, 26)
   const summaryWeight = Math.min(((row.summary ?? '').length / 3000) * 18, 18)
-  const heat = clamp(20 + citationCount * 4 + toolCallCount * 2.75 + freshness + summaryWeight, 8, 99)
-  return { row, heat, citationCount, toolCallCount, costUsd, latencyMs, handles }
+  const heat = clamp(24 + citationCount * 4.5 + freshness + summaryWeight, 8, 99)
+  return { row, heat, citationCount, handles }
 }
 
 function splitSections(summary: string): string[] {
@@ -389,15 +372,11 @@ function cleanSection(section: string): string {
 function summarizeRows(rows: DerivedIndustryRow[]) {
   const count = rows.length
   const citations = rows.reduce((sum, row) => sum + row.citationCount, 0)
-  const costs = rows.map((row) => row.costUsd).filter((n) => n > 0)
-  const latencies = rows.map((row) => row.latencyMs).filter((n) => n > 0).sort((a, b) => a - b)
-  const avgCost = costs.length ? costs.reduce((sum, n) => sum + n, 0) / costs.length : 0
-  const medianLatency = latencies.length ? latencies[Math.floor(latencies.length / 2)] : 0
+  const avgHeat = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.heat, 0) / rows.length) : 0
   return {
     count,
     citations,
-    latencyLabel: medianLatency ? `${(medianLatency / 1000).toFixed(0)}s` : '—',
-    costLabel: avgCost ? `$${avgCost.toFixed(3)}` : '—',
+    avgHeat,
   }
 }
 
@@ -411,11 +390,6 @@ function topVoices(rows: DerivedIndustryRow[], industry: IndustryPageConfig) {
     .map(([label, value]) => ({ label, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8)
-}
-
-function numberFromMeta(row: PulseRow, key: string): number {
-  const value = row.metadata?.[key]
-  return typeof value === 'number' ? value : 0
 }
 
 function clamp(value: number, min: number, max: number): number {

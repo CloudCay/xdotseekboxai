@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
   ArrowRight,
   BarChart3,
-  Clock3,
   ExternalLink,
   Flame,
   LineChart,
@@ -13,18 +12,12 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
-import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
   index?: number | null
   url?: string | null
-}
-
-type PulseToolCall = {
-  name?: string | null
-  status?: string | null
 }
 
 type PulseRow = {
@@ -35,21 +28,15 @@ type PulseRow = {
   from_date: string | null
   to_date: string | null
   handles: string[] | null
-  query_used: string | null
   summary: string | null
   citations: PulseCitation[] | null
-  tool_calls: PulseToolCall[] | null
-  cost_usd: number | null
-  latency_ms: number | null
   tags: string[] | null
-  metadata: Record<string, unknown> | null
   status: string | null
-  error: string | null
   created_at: string
 }
 
 type Mood = 'optimistic' | 'mixed' | 'critical' | 'neutral'
-type DataSource = 'api' | 'browser' | 'sample'
+type DataSource = 'api' | 'sample'
 
 type DerivedPulse = {
   row: PulseRow
@@ -64,9 +51,6 @@ type DerivedPulse = {
   novelty: number
   dissent: number
   citationCount: number
-  toolCallCount: number
-  costUsd: number
-  latencyMs: number
   handles: string[]
   tags: string[]
   sections: string[]
@@ -82,7 +66,6 @@ const FALLBACK_ROWS: PulseRow[] = [
     from_date: '2026-05-03',
     to_date: '2026-05-10',
     handles: ['sama', 'karpathy', 'swyx', 'levie', 'dharmesh'],
-    query_used: null,
     summary:
       '1. Enterprise AI agents are moving from demos to implementation work, with SaaS operators focusing on deployment, token budgeting, and API parity.\n\n2. Dominant themes: Enterprise deployment is positive; token budgeting is neutral; agentic workflows are positive.\n\n3. Top posts worth knowing: @levie on enterprise implementation; @dharmesh on platform API parity; @swyx on competitive model economics.\n\n4. Dissent: practical limits around rate limits, trust, and non-automatable customer work keep the story grounded.',
     citations: [
@@ -90,16 +73,8 @@ const FALLBACK_ROWS: PulseRow[] = [
       { index: 2, url: 'https://x.com/i/status/2051344780328858040' },
       { index: 3, url: 'https://x.com/i/status/2051678219812675875' },
     ],
-    tool_calls: [
-      { name: 'x_keyword_search', status: 'completed' },
-      { name: 'x_semantic_search', status: 'completed' },
-    ],
-    cost_usd: 0.051912,
-    latency_ms: 89269,
     tags: ['industry:tech-saas', 'window:7d'],
-    metadata: { citations_count: 3, tool_calls_count: 2 },
     status: 'completed',
-    error: null,
     created_at: new Date().toISOString(),
   },
   {
@@ -110,41 +85,14 @@ const FALLBACK_ROWS: PulseRow[] = [
     from_date: '2026-05-03',
     to_date: '2026-05-10',
     handles: ['EricTopol', 'PeterAttiaMD', 'ZDoggMD', 'hubermanlab'],
-    query_used: null,
     summary:
       '1. Healthcare discussion is mixed: optimism around diagnostics and prevention is colliding with regulatory, trust, and evidence-quality questions.\n\n2. Dominant themes: prevention, AI workflow, clinical evidence, and patient trust.\n\n3. Top posts worth knowing: researchers cite AI diagnostics; clinicians push back on hype; wellness voices emphasize prevention.\n\n4. Dissent: several voices warn that shortcuts without evidence will create more confusion than progress.',
     citations: [{ index: 1, url: 'https://x.com/i/status/2050000000000000001' }],
-    tool_calls: [{ name: 'x_keyword_search', status: 'completed' }],
-    cost_usd: 0.042,
-    latency_ms: 48260,
     tags: ['industry:healthcare', 'window:7d'],
-    metadata: { citations_count: 1, tool_calls_count: 1 },
     status: 'completed',
-    error: null,
     created_at: new Date(Date.now() - 38 * 60 * 1000).toISOString(),
   },
 ]
-
-const PULSE_SELECT = [
-  'id',
-  'scope_type',
-  'scope_value',
-  'window_label',
-  'from_date',
-  'to_date',
-  'handles',
-  'query_used',
-  'summary',
-  'citations',
-  'tool_calls',
-  'cost_usd',
-  'latency_ms',
-  'tags',
-  'metadata',
-  'status',
-  'error',
-  'created_at',
-].join(',')
 
 export function PulseReaderPage() {
   const [rows, setRows] = useState<PulseRow[]>([])
@@ -169,16 +117,6 @@ export function PulseReaderPage() {
         if (!cancelled && apiRows.length > 0) {
           setRows(apiRows)
           setDataSource('api')
-          return
-        }
-
-        const browserRows = await loadRowsFromBrowserSupabase().catch((e) => {
-          failures.push(e instanceof Error ? e.message : 'browser cache fallback failed')
-          return []
-        })
-        if (!cancelled && browserRows.length > 0) {
-          setRows(browserRows)
-          setDataSource('browser')
           return
         }
 
@@ -309,8 +247,8 @@ export function PulseReaderPage() {
       <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-4 lg:px-8">
         <StatCard icon={<Newspaper className="h-5 w-5" />} label="Pulse rows" value={String(stats.count)} />
         <StatCard icon={<ExternalLink className="h-5 w-5" />} label="Citations" value={String(stats.citations)} />
-        <StatCard icon={<Clock3 className="h-5 w-5" />} label="Median latency" value={stats.latencyLabel} />
-        <StatCard icon={<Activity className="h-5 w-5" />} label="Avg cost" value={stats.costLabel} />
+        <StatCard icon={<Activity className="h-5 w-5" />} label="Avg heat" value={stats.avgHeat ? String(stats.avgHeat) : '—'} />
+        <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Freshest" value={stats.freshest ? formatAge(stats.freshest) : '—'} />
       </section>
 
       {error ? (
@@ -435,20 +373,6 @@ async function loadRowsFromApi(): Promise<PulseRow[]> {
   return cleanRows(json.rows ?? [])
 }
 
-async function loadRowsFromBrowserSupabase(): Promise<PulseRow[]> {
-  if (!isSupabaseConfigured || !supabase) return []
-  const { data, error } = await supabase
-    .from('pulse_runs')
-    .select(PULSE_SELECT)
-    .eq('scope_type', 'industry')
-    .not('summary', 'is', null)
-    .neq('summary', '')
-    .order('created_at', { ascending: false })
-    .limit(500)
-  if (error) throw error
-  return cleanRows((data as PulseRow[]) ?? [])
-}
-
 function cleanRows(rows: PulseRow[]): PulseRow[] {
   return rows.filter((row) => row.summary && row.status !== 'error' && row.scope_type === 'industry' && canonicalIndustry(row))
 }
@@ -492,14 +416,11 @@ function derivePulse(row: PulseRow): DerivedPulse {
   const headline = firstSentence(cleanSection(sections[0] ?? summary)) || `${scopeLabel} pulse is moving`
   const dek = secondSentence(cleanSection(sections[0] ?? summary)) || cleanSection(sections[1] ?? summary).slice(0, 180)
   const why = firstSentence(cleanSection(sections[2] ?? sections[1] ?? summary)) || 'Worth watching because the conversation is changing quickly.'
-  const citationCount = arrayCount(row.citations) || numberFromMeta(row, 'citations_count')
-  const toolCallCount = arrayCount(row.tool_calls) || numberFromMeta(row, 'tool_calls_count')
-  const latencyMs = Number(row.latency_ms ?? 0)
-  const costUsd = Number(row.cost_usd ?? numberFromMeta(row, 'grok_cost_usd') ?? 0)
+  const citationCount = arrayCount(row.citations)
   const mood = detectMood(summary)
   const novelty = noveltyScore(summary, tags)
   const dissent = dissentScore(sections, summary)
-  const heat = heatScore(row, citationCount, toolCallCount, novelty, dissent)
+  const heat = heatScore(row, citationCount, novelty, dissent)
 
   return {
     row,
@@ -514,9 +435,6 @@ function derivePulse(row: PulseRow): DerivedPulse {
     novelty,
     dissent,
     citationCount,
-    toolCallCount,
-    costUsd,
-    latencyMs,
     handles,
     tags,
     sections,
@@ -626,14 +544,13 @@ function dissentScore(sections: string[], summary: string): number {
 function heatScore(
   row: PulseRow,
   citationCount: number,
-  toolCallCount: number,
   novelty: number,
   dissent: number,
 ): number {
   const ageHours = Math.max(0, (Date.now() - new Date(row.created_at).getTime()) / 3600000)
   const freshness = clamp(22 - ageHours * 0.8, 0, 22)
   const summaryWeight = Math.min(((row.summary ?? '').length / 3200) * 16, 16)
-  return clamp(24 + citationCount * 3.5 + toolCallCount * 2.5 + freshness + summaryWeight + novelty * 0.12 + dissent * 0.08, 10, 99)
+  return clamp(28 + citationCount * 4 + freshness + summaryWeight + novelty * 0.12 + dissent * 0.08, 10, 99)
 }
 
 function laneFor(scopeType: string | null, scopeValue: string | null, tags: string[]): string {
@@ -648,7 +565,6 @@ function laneFor(scopeType: string | null, scopeValue: string | null, tags: stri
 function sourceCopy(source: DataSource | null, loading: boolean): { label: string; dot: string } {
   if (loading) return { label: 'LOADING SEEKBOX CACHE', dot: 'bg-amber-400' }
   if (source === 'api') return { label: 'LIVE SEEKBOX CACHE', dot: 'bg-emerald-500' }
-  if (source === 'browser') return { label: 'LIVE SEEKBOX CACHE', dot: 'bg-emerald-500' }
   return { label: 'SAMPLE SEEKBOX CACHE', dot: 'bg-neutral-500' }
 }
 
@@ -658,11 +574,6 @@ function countWords(text: string, words: string[]): number {
 
 function arrayCount(value: unknown[] | null): number {
   return Array.isArray(value) ? value.length : 0
-}
-
-function numberFromMeta(row: PulseRow, key: string): number {
-  const value = row.metadata?.[key]
-  return typeof value === 'number' ? value : 0
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -683,10 +594,6 @@ function formatAge(createdAt: string): string {
 function summarize(pulses: DerivedPulse[]) {
   const count = pulses.length
   const citations = pulses.reduce((sum, pulse) => sum + pulse.citationCount, 0)
-  const costs = pulses.map((pulse) => pulse.costUsd).filter((n) => n > 0)
-  const latencies = pulses.map((pulse) => pulse.latencyMs).filter((n) => n > 0).sort((a, b) => a - b)
-  const avgCost = costs.length ? costs.reduce((sum, n) => sum + n, 0) / costs.length : 0
-  const medianLatency = latencies.length ? latencies[Math.floor(latencies.length / 2)] : 0
   const avgHeat = pulses.length ? Math.round(pulses.reduce((sum, pulse) => sum + pulse.heat, 0) / pulses.length) : 0
   const hottest = pulses[0]?.scopeLabel ?? 'Pulse'
   const freshest = pulses.reduce((latest, pulse) => {
@@ -695,8 +602,6 @@ function summarize(pulses: DerivedPulse[]) {
   return {
     count,
     citations,
-    latencyLabel: medianLatency ? `${(medianLatency / 1000).toFixed(0)}s` : '—',
-    costLabel: avgCost ? `$${avgCost.toFixed(3)}` : '—',
     avgHeat,
     hottest,
     freshest,
@@ -760,7 +665,7 @@ function MiniMetric({ label, value, text = false }: { label: string; value: numb
   )
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center justify-between border border-neutral-300 bg-white px-4 py-4 shadow-[3px_3px_0_rgba(0,0,0,0.05)]">
       <div>
@@ -822,7 +727,7 @@ function BriefCard({ pulse }: { pulse: DerivedPulse }) {
       </div>
       <div className="mt-4 border-t border-neutral-200 pt-3">
         <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">
-          {pulse.citationCount} citations · {pulse.toolCallCount} tool calls
+          {pulse.citationCount} citations · {formatAge(pulse.row.created_at)}
         </div>
         <div className="flex flex-wrap gap-2">
           {citations.slice(0, 4).map((citation, index) => (
@@ -843,7 +748,7 @@ function BriefCard({ pulse }: { pulse: DerivedPulse }) {
   )
 }
 
-function ChartPanel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function ChartPanel({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
     <section className="border border-neutral-300 bg-white p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-black">
