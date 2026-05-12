@@ -76,6 +76,9 @@ html[data-theme="newspaper"] .bg-neutral-100 {
 }
 
 /* Surfaces / cards — dark navy → cream paper */
+html[data-theme="newspaper"] [class*="bg-[#0A1128]"],
+html[data-theme="newspaper"] [class*="bg-[#050B14]"],
+html[data-theme="newspaper"] [class*="bg-[#08111F]"],
 html[data-theme="newspaper"] .bg-\[\#0A1128\],
 html[data-theme="newspaper"] .bg-\[\#0A1128\]\/40,
 html[data-theme="newspaper"] .bg-\[\#0A1128\]\/60,
