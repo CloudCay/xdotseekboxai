@@ -15,6 +15,47 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/favicon-16x16.png"
+  to = "/favicon-16x16.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/favicon-32x32.png"
+  to = "/favicon-32x32.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/apple-touch-icon.png"
+  to = "/apple-touch-icon.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/icon-192.png"
+  to = "/icon-192.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/icon-512.png"
+  to = "/icon-512.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/site.webmanifest"
+  to = "/site.webmanifest"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/site.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json; charset=utf-8"
+
 [dev]
   command = "npm run dev"
   targetPort = 3000
