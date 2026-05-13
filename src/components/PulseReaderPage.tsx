@@ -5,6 +5,7 @@ import {
   BarChart3,
   ExternalLink,
   Flame,
+  Info,
   LineChart,
   Newspaper,
   Search,
@@ -39,6 +40,15 @@ type PulseRow = {
 
 type Mood = 'optimistic' | 'mixed' | 'critical' | 'neutral'
 type DataSource = 'api' | 'sample'
+
+const METRIC_INSIGHTS: Record<string, string> = {
+  Heat:
+    'A 0-99 open-this-first score. It rises with citations, freshness, summary depth, novelty, and visible dissent.',
+  Novelty:
+    'How much the conversation looks new or shifting. It looks for signals like new, emerging, launch, first, shift, breakthrough, and trend.',
+  Dissent:
+    'How much counter-signal is present: warnings, criticism, risks, pushback, or a section explicitly calling out where consensus breaks.',
+}
 
 type DerivedPulse = {
   row: PulseRow
@@ -763,10 +773,23 @@ function EmptyChart({ label }: { label: string }) {
 }
 
 function MiniMetric({ label, value, text = false }: { label: string; value: number | string; text?: boolean }) {
+  const insight = metricInsight(label)
   return (
-    <div className="border border-neutral-300 bg-[#f7f8f4] px-3 py-3">
-      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">{label}</div>
+    <div
+      tabIndex={insight ? 0 : undefined}
+      title={insight ?? undefined}
+      className="group relative border border-neutral-300 bg-[#f7f8f4] px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
+    >
+      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">
+        <span>{label}</span>
+        {insight ? (
+          <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-neutral-300 bg-white text-neutral-500">
+            <Info className="h-3 w-3" />
+          </span>
+        ) : null}
+      </div>
       <div className={`${text ? 'text-base' : 'text-2xl'} mt-1 font-black text-neutral-950`}>{value}</div>
+      {insight ? <MetricTooltip text={insight} /> : null}
     </div>
   )
 }
@@ -1005,10 +1028,31 @@ function CitationRefs({ citations, limit = 4, compact = false }: { citations: Pu
 }
 
 function ScorePill({ label, value }: { label: string; value: number }) {
+  const insight = metricInsight(label)
   return (
-    <div className="bg-neutral-100 px-3 py-2">
-      <div className="text-[10px] font-black uppercase tracking-wide text-neutral-500">{label}</div>
+    <div
+      tabIndex={insight ? 0 : undefined}
+      title={insight ?? undefined}
+      className="group relative bg-neutral-100 px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
+    >
+      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-neutral-500">
+        <span>{label}</span>
+        {insight ? <Info className="h-3 w-3 text-neutral-500" /> : null}
+      </div>
       <div className="mt-0.5 text-lg font-black text-neutral-950">{value}</div>
+      {insight ? <MetricTooltip text={insight} /> : null}
+    </div>
+  )
+}
+
+function metricInsight(label: string): string | null {
+  return METRIC_INSIGHTS[label] ?? null
+}
+
+function MetricTooltip({ text }: { text: string }) {
+  return (
+    <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-64 border border-neutral-950 bg-white px-3 py-2 text-xs font-bold leading-5 text-neutral-800 opacity-0 shadow-[4px_4px_0_rgba(0,0,0,0.12)] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      {text}
     </div>
   )
 }
