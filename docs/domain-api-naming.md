@@ -2,6 +2,8 @@
 
 Date: 2026-05-10
 
+Status update: `api.seekbox.ai` was attached as a Cloudflare Workers Custom Domain for the `seekbox-api` Worker on 2026-05-13.
+
 This note captures the working naming convention for SeekBox domains, APIs, provider services, and staging/production routing.
 
 ## Core Naming
@@ -17,7 +19,7 @@ This note captures the working naming convention for SeekBox domains, APIs, prov
 
 - `seekbox.ai`: future canonical brand and production domain.
 - `app.seekbox.ai`: optional main signed-in app domain if the app is separated from the marketing/home domain.
-- `api.seekbox.ai`: production SeekBox API / Cloudflare Workers API gateway.
+- `api.seekbox.ai`: production SeekBox API / Cloudflare Workers API gateway. Live custom domain for the `seekbox-api` Worker.
 - `x.seekbox.ai`: future canonical domain for the Grok/X-focused Pulse product.
 - `seekboxai.com`: current live staging/transition domain.
 - `x.seekboxai.com`: current Grok/X-focused staging/product surface.
@@ -39,7 +41,7 @@ Keep the API paths stable so production is a domain swap, not an app rewrite:
 - `https://api-staging.seekboxai.com/v1/notifications`
 - `https://api-staging.seekboxai.com/v1/billing`
 
-Production can later use the same paths:
+Production uses the same paths:
 
 - `https://api.seekbox.ai/v1/search`
 - `https://api.seekbox.ai/v1/account`
@@ -109,7 +111,7 @@ The browser talks to the SeekBox API. The SeekBox API owns policy, secrets, role
 For now:
 
 1. Keep `seekboxai.com` and `x.seekboxai.com` as live staging/transition surfaces.
-2. Put the new Cloudflare Workers backend on `api-staging.seekboxai.com`.
-3. Keep `seekbox.ai` as the future canonical production domain.
-4. Later move production to `api.seekbox.ai`, `app.seekbox.ai`, and `x.seekbox.ai`.
+2. Use `api.seekbox.ai` as the production Cloudflare Workers backend hostname.
+3. Use `api-staging.seekboxai.com` only if a separate staging Worker is needed.
+4. Keep `seekbox.ai`, `app.seekbox.ai`, and `x.seekbox.ai` as the canonical production domain family.
 5. Treat Twilio as a provider API behind `/v1/notifications`, not a separate browser-facing app API.

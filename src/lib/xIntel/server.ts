@@ -1,6 +1,6 @@
 import type { GatewayChatResponse } from './types'
 
-const DEFAULT_GATEWAY_URL = 'https://seekbox-api.matt-901.workers.dev'
+const DEFAULT_GATEWAY_URL = 'https://api.seekbox.ai'
 const activeByClient = new Map<string, number>()
 const recentByClient = new Map<string, { count: number; resetAt: number }>()
 
