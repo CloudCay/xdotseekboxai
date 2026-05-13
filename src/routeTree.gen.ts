@@ -24,8 +24,10 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TopicsIndexRouteImport } from './routes/topics/index'
 import { Route as LabsIndexRouteImport } from './routes/labs/index'
 import { Route as IndustriesIndexRouteImport } from './routes/industries/index'
+import { Route as TopicsTagRouteImport } from './routes/topics/$tag'
 import { Route as LabsXBattleRouteImport } from './routes/labs/x-battle'
 import { Route as LabsPostRoomRouteImport } from './routes/labs/post-room'
 import { Route as LabsMatrixRouteImport } from './routes/labs/matrix'
@@ -118,6 +120,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TopicsIndexRoute = TopicsIndexRouteImport.update({
+  id: '/topics/',
+  path: '/topics/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LabsIndexRoute = LabsIndexRouteImport.update({
   id: '/labs/',
   path: '/labs/',
@@ -126,6 +133,11 @@ const LabsIndexRoute = LabsIndexRouteImport.update({
 const IndustriesIndexRoute = IndustriesIndexRouteImport.update({
   id: '/industries/',
   path: '/industries/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TopicsTagRoute = TopicsTagRouteImport.update({
+  id: '/topics/$tag',
+  path: '/topics/$tag',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LabsXBattleRoute = LabsXBattleRouteImport.update({
@@ -238,8 +250,10 @@ export interface FileRoutesByFullPath {
   '/labs/matrix': typeof LabsMatrixRoute
   '/labs/post-room': typeof LabsPostRoomRoute
   '/labs/x-battle': typeof LabsXBattleRoute
+  '/topics/$tag': typeof TopicsTagRoute
   '/industries/': typeof IndustriesIndexRoute
   '/labs/': typeof LabsIndexRoute
+  '/topics/': typeof TopicsIndexRoute
   '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
   '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
   '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
@@ -273,8 +287,10 @@ export interface FileRoutesByTo {
   '/labs/matrix': typeof LabsMatrixRoute
   '/labs/post-room': typeof LabsPostRoomRoute
   '/labs/x-battle': typeof LabsXBattleRoute
+  '/topics/$tag': typeof TopicsTagRoute
   '/industries': typeof IndustriesIndexRoute
   '/labs': typeof LabsIndexRoute
+  '/topics': typeof TopicsIndexRoute
   '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
   '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
   '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
@@ -309,8 +325,10 @@ export interface FileRoutesById {
   '/labs/matrix': typeof LabsMatrixRoute
   '/labs/post-room': typeof LabsPostRoomRoute
   '/labs/x-battle': typeof LabsXBattleRoute
+  '/topics/$tag': typeof TopicsTagRoute
   '/industries/': typeof IndustriesIndexRoute
   '/labs/': typeof LabsIndexRoute
+  '/topics/': typeof TopicsIndexRoute
   '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
   '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
   '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
@@ -346,8 +364,10 @@ export interface FileRouteTypes {
     | '/labs/matrix'
     | '/labs/post-room'
     | '/labs/x-battle'
+    | '/topics/$tag'
     | '/industries/'
     | '/labs/'
+    | '/topics/'
     | '/api/x-intel/anti-echo'
     | '/api/x-intel/post-room'
     | '/api/x-intel/x-battle'
@@ -381,8 +401,10 @@ export interface FileRouteTypes {
     | '/labs/matrix'
     | '/labs/post-room'
     | '/labs/x-battle'
+    | '/topics/$tag'
     | '/industries'
     | '/labs'
+    | '/topics'
     | '/api/x-intel/anti-echo'
     | '/api/x-intel/post-room'
     | '/api/x-intel/x-battle'
@@ -416,8 +438,10 @@ export interface FileRouteTypes {
     | '/labs/matrix'
     | '/labs/post-room'
     | '/labs/x-battle'
+    | '/topics/$tag'
     | '/industries/'
     | '/labs/'
+    | '/topics/'
     | '/api/x-intel/anti-echo'
     | '/api/x-intel/post-room'
     | '/api/x-intel/x-battle'
@@ -449,8 +473,10 @@ export interface RootRouteChildren {
   LabsMatrixRoute: typeof LabsMatrixRoute
   LabsPostRoomRoute: typeof LabsPostRoomRoute
   LabsXBattleRoute: typeof LabsXBattleRoute
+  TopicsTagRoute: typeof TopicsTagRoute
   IndustriesIndexRoute: typeof IndustriesIndexRoute
   LabsIndexRoute: typeof LabsIndexRoute
+  TopicsIndexRoute: typeof TopicsIndexRoute
   ApiXIntelAntiEchoRoute: typeof ApiXIntelAntiEchoRoute
   ApiXIntelPostRoomRoute: typeof ApiXIntelPostRoomRoute
   ApiXIntelXBattleRoute: typeof ApiXIntelXBattleRoute
@@ -563,6 +589,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/topics/': {
+      id: '/topics/'
+      path: '/topics'
+      fullPath: '/topics/'
+      preLoaderRoute: typeof TopicsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/labs/': {
       id: '/labs/'
       path: '/labs'
@@ -575,6 +608,13 @@ declare module '@tanstack/react-router' {
       path: '/industries'
       fullPath: '/industries/'
       preLoaderRoute: typeof IndustriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/topics/$tag': {
+      id: '/topics/$tag'
+      path: '/topics/$tag'
+      fullPath: '/topics/$tag'
+      preLoaderRoute: typeof TopicsTagRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/labs/x-battle': {
@@ -734,8 +774,10 @@ const rootRouteChildren: RootRouteChildren = {
   LabsMatrixRoute: LabsMatrixRoute,
   LabsPostRoomRoute: LabsPostRoomRoute,
   LabsXBattleRoute: LabsXBattleRoute,
+  TopicsTagRoute: TopicsTagRoute,
   IndustriesIndexRoute: IndustriesIndexRoute,
   LabsIndexRoute: LabsIndexRoute,
+  TopicsIndexRoute: TopicsIndexRoute,
   ApiXIntelAntiEchoRoute: ApiXIntelAntiEchoRoute,
   ApiXIntelPostRoomRoute: ApiXIntelPostRoomRoute,
   ApiXIntelXBattleRoute: ApiXIntelXBattleRoute,

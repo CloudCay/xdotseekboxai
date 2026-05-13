@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
 import { rankPulseVoices, sortPulseVoiceRankings, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
+import { normalizePulseTopicTags, pulseTopicHref } from '../lib/pulseTopics'
+import { openSourcePopup } from '../lib/sourcePopup'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
@@ -102,7 +104,6 @@ export function PulseReaderPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dataSource, setDataSource] = useState<DataSource | null>(null)
-  const [selectedLane, setSelectedLane] = useState<string>('all')
   const [persistedVoices, setPersistedVoices] = useState<PulseVoiceRanking[]>([])
 
   useEffect(() => {
@@ -166,18 +167,15 @@ export function PulseReaderPage() {
   }, [])
 
   const pulses = useMemo(() => derivePulseSet(rows), [rows])
-  const lanes = useMemo(() => ['all', ...Array.from(new Set(pulses.latest.map((p) => p.lane)))], [pulses.latest])
-  const visible = useMemo(
-    () => (selectedLane === 'all' ? pulses.latest : pulses.latest.filter((p) => p.lane === selectedLane)),
-    [pulses.latest, selectedLane],
-  )
+  const industryLinks = useMemo(() => industryLinksForPulses(pulses.latest), [pulses.latest])
+  const visible = pulses.latest
   const hero = visible[0] ?? pulses.latest[0]
   const topStories = visible.slice(0, 6)
   const stats = useMemo(() => summarize(visible), [visible])
   const voiceRankings = useMemo(() => {
-    if (selectedLane === 'all' && persistedVoices.length) return sortPulseVoiceRankings(persistedVoices, 14)
+    if (persistedVoices.length) return sortPulseVoiceRankings(persistedVoices, 14)
     return rankPulseVoices(visible.map((pulse) => pulse.row), 10)
-  }, [persistedVoices, selectedLane, visible])
+  }, [persistedVoices, visible])
   const topicBars = useMemo(() => topTopicTags(visible), [visible])
   const source = sourceCopy(dataSource, loading)
 
@@ -202,6 +200,9 @@ export function PulseReaderPage() {
               </a>
               <a href="/industries" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
                 Industries
+              </a>
+              <a href="/topics" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
+                Topics
               </a>
               <a href="/labs" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
                 Intel
@@ -255,19 +256,20 @@ export function PulseReaderPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {lanes.map((lane) => (
-              <button
-                key={lane}
-                type="button"
-                onClick={() => setSelectedLane(lane)}
-                className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-wide ${
-                  selectedLane === lane
-                    ? 'border-neutral-950 bg-neutral-950 text-white'
-                    : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-500'
-                }`}
+            <a
+              href="/industries"
+              className="rounded-full border border-neutral-950 bg-neutral-950 px-4 py-2 text-xs font-black uppercase tracking-wide text-white"
+            >
+              All industry pages
+            </a>
+            {industryLinks.map((industry) => (
+              <a
+                key={industry.slug}
+                href={industry.href}
+                className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-neutral-600 hover:border-neutral-950 hover:text-neutral-950"
               >
-                {lane === 'all' ? 'All' : lane}
-              </button>
+                {industry.label}
+              </a>
             ))}
           </div>
         </div>
@@ -354,7 +356,7 @@ export function PulseReaderPage() {
             <ChartPanel title="Topic tags" icon={<TrendingUp className="h-5 w-5" />}>
               <div className="space-y-3">
                 {topicBars.length ? (
-                  topicBars.map((t) => <ScoreBar key={t.label} label={t.label} value={t.value} max={topicBars[0]?.value ?? 1} />)
+                  topicBars.map((t) => <TopicScoreLink key={t.label} label={t.label} value={t.value} max={topicBars[0]?.value ?? 1} />)
                 ) : (
                   <EmptyChart label="No tags found yet" />
                 )}
@@ -567,13 +569,8 @@ function canonicalIndustry(row: PulseRow): { key: string; label: string } | null
 }
 
 function normalizeTags(tags: string[] | null, scopeType: string | null): string[] {
-  const out = new Set<string>()
-  if (scopeType) out.add(scopeType)
-  for (const tag of tags ?? []) {
-    const clean = tag.replace(/^industry:/, '').replace(/^window:.+$/, '').replace(/^cron:.+$/, '').trim()
-    if (clean) out.add(clean)
-  }
-  return Array.from(out).slice(0, 6)
+  void scopeType
+  return normalizePulseTopicTags(tags).slice(0, 6)
 }
 
 function extractHandles(row: PulseRow): string[] {
@@ -713,6 +710,32 @@ function topTopicTags(pulses: DerivedPulse[]) {
     .slice(0, 7)
 }
 
+function industryLinksForPulses(pulses: DerivedPulse[]) {
+  const links = new Map<string, { slug: string; label: string; href: string; heat: number }>()
+  for (const pulse of pulses) {
+    const industry = industryTargetForPulse(pulse)
+    if (!industry) continue
+    const existing = links.get(industry.slug)
+    if (!existing || pulse.heat > existing.heat) links.set(industry.slug, { ...industry, heat: pulse.heat })
+  }
+  return Array.from(links.values()).sort((a, b) => b.heat - a.heat || a.label.localeCompare(b.label))
+}
+
+function industryTargetForPulse(pulse: DerivedPulse): { slug: string; label: string; href: string } | null {
+  const keySlug = pulse.scopeKey.startsWith('industry:') ? pulse.scopeKey.slice('industry:'.length) : null
+  const slug = canonicalizeIndustrySlug(keySlug ?? pulse.row.scope_value)
+  const industry = getIndustryPage(slug)
+  if (!industry) return null
+  return { slug: industry.slug, label: industry.label, href: `/industries/${industry.slug}` }
+}
+
+function sourceClick(event: MouseEvent<HTMLAnchorElement>, url: string | null | undefined) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+  if (!url) return
+  event.preventDefault()
+  openSourcePopup(url)
+}
+
 function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="mb-4">
@@ -761,13 +784,23 @@ function StatCard({ icon, label, value }: { icon: ReactNode; label: string; valu
 }
 
 function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
+  const industry = industryTargetForPulse(pulse)
   return (
     <article className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-neutral-300 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-neutral-600">
-            {pulse.lane}
-          </span>
+          {industry ? (
+            <a
+              href={industry.href}
+              className="rounded-full border border-neutral-300 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-neutral-600 hover:border-neutral-950 hover:text-neutral-950"
+            >
+              {industry.label}
+            </a>
+          ) : (
+            <span className="rounded-full border border-neutral-300 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-neutral-600">
+              {pulse.lane}
+            </span>
+          )}
           <MoodBadge mood={pulse.mood} />
         </div>
         <span className="text-xs font-bold text-neutral-500">{formatAge(pulse.row.created_at)}</span>
@@ -775,6 +808,7 @@ function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
       <h3 className="mt-4 text-xl font-black leading-tight">{pulse.headline}</h3>
       <p className="mt-3 text-sm font-semibold leading-6 text-neutral-600">{pulse.dek}</p>
       <p className="mt-4 border-l-2 border-neutral-950 pl-3 text-sm font-bold leading-6 text-neutral-800">{pulse.why}</p>
+      <CitationRefs citations={pulse.row.citations} limit={4} />
       <div className="mt-5 grid grid-cols-3 gap-2">
         <ScorePill label="Heat" value={pulse.heat} />
         <ScorePill label="Novelty" value={pulse.novelty} />
@@ -794,19 +828,34 @@ function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
 
 function BriefCard({ pulse }: { pulse: DerivedPulse }) {
   const citations = pulse.row.citations ?? []
+  const industry = industryTargetForPulse(pulse)
   return (
     <article className="flex min-h-[280px] flex-col border border-neutral-300 bg-white p-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">{pulse.scopeLabel}</div>
+        {industry ? (
+          <a
+            href={industry.href}
+            className="text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500 hover:text-neutral-950"
+          >
+            {industry.label}
+          </a>
+        ) : (
+          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">{pulse.scopeLabel}</div>
+        )}
         <Sparkline values={pulse.spark} compact />
       </div>
       <h3 className="mt-4 text-xl font-black leading-tight">{pulse.headline}</h3>
       <p className="mt-3 flex-1 text-sm font-medium leading-6 text-neutral-600">{pulse.dek}</p>
+      <CitationRefs citations={pulse.row.citations} limit={3} compact />
       <div className="mt-4 flex flex-wrap gap-2">
         {pulse.tags.slice(0, 3).map((tag) => (
-          <span key={tag} className="rounded-full border border-neutral-300 px-2 py-1 text-[10px] font-black uppercase text-neutral-500">
+          <a
+            key={tag}
+            href={pulseTopicHref(tag)}
+            className="rounded-full border border-neutral-300 px-2 py-1 text-[10px] font-black uppercase text-neutral-500 hover:border-neutral-950 hover:text-neutral-950"
+          >
             {labelScope(tag)}
-          </span>
+          </a>
         ))}
       </div>
       <div className="mt-4 border-t border-neutral-200 pt-3">
@@ -818,6 +867,7 @@ function BriefCard({ pulse }: { pulse: DerivedPulse }) {
             <a
               key={`${pulse.row.id}-${citation.url ?? index}`}
               href={citation.url ?? '#'}
+              onClick={(event) => sourceClick(event, citation.url)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 rounded-full bg-neutral-950 px-2.5 py-1 text-xs font-black text-white"
@@ -860,6 +910,21 @@ function ScoreBar({ label, value, max = 100 }: { label: string; value: number; m
   )
 }
 
+function TopicScoreLink({ label, value, max = 100 }: { label: string; value: number; max?: number }) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
+  return (
+    <a href={pulseTopicHref(label)} className="block group">
+      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
+        <span className="truncate text-neutral-700 group-hover:text-neutral-950">{label}</span>
+        <span className="text-neutral-500">{value}</span>
+      </div>
+      <div className="h-2 bg-neutral-100">
+        <div className="h-full bg-neutral-950" style={{ width: `${pct}%` }} />
+      </div>
+    </a>
+  )
+}
+
 function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number }) {
   const pct = max > 0 ? Math.min(100, Math.round((voice.rankScore / max) * 100)) : 0
   const badge =
@@ -887,11 +952,17 @@ function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number })
 
 function PulseActions({ pulse, compact = false }: { pulse: DerivedPulse; compact?: boolean }) {
   const battle = battleUrl(pulse)
+  const industry = industryTargetForPulse(pulse)
   const linkClass = compact
     ? 'rounded-full border border-neutral-300 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-neutral-600 hover:border-neutral-950'
     : 'rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-xs font-black text-neutral-700 hover:border-neutral-950'
   return (
     <div className={`flex flex-wrap gap-2 ${compact ? 'mt-3' : 'mt-5 border-t border-neutral-200 pt-4'}`}>
+      {industry ? (
+        <a href={industry.href} className={linkClass}>
+          Open industry
+        </a>
+      ) : null}
       <a href={antiEchoUrl(pulse)} className={linkClass}>
         Find dissent
       </a>
@@ -906,6 +977,29 @@ function PulseActions({ pulse, compact = false }: { pulse: DerivedPulse; compact
           Battle voices
         </a>
       ) : null}
+    </div>
+  )
+}
+
+function CitationRefs({ citations, limit = 4, compact = false }: { citations: PulseCitation[] | null; limit?: number; compact?: boolean }) {
+  const refs = (citations ?? []).filter((citation) => citation.url).slice(0, limit)
+  if (!refs.length) return null
+  return (
+    <div className={`${compact ? 'mt-3' : 'mt-4'} flex flex-wrap items-center gap-2`}>
+      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Sources</span>
+      {refs.map((citation, index) => (
+        <a
+          key={`${citation.url ?? index}`}
+          href={citation.url ?? '#'}
+          onClick={(event) => sourceClick(event, citation.url)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-[#fbfbf7] px-2.5 py-1 text-[10px] font-black text-neutral-700 hover:border-neutral-950"
+        >
+          [{citation.index ?? index + 1}]
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      ))}
     </div>
   )
 }

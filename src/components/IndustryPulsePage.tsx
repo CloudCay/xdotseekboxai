@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   Activity,
   ArrowRight,
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { INDUSTRY_PAGES, getIndustryPage, type IndustryPageConfig } from '../lib/industryCatalog'
 import { extractHandlesFromText, normalizeXHandle, rankPulseVoices, sortPulseVoiceRankings, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
+import { pulseTopicHref } from '../lib/pulseTopics'
+import { openSourcePopup } from '../lib/sourcePopup'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
@@ -173,9 +175,13 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
             <p className="mt-5 max-w-3xl text-base font-medium leading-7 text-neutral-600">{industry.description}</p>
             <div className="mt-5 flex flex-wrap gap-2">
               {industry.tags.map((tag) => (
-                <span key={tag} className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs font-black text-neutral-600">
+                <a
+                  key={tag}
+                  href={pulseTopicHref(tag)}
+                  className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs font-black text-neutral-600 hover:border-neutral-950 hover:text-neutral-950"
+                >
                   {tag}
-                </span>
+                </a>
               ))}
             </div>
           </div>
@@ -209,10 +215,10 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
         <div className="space-y-5">
           {latest ? (
             <>
-              <PulseSection title="Executive read" eyebrow="What matters" body={sections[0] ?? latest.row.summary ?? ''} />
-              <PulseSection title="Themes" eyebrow="Narrative clusters" body={sections[1] ?? ''} />
-              <PulseSection title="Posts worth knowing" eyebrow="Source trail" body={sections[2] ?? ''} />
-              <PulseSection title="Dissent" eyebrow="Where consensus breaks" body={sections[3] ?? ''} />
+              <PulseSection title="Executive read" eyebrow="What matters" body={sections[0] ?? latest.row.summary ?? ''} citations={latest.row.citations} />
+              <PulseSection title="Themes" eyebrow="Narrative clusters" body={sections[1] ?? ''} citations={latest.row.citations} />
+              <PulseSection title="Posts worth knowing" eyebrow="Source trail" body={sections[2] ?? ''} citations={latest.row.citations} />
+              <PulseSection title="Dissent" eyebrow="Where consensus breaks" body={sections[3] ?? ''} citations={latest.row.citations} />
             </>
           ) : (
             <EmptyState industry={industry} loading={loading} />
@@ -271,6 +277,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
                 <a
                   key={`${citation.url ?? index}`}
                   href={citation.url ?? '#'}
+                  onClick={(event) => sourceClick(event, citation.url)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center justify-between gap-3 border border-neutral-300 bg-[#f7f8f4] px-4 py-3 text-sm font-black text-neutral-800 hover:border-neutral-950"
@@ -334,6 +341,9 @@ function IndustryHeader() {
           </a>
           <a href="/industries" className="rounded-lg bg-neutral-950 px-4 py-2 text-white">
             Industries
+          </a>
+          <a href="/topics" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
+            Topics
           </a>
           <a href="/labs" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
             Intel
@@ -453,6 +463,13 @@ function antiEchoUrl(latest: DerivedIndustryRow | null, industry: IndustryPageCo
   return `/labs/anti-echo?claim=${encodeURIComponent(claim)}`
 }
 
+function sourceClick(event: MouseEvent<HTMLAnchorElement>, url: string | null | undefined) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+  if (!url) return
+  event.preventDefault()
+  openSourcePopup(url)
+}
+
 function seedVoiceRankings(industry: IndustryPageConfig): PulseVoiceRanking[] {
   return industry.handles.slice(0, 8).map((handle, index) => {
     const normalized = normalizeXHandle(handle) ?? handle
@@ -499,14 +516,38 @@ function StatCard({ icon, label, value }: { icon: ReactNode; label: string; valu
   )
 }
 
-function PulseSection({ title, eyebrow, body }: { title: string; eyebrow: string; body: string }) {
+function PulseSection({ title, eyebrow, body, citations }: { title: string; eyebrow: string; body: string; citations?: PulseCitation[] | null }) {
   if (!body.trim()) return null
   return (
     <article className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
       <div className="text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">{eyebrow}</div>
       <h2 className="mt-1 text-2xl font-black tracking-tight">{title}</h2>
       <p className="mt-4 whitespace-pre-line text-sm font-semibold leading-7 text-neutral-700">{body}</p>
+      <CitationRefs citations={citations ?? null} />
     </article>
+  )
+}
+
+function CitationRefs({ citations, limit = 4 }: { citations: PulseCitation[] | null; limit?: number }) {
+  const refs = (citations ?? []).filter((citation) => citation.url).slice(0, limit)
+  if (!refs.length) return null
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-3">
+      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Referenced sources</span>
+      {refs.map((citation, index) => (
+        <a
+          key={`${citation.url ?? index}`}
+          href={citation.url ?? '#'}
+          onClick={(event) => sourceClick(event, citation.url)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-[#fbfbf7] px-2.5 py-1 text-[10px] font-black text-neutral-700 hover:border-neutral-950"
+        >
+          [{citation.index ?? index + 1}]
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      ))}
+    </div>
   )
 }
 
