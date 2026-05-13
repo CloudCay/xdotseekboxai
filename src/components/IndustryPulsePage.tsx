@@ -12,7 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { INDUSTRY_PAGES, getIndustryPage, type IndustryPageConfig } from '../lib/industryCatalog'
-import { extractHandlesFromText, normalizeXHandle, rankPulseVoices, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
+import { extractHandlesFromText, normalizeXHandle, rankPulseVoices, sortPulseVoiceRankings, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
@@ -132,7 +132,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
   const sections = latest ? splitSections(latest.row.summary ?? '') : []
   const stats = useMemo(() => summarizeRows(derived.history), [derived.history])
   const voiceRankings = useMemo(() => {
-    if (persistedVoices.length) return persistedVoices
+    if (persistedVoices.length) return sortPulseVoiceRankings(persistedVoices, 10)
     const derivedVoices = rankPulseVoices(derived.history.map((row) => row.row), 8)
     return derivedVoices.length ? derivedVoices : seedVoiceRankings(industry)
   }, [derived.history, industry, persistedVoices])
@@ -395,13 +395,24 @@ function deriveIndustryRow(row: PulseRow): DerivedIndustryRow {
 
 function splitSections(summary: string): string[] {
   return summary
-    .split(/(?=^\d+\.\s)/m)
+    .split(/(?=^\s*(?:\*\*)?\s*\d+[.)]\s*(?:\*\*)?)/m)
     .map((part) => cleanSection(part))
     .filter(Boolean)
 }
 
 function cleanSection(section: string): string {
-  return section.replace(/^\d+\.\s*/, '').replace(/\[\[\d+\]\]\([^)]+\)/g, '').replace(/\s+\n/g, '\n').trim()
+  return section
+    .replace(/\[\[\d+\]\]\([^)]+\)/g, '')
+    .replace(/\[(\d+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/^\s*(?:[-+•]\s*)+/, '')
+    .replace(/^\s*#{1,6}\s*/, '')
+    .replace(/^\s*(?:\d+[.)]\s*)+/, '')
+    .replace(/^two-sentence executive summary of the overall mood and what people are talking about\.?\s*/i, '')
+    .replace(/^(?:executive summary|summary)\s*[:.-]\s*/i, '')
+    .replace(/^["“”]+|["“”]+$/g, '')
+    .replace(/\s+\n/g, '\n')
+    .trim()
 }
 
 function summarizeRows(rows: DerivedIndustryRow[]) {

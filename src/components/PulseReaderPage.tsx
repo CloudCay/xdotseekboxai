@@ -12,7 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
-import { rankPulseVoices, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
+import { rankPulseVoices, sortPulseVoiceRankings, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
@@ -94,6 +94,9 @@ const FALLBACK_ROWS: PulseRow[] = [
   },
 ]
 
+const PULSE_ROWS_CACHE_KEY = 'x.seekboxai:pulse-rows:v2'
+const PULSE_CACHE_MAX_AGE_MS = 5 * 60 * 1000
+
 export function PulseReaderPage() {
   const [rows, setRows] = useState<PulseRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -106,26 +109,37 @@ export function PulseReaderPage() {
     let cancelled = false
 
     async function load() {
-      setLoading(true)
+      const cachedRows = readCachedRows()
+      if (cachedRows.length) {
+        setRows(cachedRows)
+        setPersistedVoices(rankPulseVoices(cachedRows, 14))
+        setDataSource('api')
+        setLoading(false)
+      } else {
+        setLoading(true)
+      }
       setError(null)
-      setDataSource(null)
+      if (!cachedRows.length) setDataSource(null)
       const failures: string[] = []
       try {
-        const [apiRows, apiVoices] = await Promise.all([
-          loadRowsFromApi().catch((e) => {
-            failures.push(e instanceof Error ? e.message : 'pulse API failed')
-            return []
-          }),
-          loadVoicesFromApi().catch(() => []),
-        ])
+        const apiRows = await loadRowsFromApi().catch((e) => {
+          failures.push(e instanceof Error ? e.message : 'pulse API failed')
+          return []
+        })
         if (!cancelled && apiRows.length > 0) {
           setRows(apiRows)
-          setPersistedVoices(apiVoices)
+          writeCachedRows(apiRows)
+          setPersistedVoices(rankPulseVoices(apiRows, 14))
           setDataSource('api')
+          setLoading(false)
+
+          void loadVoicesFromApi().then((apiVoices) => {
+            if (!cancelled && apiVoices.length) setPersistedVoices(sortPulseVoiceRankings(apiVoices, 14))
+          })
           return
         }
 
-        if (!cancelled) {
+        if (!cancelled && !cachedRows.length) {
           setRows(FALLBACK_ROWS)
           setPersistedVoices([])
           setDataSource('sample')
@@ -133,9 +147,11 @@ export function PulseReaderPage() {
         }
       } catch (e) {
         if (!cancelled) {
-          setRows(FALLBACK_ROWS)
-          setPersistedVoices([])
-          setDataSource('sample')
+          if (!cachedRows.length) {
+            setRows(FALLBACK_ROWS)
+            setPersistedVoices([])
+            setDataSource('sample')
+          }
           setError(e instanceof Error ? e.message : 'Pulse data could not be loaded.')
         }
       } finally {
@@ -159,7 +175,7 @@ export function PulseReaderPage() {
   const topStories = visible.slice(0, 6)
   const stats = useMemo(() => summarize(visible), [visible])
   const voiceRankings = useMemo(() => {
-    if (selectedLane === 'all' && persistedVoices.length) return persistedVoices
+    if (selectedLane === 'all' && persistedVoices.length) return sortPulseVoiceRankings(persistedVoices, 14)
     return rankPulseVoices(visible.map((pulse) => pulse.row), 10)
   }, [persistedVoices, selectedLane, visible])
   const topicBars = useMemo(() => topTopicTags(visible), [visible])
@@ -382,7 +398,7 @@ export function PulseReaderPage() {
 }
 
 async function loadRowsFromApi(): Promise<PulseRow[]> {
-  const res = await fetch('/api/pulse-runs?limit=500&scope_type=industry')
+  const res = await fetch('/api/pulse-runs?limit=160&scope_type=industry')
   if (!res.ok) throw new Error(`pulse API failed: ${res.status}`)
   const json = (await res.json()) as { rows?: PulseRow[] }
   return cleanRows(json.rows ?? [])
@@ -397,6 +413,28 @@ async function loadVoicesFromApi(): Promise<PulseVoiceRanking[]> {
 
 function cleanRows(rows: PulseRow[]): PulseRow[] {
   return rows.filter((row) => row.summary && row.status !== 'error' && row.scope_type === 'industry' && canonicalIndustry(row))
+}
+
+function readCachedRows(): PulseRow[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.sessionStorage.getItem(PULSE_ROWS_CACHE_KEY)
+    if (!raw) return []
+    const cached = JSON.parse(raw) as { rows?: PulseRow[]; savedAt?: number }
+    if (!cached.savedAt || Date.now() - cached.savedAt > PULSE_CACHE_MAX_AGE_MS) return []
+    return cleanRows(cached.rows ?? [])
+  } catch {
+    return []
+  }
+}
+
+function writeCachedRows(rows: PulseRow[]) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(PULSE_ROWS_CACHE_KEY, JSON.stringify({ rows: rows.slice(0, 160), savedAt: Date.now() }))
+  } catch {
+    // Best-effort cache only; the reader still works without sessionStorage.
+  }
 }
 
 function derivePulseSet(rows: PulseRow[]) {
@@ -466,13 +504,24 @@ function derivePulse(row: PulseRow): DerivedPulse {
 
 function splitSections(summary: string): string[] {
   return summary
-    .split(/(?=^\d+\.\s)/m)
+    .split(/(?=^\s*(?:\*\*)?\s*\d+[.)]\s*(?:\*\*)?)/m)
     .map((part) => part.trim())
     .filter(Boolean)
 }
 
 function cleanSection(section: string): string {
-  return section.replace(/^\d+\.\s*/, '').replace(/\[\[\d+\]\]\([^)]+\)/g, '').replace(/\s+/g, ' ').trim()
+  return section
+    .replace(/\[\[\d+\]\]\([^)]+\)/g, '')
+    .replace(/\[(\d+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/^\s*(?:[-+•]\s*)+/, '')
+    .replace(/^\s*#{1,6}\s*/, '')
+    .replace(/^\s*(?:\d+[.)]\s*)+/, '')
+    .replace(/^two-sentence executive summary of the overall mood and what people are talking about\.?\s*/i, '')
+    .replace(/^(?:executive summary|summary)\s*[:.-]\s*/i, '')
+    .replace(/^["“”]+|["“”]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function firstSentence(text: string): string {

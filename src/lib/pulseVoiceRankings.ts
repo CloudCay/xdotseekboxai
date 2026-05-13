@@ -154,9 +154,15 @@ export function rankPulseVoices(rows: PulseRowLike[], limit = 12): PulseVoiceRan
     }
   }
 
-  return Array.from(voices.values())
-    .map(finalizeVoice)
+  return sortPulseVoiceRankings(Array.from(voices.values()).map(finalizeVoice), limit)
+}
+
+export function sortPulseVoiceRankings(voices: PulseVoiceRanking[], limit = voices.length): PulseVoiceRanking[] {
+  return [...voices]
     .sort((a, b) => {
+      if (b.citationCount !== a.citationCount) return b.citationCount - a.citationCount
+      if (b.seenCount !== a.seenCount) return b.seenCount - a.seenCount
+      if (b.summaryMentionCount !== a.summaryMentionCount) return b.summaryMentionCount - a.summaryMentionCount
       if (b.rankScore !== a.rankScore) return b.rankScore - a.rankScore
       if (b.noveltyScore !== a.noveltyScore) return b.noveltyScore - a.noveltyScore
       return a.displayHandle.localeCompare(b.displayHandle)
@@ -249,7 +255,7 @@ function finalizeVoice(voice: MutableVoice): PulseVoiceRanking {
     scopeType: voice.scopeType,
     scopeValue: voice.scopeValue,
     source,
-    rankScore: clamp(score, 1, 100),
+    rankScore: clamp(score, 1, 999),
     heatScore: clamp(voice.heatScore + recency, 1, 100),
     noveltyScore: novelty,
     seenCount: voice.seenCount,

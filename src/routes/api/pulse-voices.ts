@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { scopeValuesForIndustrySlug } from '../../lib/industryCatalog'
-import { rankPulseVoices, type PulseRowLike, type PulseVoiceRanking, type PulseVoiceSource } from '../../lib/pulseVoiceRankings'
+import { rankPulseVoices, sortPulseVoiceRankings, type PulseRowLike, type PulseVoiceRanking, type PulseVoiceSource } from '../../lib/pulseVoiceRankings'
 
 const PUBLIC_PULSE_SELECT = [
   'id',
@@ -58,7 +58,7 @@ export const Route = createFileRoute('/api/pulse-voices')({
 
         const persisted = await fetchPersistedVoices({ ...env, scopeType, scopeValue, limit })
         if (persisted.ok && persisted.voices.length) {
-          return json({ voices: persisted.voices.map(publicVoice), source: 'rankings', generatedAt: new Date().toISOString() })
+          return json({ voices: sortPulseVoiceRankings(persisted.voices.map(publicVoice), limit), source: 'rankings', generatedAt: new Date().toISOString() })
         }
 
         const rows = await fetchPulseRowsForVoices({ ...env, scopeType, scopeValue, limit: 500 })
@@ -124,7 +124,7 @@ async function fetchPersistedVoices(args: {
     const scopeValues = args.scopeType === 'industry' ? scopeValuesForIndustrySlug(args.scopeValue) : [args.scopeValue]
     endpoint.searchParams.set('scope_value', scopeValues.length > 1 ? `in.(${scopeValues.join(',')})` : `eq.${scopeValues[0]}`)
   }
-  endpoint.searchParams.set('order', 'rank_score.desc,last_seen_at.desc')
+  endpoint.searchParams.set('order', 'citation_count.desc,seen_count.desc,rank_score.desc,last_seen_at.desc')
   endpoint.searchParams.set('limit', String(args.limit))
 
   const res = await fetch(endpoint, { headers: args.headers, signal: AbortSignal.timeout(8_000) }).catch(() => null)
@@ -189,7 +189,7 @@ function sanitizePersistedVoices(value: unknown): PulseVoiceRanking[] {
         scopeType,
         scopeValue,
         source,
-        rankScore: cleanNumber(obj.rank_score, 0, 100),
+        rankScore: cleanNumber(obj.rank_score, 0, 1000),
         heatScore: cleanNumber(obj.heat_score, 0, 100),
         noveltyScore: cleanNumber(obj.novelty_score, 0, 100),
         seenCount: cleanNumber(obj.seen_count, 0, 10000),
