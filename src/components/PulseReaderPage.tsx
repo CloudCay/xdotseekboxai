@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
 import { rankPulseVoices, sortPulseVoiceRankings, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
-import { normalizePulseTopicTags, pulseTopicHref } from '../lib/pulseTopics'
+import { inferPulseTopicTags, pulseTopicHref } from '../lib/pulseTopics'
 import { openSourcePopup } from '../lib/sourcePopup'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
@@ -317,7 +317,14 @@ export function PulseReaderPage() {
           <ChartPanel title="Heat leaderboard" icon={<BarChart3 className="h-5 w-5" />}>
             <div className="space-y-3">
               {visible.length ? (
-                visible.slice(0, 7).map((pulse) => <ScoreBar key={pulse.row.id} label={pulse.scopeLabel} value={pulse.heat} />)
+                visible.slice(0, 7).map((pulse) => (
+                  <ScoreBar
+                    key={pulse.row.id}
+                    label={pulse.scopeLabel}
+                    value={pulse.heat}
+                    href={industryTargetForPulse(pulse)?.href}
+                  />
+                ))
               ) : (
                 <EmptyChart label="Waiting for industry rows" />
               )}
@@ -483,7 +490,7 @@ function derivePulse(row: PulseRow): DerivedPulse {
   const canonical = canonicalIndustry(row)
   const scopeKey = canonical?.key ?? `${row.scope_type ?? 'pulse'}:${row.scope_value ?? row.id}`
   const scopeLabel = canonical?.label ?? labelScope(row.scope_value ?? row.scope_type ?? 'Pulse')
-  const tags = normalizeTags(row.tags, row.scope_type)
+  const tags = normalizeTags(row.tags, row.scope_type, summary)
   const handles = extractHandles(row)
   const headline = firstSentence(cleanSection(sections[0] ?? summary)) || `${scopeLabel} pulse is moving`
   const dek = secondSentence(cleanSection(sections[0] ?? summary)) || cleanSection(sections[1] ?? summary).slice(0, 180)
@@ -578,9 +585,9 @@ function canonicalIndustry(row: PulseRow): { key: string; label: string } | null
   return null
 }
 
-function normalizeTags(tags: string[] | null, scopeType: string | null): string[] {
+function normalizeTags(tags: string[] | null, scopeType: string | null, summary: string): string[] {
   void scopeType
-  return normalizePulseTopicTags(tags).slice(0, 6)
+  return inferPulseTopicTags(tags, summary).slice(0, 6)
 }
 
 function extractHandles(row: PulseRow): string[] {
@@ -626,9 +633,12 @@ function heatScore(
   dissent: number,
 ): number {
   const ageHours = Math.max(0, (Date.now() - new Date(row.created_at).getTime()) / 3600000)
-  const freshness = clamp(22 - ageHours * 0.8, 0, 22)
-  const summaryWeight = Math.min(((row.summary ?? '').length / 3200) * 16, 16)
-  return clamp(28 + citationCount * 4 + freshness + summaryWeight + novelty * 0.12 + dissent * 0.08, 10, 99)
+  const citationBoost = Math.min(Math.log2(citationCount + 1) * 7, 26)
+  const freshness = clamp(18 - ageHours * 0.6, 0, 18)
+  const summaryWeight = Math.min(((row.summary ?? '').length / 3600) * 12, 12)
+  const signalBlend = novelty * 0.11 + dissent * 0.08
+  const exceptionalBoost = citationCount >= 40 && ageHours < 6 ? 3 : 0
+  return clamp(18 + citationBoost + freshness + summaryWeight + signalBlend + exceptionalBoost, 8, 99)
 }
 
 function laneFor(scopeType: string | null, scopeValue: string | null, tags: string[]): string {
@@ -918,17 +928,29 @@ function ChartPanel({ title, icon, children }: { title: string; icon: ReactNode;
   )
 }
 
-function ScoreBar({ label, value, max = 100 }: { label: string; value: number; max?: number }) {
+function ScoreBar({ label, value, max = 100, href }: { label: string; value: number; max?: number; href?: string }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
-  return (
-    <div>
+  const body = (
+    <>
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
-        <span className="truncate text-neutral-700">{label}</span>
+        <span className="truncate text-neutral-700 group-hover:text-neutral-950">{label}</span>
         <span className="text-neutral-500">{value}</span>
       </div>
       <div className="h-2 bg-neutral-100">
         <div className="h-full bg-neutral-950" style={{ width: `${pct}%` }} />
       </div>
+    </>
+  )
+  if (href) {
+    return (
+      <a href={href} className="block group">
+        {body}
+      </a>
+    )
+  }
+  return (
+    <div className="group">
+      {body}
     </div>
   )
 }

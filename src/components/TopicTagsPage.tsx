@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { Activity, AlertTriangle, ArrowRight, ExternalLink, Hash, Newspaper, Search, TrendingUp } from 'lucide-react'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
-import { normalizePulseTopicTags, pulseTopicLabel, pulseTopicSlug } from '../lib/pulseTopics'
+import { inferPulseTopicTags, pulseTopicLabel, pulseTopicSlug } from '../lib/pulseTopics'
 import { openSourcePopup } from '../lib/sourcePopup'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
@@ -43,19 +43,6 @@ type TopicSummary = {
   industries: Array<{ label: string; href: string; count: number }>
   briefs: TopicBrief[]
 }
-
-const KEYWORD_TOPICS: Array<{ label: string; match: RegExp }> = [
-  { label: 'AI', match: /\b(ai|artificial intelligence|agentic|model|models|automation)\b/i },
-  { label: 'Dissent', match: /\b(dissent|pushback|push back|skeptic|critical|risk|warning|backlash)\b/i },
-  { label: 'Policy', match: /\b(policy|regulation|regulatory|government|public sector|agency|compliance)\b/i },
-  { label: 'Market Sentiment', match: /\b(market|markets|investor|capital|rate|rates|price|pricing|stock|equity)\b/i },
-  { label: 'Consumer Demand', match: /\b(customer|customers|consumer|buyers|demand|adoption)\b/i },
-  { label: 'Launches', match: /\b(launch|launched|release|released|new product|rollout|shipping)\b/i },
-  { label: 'Trust', match: /\b(trust|safety|evidence|credibility|privacy|security)\b/i },
-  { label: 'Labor', match: /\b(labor|jobs|hiring|workforce|workers|creator|creators)\b/i },
-  { label: 'Climate', match: /\b(climate|energy|grid|sustainability|renewable|emissions)\b/i },
-  { label: 'Live Events', match: /\b(playoff|election|conference|trial|lottery|event|summit|season)\b/i },
-]
 
 export function TopicTagsPage({ tagSlug }: { tagSlug?: string }) {
   const [rows, setRows] = useState<PulseRow[]>([])
@@ -398,12 +385,7 @@ function buildTopicIndex(rows: PulseRow[]): TopicSummary[] {
 }
 
 function topicTagsForRow(row: PulseRow): string[] {
-  const tags = new Set(normalizePulseTopicTags(row.tags))
-  const summary = row.summary ?? ''
-  for (const topic of KEYWORD_TOPICS) {
-    if (topic.match.test(summary)) tags.add(topic.label)
-  }
-  return Array.from(tags).slice(0, 8)
+  return inferPulseTopicTags(row.tags, row.summary).slice(0, 8)
 }
 
 function briefFromRow(row: PulseRow): TopicBrief {
