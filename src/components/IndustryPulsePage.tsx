@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { INDUSTRY_PAGES, getIndustryPage, type IndustryPageConfig } from '../lib/industryCatalog'
+import { extractHandlesFromText, normalizeXHandle, rankPulseVoices, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
@@ -91,6 +92,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [source, setSource] = useState<DataSource>('empty')
+  const [persistedVoices, setPersistedVoices] = useState<PulseVoiceRanking[]>([])
 
   useEffect(() => {
     if (!industry) return
@@ -100,13 +102,18 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
       setLoading(true)
       setError(null)
       try {
-        const next = await loadIndustryRows(industry.slug)
+        const [next, voices] = await Promise.all([
+          loadIndustryRows(industry.slug),
+          loadIndustryVoices(industry.slug).catch(() => []),
+        ])
         if (cancelled) return
         setRows(next)
+        setPersistedVoices(voices)
         setSource(next.length ? 'api' : 'empty')
       } catch (e) {
         if (cancelled) return
         setRows([])
+        setPersistedVoices([])
         setSource('empty')
         setError(e instanceof Error ? e.message : 'Industry pulse rows could not be loaded.')
       } finally {
@@ -124,6 +131,11 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
   const latest = derived.latest
   const sections = latest ? splitSections(latest.row.summary ?? '') : []
   const stats = useMemo(() => summarizeRows(derived.history), [derived.history])
+  const voiceRankings = useMemo(() => {
+    if (persistedVoices.length) return persistedVoices
+    const derivedVoices = rankPulseVoices(derived.history.map((row) => row.row), 8)
+    return derivedVoices.length ? derivedVoices : seedVoiceRankings(industry)
+  }, [derived.history, industry, persistedVoices])
   const questions = industry?.questions ?? []
 
   if (!industry) {
@@ -223,10 +235,10 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
             </div>
           </ChartPanel>
 
-          <ChartPanel title="Top voices" icon={<TrendingUp className="h-5 w-5" />}>
+          <ChartPanel title="Rising voices" icon={<TrendingUp className="h-5 w-5" />}>
             <div className="space-y-3">
-              {topVoices(derived.history, industry).map((voice) => (
-                <ScoreBar key={voice.label} label={`@${voice.label}`} value={voice.value} max={1} />
+              {voiceRankings.map((voice) => (
+                <VoiceRankBar key={`${voice.scopeKey}-${voice.handle}`} voice={voice} max={voiceRankings[0]?.rankScore ?? 1} />
               ))}
             </div>
           </ChartPanel>
@@ -292,6 +304,13 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
             Search live
             <Search className="h-4 w-4" />
           </a>
+          <a
+            href={antiEchoUrl(latest, industry)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-5 py-3 text-sm font-black text-white"
+          >
+            Find dissent
+            <ArrowRight className="h-4 w-4" />
+          </a>
         </div>
       </section>
     </main>
@@ -316,6 +335,9 @@ function IndustryHeader() {
           <a href="/industries" className="rounded-lg bg-neutral-950 px-4 py-2 text-white">
             Industries
           </a>
+          <a href="/labs" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
+            Intel
+          </a>
           <a href="/ticker" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
             Ticker
           </a>
@@ -335,9 +357,16 @@ async function loadIndustryRows(slug: string): Promise<PulseRow[]> {
   return (json.rows ?? []).filter((row) => row.summary && row.status !== 'error')
 }
 
+async function loadIndustryVoices(slug: string): Promise<PulseVoiceRanking[]> {
+  const res = await fetch(`/api/pulse-voices?limit=10&scope_type=industry&scope_value=${encodeURIComponent(slug)}`)
+  if (!res.ok) return []
+  const json = (await res.json()) as { voices?: PulseVoiceRanking[] }
+  return Array.isArray(json.voices) ? json.voices : []
+}
+
 function deriveIndustryRows(rows: PulseRow[], industry: IndustryPageConfig | null) {
   if (!industry) return { latest: null as DerivedIndustryRow | null, history: [] as DerivedIndustryRow[] }
-  const history = rows.map((row) => deriveIndustryRow(row, industry)).sort((a, b) => new Date(a.row.created_at).getTime() - new Date(b.row.created_at).getTime())
+  const history = rows.map((row) => deriveIndustryRow(row)).sort((a, b) => new Date(a.row.created_at).getTime() - new Date(b.row.created_at).getTime())
   return { latest: history[history.length - 1] ?? null, history }
 }
 
@@ -348,9 +377,15 @@ type DerivedIndustryRow = {
   handles: string[]
 }
 
-function deriveIndustryRow(row: PulseRow, industry: IndustryPageConfig): DerivedIndustryRow {
+function deriveIndustryRow(row: PulseRow): DerivedIndustryRow {
   const citationCount = Array.isArray(row.citations) ? row.citations.length : 0
-  const handles = Array.from(new Set([...(row.handles ?? []), ...industry.handles])).slice(0, 12)
+  const handles = Array.from(
+    new Set(
+      [...(row.handles ?? []), ...extractHandlesFromText(row.summary)]
+        .map((handle) => normalizeXHandle(handle))
+        .filter((handle): handle is string => Boolean(handle)),
+    ),
+  ).slice(0, 12)
   const ageHours = Math.max(0, (Date.now() - new Date(row.created_at).getTime()) / 3600000)
   const freshness = clamp(26 - ageHours * 0.9, 0, 26)
   const summaryWeight = Math.min(((row.summary ?? '').length / 3000) * 18, 18)
@@ -380,18 +415,6 @@ function summarizeRows(rows: DerivedIndustryRow[]) {
   }
 }
 
-function topVoices(rows: DerivedIndustryRow[], industry: IndustryPageConfig) {
-  const counts = new Map<string, number>()
-  for (const row of rows) {
-    for (const handle of row.handles) counts.set(handle, (counts.get(handle) ?? 0) + 1)
-  }
-  if (!counts.size) for (const handle of industry.handles) counts.set(handle, 1)
-  return Array.from(counts.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8)
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.round(Math.min(max, Math.max(min, value)))
 }
@@ -410,6 +433,38 @@ function formatAge(createdAt: string): string {
 function searchUrl(industry: IndustryPageConfig, question: string) {
   const query = `${industry.label} X pulse: ${question}. Include recent X posts, sentiment, dissent, and citations.`
   return `/cleanseek-x?q=${encodeURIComponent(query)}&latest=1&preset=web&autorun=1`
+}
+
+function antiEchoUrl(latest: DerivedIndustryRow | null, industry: IndustryPageConfig): string {
+  const fallback = `${industry.label} consensus is moving in one direction this week.`
+  const sections = latest ? splitSections(latest.row.summary ?? '') : []
+  const claim = (sections[0] || latest?.row.summary || fallback).replace(/\s+/g, ' ').trim().slice(0, 600)
+  return `/labs/anti-echo?claim=${encodeURIComponent(claim)}`
+}
+
+function seedVoiceRankings(industry: IndustryPageConfig): PulseVoiceRanking[] {
+  return industry.handles.slice(0, 8).map((handle, index) => {
+    const normalized = normalizeXHandle(handle) ?? handle
+    return {
+      handle: normalized.toLowerCase(),
+      displayHandle: normalized,
+      scopeKey: `industry:${industry.slug}`,
+      scopeType: 'industry',
+      scopeValue: industry.slug,
+      source: 'seed',
+      rankScore: Math.max(1, 8 - index),
+      heatScore: 0,
+      noveltyScore: 0,
+      seenCount: 0,
+      seedCount: 1,
+      citationCount: 0,
+      summaryMentionCount: 0,
+      firstSeenAt: new Date().toISOString(),
+      lastSeenAt: new Date().toISOString(),
+      sampleUrls: [],
+      sampleContexts: [],
+    }
+  })
 }
 
 function MiniMetric({ label, value, text = false }: { label: string; value: number | string; text?: boolean }) {
@@ -494,16 +549,26 @@ function EmptyState({ industry, loading }: { industry: IndustryPageConfig; loadi
   )
 }
 
-function ScoreBar({ label, value, max = 100 }: { label: string; value: number; max?: number }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
+function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number }) {
+  const pct = max > 0 ? Math.min(100, Math.round((voice.rankScore / max) * 100)) : 0
+  const badge =
+    voice.source === 'discovered'
+      ? 'bg-cyan-50 text-cyan-900 border-cyan-200'
+      : voice.source === 'mixed'
+        ? 'bg-amber-50 text-amber-900 border-amber-200'
+        : 'bg-neutral-100 text-neutral-700 border-neutral-300'
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
-        <span className="truncate text-neutral-700">{label}</span>
-        <span className="text-neutral-500">{value}</span>
+        <span className="min-w-0 truncate text-neutral-700">@{voice.displayHandle}</span>
+        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wide ${badge}`}>{voice.source}</span>
       </div>
       <div className="h-2 bg-neutral-100">
         <div className="h-full bg-neutral-950" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-1 flex items-center justify-between text-[10px] font-bold text-neutral-500">
+        <span>{voice.seenCount ? `${voice.seenCount} runs` : 'seed'} · {voice.citationCount} cites</span>
+        <span>{voice.rankScore}</span>
       </div>
     </div>
   )

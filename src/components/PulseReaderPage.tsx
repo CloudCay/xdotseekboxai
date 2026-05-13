@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
-  ArrowRight,
   BarChart3,
   ExternalLink,
   Flame,
@@ -13,6 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
+import { rankPulseVoices, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
 import { SeekBoxLogo } from './SeekBoxLogo'
 
 type PulseCitation = {
@@ -100,6 +100,7 @@ export function PulseReaderPage() {
   const [error, setError] = useState<string | null>(null)
   const [dataSource, setDataSource] = useState<DataSource | null>(null)
   const [selectedLane, setSelectedLane] = useState<string>('all')
+  const [persistedVoices, setPersistedVoices] = useState<PulseVoiceRanking[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -110,24 +111,30 @@ export function PulseReaderPage() {
       setDataSource(null)
       const failures: string[] = []
       try {
-        const apiRows = await loadRowsFromApi().catch((e) => {
-          failures.push(e instanceof Error ? e.message : 'pulse API failed')
-          return []
-        })
+        const [apiRows, apiVoices] = await Promise.all([
+          loadRowsFromApi().catch((e) => {
+            failures.push(e instanceof Error ? e.message : 'pulse API failed')
+            return []
+          }),
+          loadVoicesFromApi().catch(() => []),
+        ])
         if (!cancelled && apiRows.length > 0) {
           setRows(apiRows)
+          setPersistedVoices(apiVoices)
           setDataSource('api')
           return
         }
 
         if (!cancelled) {
           setRows(FALLBACK_ROWS)
+          setPersistedVoices([])
           setDataSource('sample')
           if (failures.length) setError(failures.join(' · '))
         }
       } catch (e) {
         if (!cancelled) {
           setRows(FALLBACK_ROWS)
+          setPersistedVoices([])
           setDataSource('sample')
           setError(e instanceof Error ? e.message : 'Pulse data could not be loaded.')
         }
@@ -151,7 +158,10 @@ export function PulseReaderPage() {
   const hero = visible[0] ?? pulses.latest[0]
   const topStories = visible.slice(0, 6)
   const stats = useMemo(() => summarize(visible), [visible])
-  const voiceBars = useMemo(() => topVoices(visible), [visible])
+  const voiceRankings = useMemo(() => {
+    if (selectedLane === 'all' && persistedVoices.length) return persistedVoices
+    return rankPulseVoices(visible.map((pulse) => pulse.row), 10)
+  }, [persistedVoices, selectedLane, visible])
   const topicBars = useMemo(() => topTopicTags(visible), [visible])
   const source = sourceCopy(dataSource, loading)
 
@@ -176,6 +186,9 @@ export function PulseReaderPage() {
               </a>
               <a href="/industries" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
                 Industries
+              </a>
+              <a href="/labs" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
+                Intel
               </a>
               <a href="/cleanseek-x" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
                 Search live
@@ -287,10 +300,12 @@ export function PulseReaderPage() {
             <MoodStack pulses={visible} />
           </ChartPanel>
 
-          <ChartPanel title="Top voices" icon={<Sparkles className="h-5 w-5" />}>
+          <ChartPanel title="Rising voices" icon={<Sparkles className="h-5 w-5" />}>
             <div className="space-y-3">
-              {voiceBars.length ? (
-                voiceBars.map((v) => <ScoreBar key={v.label} label={`@${v.label}`} value={v.value} max={voiceBars[0]?.value ?? 1} />)
+              {voiceRankings.length ? (
+                voiceRankings.map((voice) => (
+                  <VoiceRankBar key={`${voice.scopeKey}-${voice.handle}`} voice={voice} max={voiceRankings[0]?.rankScore ?? 1} />
+                ))
               ) : (
                 <EmptyChart label="No handles found yet" />
               )}
@@ -304,8 +319,8 @@ export function PulseReaderPage() {
           <div>
             <SectionHeader eyebrow="Trending model" title="Charts from the data we already have" />
             <p className="max-w-2xl text-sm font-medium leading-7 text-neutral-600">
-              These charts are derived from cached industry rows today. When the Worker starts writing structured
-              topic scores, the same panels can become real trend charts instead of heuristics.
+              These charts are derived from cached industry rows today. Voice rankings now separate seed handles
+              from discovered accounts so the pulse can learn who keeps appearing over time.
             </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               <MiniMetric label="Freshest" value={formatAge(stats.freshest)} text />
@@ -371,6 +386,13 @@ async function loadRowsFromApi(): Promise<PulseRow[]> {
   if (!res.ok) throw new Error(`pulse API failed: ${res.status}`)
   const json = (await res.json()) as { rows?: PulseRow[] }
   return cleanRows(json.rows ?? [])
+}
+
+async function loadVoicesFromApi(): Promise<PulseVoiceRanking[]> {
+  const res = await fetch('/api/pulse-voices?limit=14&scope_type=industry')
+  if (!res.ok) return []
+  const json = (await res.json()) as { voices?: PulseVoiceRanking[] }
+  return Array.isArray(json.voices) ? json.voices : []
 }
 
 function cleanRows(rows: PulseRow[]): PulseRow[] {
@@ -562,6 +584,29 @@ function laneFor(scopeType: string | null, scopeValue: string | null, tags: stri
   return scopeType === 'industry' ? 'industries' : 'watchlist'
 }
 
+function antiEchoUrl(pulse: DerivedPulse): string {
+  return `/labs/anti-echo?claim=${encodeURIComponent(actionClaim(pulse))}`
+}
+
+function liveSearchUrl(pulse: DerivedPulse): string {
+  const query = `${pulse.scopeLabel} X pulse: ${pulse.headline}. Include recent posts, dissent, source links, and what changed.`
+  return `/cleanseek-x?q=${encodeURIComponent(query)}&latest=1&preset=web&autorun=1`
+}
+
+function postRoomUrl(pulse: DerivedPulse): string {
+  return `/labs/post-room?input=${encodeURIComponent(`${pulse.scopeLabel}: ${pulse.headline}`.slice(0, 500))}`
+}
+
+function battleUrl(pulse: DerivedPulse): string | null {
+  const handles = Array.from(new Set(pulse.handles.map((handle) => handle.replace(/^@/, '').trim()).filter(Boolean)))
+  if (handles.length < 2) return null
+  return `/labs/x-battle?a=${encodeURIComponent(handles[0])}&b=${encodeURIComponent(handles[1])}&window=7d`
+}
+
+function actionClaim(pulse: DerivedPulse): string {
+  return `${pulse.headline} ${pulse.dek}`.replace(/\s+/g, ' ').trim().slice(0, 600)
+}
+
 function sourceCopy(source: DataSource | null, loading: boolean): { label: string; dot: string } {
   if (loading) return { label: 'LOADING SEEKBOX CACHE', dot: 'bg-amber-400' }
   if (source === 'api') return { label: 'LIVE SEEKBOX CACHE', dot: 'bg-emerald-500' }
@@ -606,17 +651,6 @@ function summarize(pulses: DerivedPulse[]) {
     hottest,
     freshest,
   }
-}
-
-function topVoices(pulses: DerivedPulse[]) {
-  const counts = new Map<string, number>()
-  for (const pulse of pulses) {
-    for (const h of pulse.handles) counts.set(h, (counts.get(h) ?? 0) + 1)
-  }
-  return Array.from(counts.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 7)
 }
 
 function topTopicTags(pulses: DerivedPulse[]) {
@@ -704,6 +738,7 @@ function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
           </span>
         ))}
       </div>
+      <PulseActions pulse={pulse} />
     </article>
   )
 }
@@ -743,6 +778,7 @@ function BriefCard({ pulse }: { pulse: DerivedPulse }) {
             </a>
           ))}
         </div>
+        <PulseActions pulse={pulse} compact />
       </div>
     </article>
   )
@@ -771,6 +807,56 @@ function ScoreBar({ label, value, max = 100 }: { label: string; value: number; m
       <div className="h-2 bg-neutral-100">
         <div className="h-full bg-neutral-950" style={{ width: `${pct}%` }} />
       </div>
+    </div>
+  )
+}
+
+function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number }) {
+  const pct = max > 0 ? Math.min(100, Math.round((voice.rankScore / max) * 100)) : 0
+  const badge =
+    voice.source === 'discovered'
+      ? 'bg-cyan-50 text-cyan-900 border-cyan-200'
+      : voice.source === 'mixed'
+        ? 'bg-amber-50 text-amber-900 border-amber-200'
+        : 'bg-neutral-100 text-neutral-700 border-neutral-300'
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
+        <span className="min-w-0 truncate text-neutral-700">@{voice.displayHandle}</span>
+        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wide ${badge}`}>{voice.source}</span>
+      </div>
+      <div className="h-2 bg-neutral-100">
+        <div className="h-full bg-neutral-950" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-1 flex items-center justify-between text-[10px] font-bold text-neutral-500">
+        <span>{voice.seenCount} runs · {voice.citationCount} cites</span>
+        <span>{voice.rankScore}</span>
+      </div>
+    </div>
+  )
+}
+
+function PulseActions({ pulse, compact = false }: { pulse: DerivedPulse; compact?: boolean }) {
+  const battle = battleUrl(pulse)
+  const linkClass = compact
+    ? 'rounded-full border border-neutral-300 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-neutral-600 hover:border-neutral-950'
+    : 'rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-xs font-black text-neutral-700 hover:border-neutral-950'
+  return (
+    <div className={`flex flex-wrap gap-2 ${compact ? 'mt-3' : 'mt-5 border-t border-neutral-200 pt-4'}`}>
+      <a href={antiEchoUrl(pulse)} className={linkClass}>
+        Find dissent
+      </a>
+      <a href={liveSearchUrl(pulse)} className={linkClass}>
+        Search live
+      </a>
+      <a href={postRoomUrl(pulse)} className={linkClass}>
+        Room read
+      </a>
+      {battle ? (
+        <a href={battle} className={linkClass}>
+          Battle voices
+        </a>
+      ) : null}
     </div>
   )
 }

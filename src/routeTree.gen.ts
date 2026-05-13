@@ -24,7 +24,12 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LabsIndexRouteImport } from './routes/labs/index'
 import { Route as IndustriesIndexRouteImport } from './routes/industries/index'
+import { Route as LabsXBattleRouteImport } from './routes/labs/x-battle'
+import { Route as LabsPostRoomRouteImport } from './routes/labs/post-room'
+import { Route as LabsMatrixRouteImport } from './routes/labs/matrix'
+import { Route as LabsAntiEchoRouteImport } from './routes/labs/anti-echo'
 import { Route as IndustriesVerticalRouteImport } from './routes/industries/$vertical'
 import { Route as CleanseekXRabbitholexRouteImport } from './routes/cleanseek-x/rabbitholex'
 import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
@@ -32,7 +37,11 @@ import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desk
 import { Route as ApiUnusualWhalesRouteImport } from './routes/api/unusual-whales'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
 import { Route as ApiSecondOpinionRouteImport } from './routes/api/second-opinion'
+import { Route as ApiPulseVoicesRouteImport } from './routes/api/pulse-voices'
 import { Route as ApiPulseRunsRouteImport } from './routes/api/pulse-runs'
+import { Route as ApiXIntelXBattleRouteImport } from './routes/api/x-intel/x-battle'
+import { Route as ApiXIntelPostRoomRouteImport } from './routes/api/x-intel/post-room'
+import { Route as ApiXIntelAntiEchoRouteImport } from './routes/api/x-intel/anti-echo'
 
 const XmarksRoute = XmarksRouteImport.update({
   id: '/xmarks',
@@ -109,9 +118,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LabsIndexRoute = LabsIndexRouteImport.update({
+  id: '/labs/',
+  path: '/labs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndustriesIndexRoute = IndustriesIndexRouteImport.update({
   id: '/industries/',
   path: '/industries/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsXBattleRoute = LabsXBattleRouteImport.update({
+  id: '/labs/x-battle',
+  path: '/labs/x-battle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsPostRoomRoute = LabsPostRoomRouteImport.update({
+  id: '/labs/post-room',
+  path: '/labs/post-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsMatrixRoute = LabsMatrixRouteImport.update({
+  id: '/labs/matrix',
+  path: '/labs/matrix',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsAntiEchoRoute = LabsAntiEchoRouteImport.update({
+  id: '/labs/anti-echo',
+  path: '/labs/anti-echo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndustriesVerticalRoute = IndustriesVerticalRouteImport.update({
@@ -149,9 +183,29 @@ const ApiSecondOpinionRoute = ApiSecondOpinionRouteImport.update({
   path: '/api/second-opinion',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPulseVoicesRoute = ApiPulseVoicesRouteImport.update({
+  id: '/api/pulse-voices',
+  path: '/api/pulse-voices',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPulseRunsRoute = ApiPulseRunsRouteImport.update({
   id: '/api/pulse-runs',
   path: '/api/pulse-runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiXIntelXBattleRoute = ApiXIntelXBattleRouteImport.update({
+  id: '/api/x-intel/x-battle',
+  path: '/api/x-intel/x-battle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiXIntelPostRoomRoute = ApiXIntelPostRoomRouteImport.update({
+  id: '/api/x-intel/post-room',
+  path: '/api/x-intel/post-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiXIntelAntiEchoRoute = ApiXIntelAntiEchoRouteImport.update({
+  id: '/api/x-intel/anti-echo',
+  path: '/api/x-intel/anti-echo',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -172,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
+  '/api/pulse-voices': typeof ApiPulseVoicesRoute
   '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
@@ -179,7 +234,15 @@ export interface FileRoutesByFullPath {
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
   '/industries/$vertical': typeof IndustriesVerticalRoute
+  '/labs/anti-echo': typeof LabsAntiEchoRoute
+  '/labs/matrix': typeof LabsMatrixRoute
+  '/labs/post-room': typeof LabsPostRoomRoute
+  '/labs/x-battle': typeof LabsXBattleRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/labs/': typeof LabsIndexRoute
+  '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
+  '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
+  '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,6 +261,7 @@ export interface FileRoutesByTo {
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
+  '/api/pulse-voices': typeof ApiPulseVoicesRoute
   '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
@@ -205,7 +269,15 @@ export interface FileRoutesByTo {
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
   '/industries/$vertical': typeof IndustriesVerticalRoute
+  '/labs/anti-echo': typeof LabsAntiEchoRoute
+  '/labs/matrix': typeof LabsMatrixRoute
+  '/labs/post-room': typeof LabsPostRoomRoute
+  '/labs/x-battle': typeof LabsXBattleRoute
   '/industries': typeof IndustriesIndexRoute
+  '/labs': typeof LabsIndexRoute
+  '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
+  '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
+  '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -225,6 +297,7 @@ export interface FileRoutesById {
   '/ticker': typeof TickerRoute
   '/xmarks': typeof XmarksRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
+  '/api/pulse-voices': typeof ApiPulseVoicesRoute
   '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
@@ -232,7 +305,15 @@ export interface FileRoutesById {
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
   '/industries/$vertical': typeof IndustriesVerticalRoute
+  '/labs/anti-echo': typeof LabsAntiEchoRoute
+  '/labs/matrix': typeof LabsMatrixRoute
+  '/labs/post-room': typeof LabsPostRoomRoute
+  '/labs/x-battle': typeof LabsXBattleRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/labs/': typeof LabsIndexRoute
+  '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
+  '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
+  '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -253,6 +334,7 @@ export interface FileRouteTypes {
     | '/ticker'
     | '/xmarks'
     | '/api/pulse-runs'
+    | '/api/pulse-voices'
     | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
@@ -260,7 +342,15 @@ export interface FileRouteTypes {
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
     | '/industries/$vertical'
+    | '/labs/anti-echo'
+    | '/labs/matrix'
+    | '/labs/post-room'
+    | '/labs/x-battle'
     | '/industries/'
+    | '/labs/'
+    | '/api/x-intel/anti-echo'
+    | '/api/x-intel/post-room'
+    | '/api/x-intel/x-battle'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -279,6 +369,7 @@ export interface FileRouteTypes {
     | '/ticker'
     | '/xmarks'
     | '/api/pulse-runs'
+    | '/api/pulse-voices'
     | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
@@ -286,7 +377,15 @@ export interface FileRouteTypes {
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
     | '/industries/$vertical'
+    | '/labs/anti-echo'
+    | '/labs/matrix'
+    | '/labs/post-room'
+    | '/labs/x-battle'
     | '/industries'
+    | '/labs'
+    | '/api/x-intel/anti-echo'
+    | '/api/x-intel/post-room'
+    | '/api/x-intel/x-battle'
   id:
     | '__root__'
     | '/'
@@ -305,6 +404,7 @@ export interface FileRouteTypes {
     | '/ticker'
     | '/xmarks'
     | '/api/pulse-runs'
+    | '/api/pulse-voices'
     | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
@@ -312,7 +412,15 @@ export interface FileRouteTypes {
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
     | '/industries/$vertical'
+    | '/labs/anti-echo'
+    | '/labs/matrix'
+    | '/labs/post-room'
+    | '/labs/x-battle'
     | '/industries/'
+    | '/labs/'
+    | '/api/x-intel/anti-echo'
+    | '/api/x-intel/post-room'
+    | '/api/x-intel/x-battle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -332,11 +440,20 @@ export interface RootRouteChildren {
   TickerRoute: typeof TickerRoute
   XmarksRoute: typeof XmarksRoute
   ApiPulseRunsRoute: typeof ApiPulseRunsRoute
+  ApiPulseVoicesRoute: typeof ApiPulseVoicesRoute
   ApiSecondOpinionRoute: typeof ApiSecondOpinionRoute
   ApiSupplementaryRoute: typeof ApiSupplementaryRoute
   ApiUnusualWhalesRoute: typeof ApiUnusualWhalesRoute
   IndustriesVerticalRoute: typeof IndustriesVerticalRoute
+  LabsAntiEchoRoute: typeof LabsAntiEchoRoute
+  LabsMatrixRoute: typeof LabsMatrixRoute
+  LabsPostRoomRoute: typeof LabsPostRoomRoute
+  LabsXBattleRoute: typeof LabsXBattleRoute
   IndustriesIndexRoute: typeof IndustriesIndexRoute
+  LabsIndexRoute: typeof LabsIndexRoute
+  ApiXIntelAntiEchoRoute: typeof ApiXIntelAntiEchoRoute
+  ApiXIntelPostRoomRoute: typeof ApiXIntelPostRoomRoute
+  ApiXIntelXBattleRoute: typeof ApiXIntelXBattleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -446,11 +563,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/labs/': {
+      id: '/labs/'
+      path: '/labs'
+      fullPath: '/labs/'
+      preLoaderRoute: typeof LabsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/industries/': {
       id: '/industries/'
       path: '/industries'
       fullPath: '/industries/'
       preLoaderRoute: typeof IndustriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/x-battle': {
+      id: '/labs/x-battle'
+      path: '/labs/x-battle'
+      fullPath: '/labs/x-battle'
+      preLoaderRoute: typeof LabsXBattleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/post-room': {
+      id: '/labs/post-room'
+      path: '/labs/post-room'
+      fullPath: '/labs/post-room'
+      preLoaderRoute: typeof LabsPostRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/matrix': {
+      id: '/labs/matrix'
+      path: '/labs/matrix'
+      fullPath: '/labs/matrix'
+      preLoaderRoute: typeof LabsMatrixRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/anti-echo': {
+      id: '/labs/anti-echo'
+      path: '/labs/anti-echo'
+      fullPath: '/labs/anti-echo'
+      preLoaderRoute: typeof LabsAntiEchoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/industries/$vertical': {
@@ -502,11 +654,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSecondOpinionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pulse-voices': {
+      id: '/api/pulse-voices'
+      path: '/api/pulse-voices'
+      fullPath: '/api/pulse-voices'
+      preLoaderRoute: typeof ApiPulseVoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/pulse-runs': {
       id: '/api/pulse-runs'
       path: '/api/pulse-runs'
       fullPath: '/api/pulse-runs'
       preLoaderRoute: typeof ApiPulseRunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/x-intel/x-battle': {
+      id: '/api/x-intel/x-battle'
+      path: '/api/x-intel/x-battle'
+      fullPath: '/api/x-intel/x-battle'
+      preLoaderRoute: typeof ApiXIntelXBattleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/x-intel/post-room': {
+      id: '/api/x-intel/post-room'
+      path: '/api/x-intel/post-room'
+      fullPath: '/api/x-intel/post-room'
+      preLoaderRoute: typeof ApiXIntelPostRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/x-intel/anti-echo': {
+      id: '/api/x-intel/anti-echo'
+      path: '/api/x-intel/anti-echo'
+      fullPath: '/api/x-intel/anti-echo'
+      preLoaderRoute: typeof ApiXIntelAntiEchoRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -545,11 +725,20 @@ const rootRouteChildren: RootRouteChildren = {
   TickerRoute: TickerRoute,
   XmarksRoute: XmarksRoute,
   ApiPulseRunsRoute: ApiPulseRunsRoute,
+  ApiPulseVoicesRoute: ApiPulseVoicesRoute,
   ApiSecondOpinionRoute: ApiSecondOpinionRoute,
   ApiSupplementaryRoute: ApiSupplementaryRoute,
   ApiUnusualWhalesRoute: ApiUnusualWhalesRoute,
   IndustriesVerticalRoute: IndustriesVerticalRoute,
+  LabsAntiEchoRoute: LabsAntiEchoRoute,
+  LabsMatrixRoute: LabsMatrixRoute,
+  LabsPostRoomRoute: LabsPostRoomRoute,
+  LabsXBattleRoute: LabsXBattleRoute,
   IndustriesIndexRoute: IndustriesIndexRoute,
+  LabsIndexRoute: LabsIndexRoute,
+  ApiXIntelAntiEchoRoute: ApiXIntelAntiEchoRoute,
+  ApiXIntelPostRoomRoute: ApiXIntelPostRoomRoute,
+  ApiXIntelXBattleRoute: ApiXIntelXBattleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

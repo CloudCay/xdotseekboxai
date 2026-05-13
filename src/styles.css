@@ -531,3 +531,8 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+@keyframes xi-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
