@@ -59,8 +59,6 @@ async function runPostRoom(input: string): Promise<PostRoomResult> {
       status: 'error',
       positions: [],
       relatedPosts: [],
-      durationMs: response.durationMs,
-      costUsd: response.costUsd,
       generatedAt: new Date().toISOString(),
       error: response.error ?? 'X search returned no result.',
     }
@@ -76,8 +74,6 @@ async function runPostRoom(input: string): Promise<PostRoomResult> {
     positions: parsed.positions,
     relatedPosts: parsed.relatedPosts,
     dissent: parsed.dissent,
-    durationMs: response.durationMs,
-    costUsd: response.costUsd,
     generatedAt: new Date().toISOString(),
   }
 }

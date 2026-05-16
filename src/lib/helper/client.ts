@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '@/lib/supabase'
-import type { HelperChatRequest, HelperChatResponse } from './types'
+import type { HelperChatRequest, HelperChatResponse, HelperIntent } from './types'
 import { sanitizeHelperChatRequest } from './sanitize'
 
 const SUPABASE_URL =
@@ -16,10 +16,9 @@ function functionUrl(): string | null {
 }
 
 export async function helperChat(req: HelperChatRequest): Promise<HelperChatResponse> {
-  const start = Date.now()
   const url = functionUrl()
   if (!url || !SUPABASE_PUBLIC_KEY) {
-    return failure(start, req.intent, 'Seekly backend is not configured on this site.')
+    return failure(req.intent, 'Seekly backend is not configured on this site.')
   }
 
   let bearer = ''
@@ -53,38 +52,58 @@ export async function helperChat(req: HelperChatRequest): Promise<HelperChatResp
       body: JSON.stringify(body),
     })
   } catch (error) {
-    return failure(start, req.intent, `network: ${(error as Error)?.message ?? String(error)}`)
+    return failure(req.intent, `network: ${(error as Error)?.message ?? String(error)}`)
   }
 
   const text = await res.text()
-  let parsed: HelperChatResponse | null = null
+  let parsed: Record<string, unknown> | null = null
   try {
-    parsed = text ? (JSON.parse(text) as HelperChatResponse) : null
+    const json = text ? JSON.parse(text) : null
+    parsed = json && typeof json === 'object' ? (json as Record<string, unknown>) : null
   } catch {
     parsed = null
   }
 
   if (!res.ok) {
-    return parsed?.error
-      ? { ...failure(start, req.intent), error: parsed.error }
-      : failure(start, req.intent, `helper ${res.status}: ${text.slice(0, 200)}`)
+    return typeof parsed?.error === 'string'
+      ? failure(req.intent, parsed.error)
+      : failure(req.intent, `helper ${res.status}: ${text.slice(0, 200)}`)
   }
 
-  return parsed ?? failure(start, req.intent, 'helper returned empty body')
+  return parsed ? publicHelperResponse(parsed, req.intent) : failure(req.intent, 'helper returned empty body')
 }
 
-function failure(
-  start: number,
-  intent: HelperChatRequest['intent'],
-  error = 'unknown error',
-): HelperChatResponse {
+function publicHelperResponse(raw: Record<string, unknown>, fallbackIntent: HelperChatRequest['intent']): HelperChatResponse {
+  return {
+    ok: raw.ok === true,
+    reply: typeof raw.reply === 'string' ? raw.reply : '',
+    intent: cleanIntent(raw.intent) ?? fallbackIntent ?? 'general',
+    ...(typeof raw.conversationId === 'string' ? { conversationId: raw.conversationId } : {}),
+    ...(typeof raw.error === 'string' ? { error: raw.error } : {}),
+  }
+}
+
+function cleanIntent(value: unknown): HelperIntent | null {
+  if (
+    value === 'help' ||
+    value === 'feedback' ||
+    value === 'feature' ||
+    value === 'bug' ||
+    value === 'support' ||
+    value === 'general' ||
+    value === 'idea' ||
+    value === 'must_have' ||
+    value === 'roadmap'
+  ) {
+    return value
+  }
+  return null
+}
+
+function failure(intent: HelperChatRequest['intent'], error = 'unknown error'): HelperChatResponse {
   return {
     ok: false,
     reply: '',
-    durationMs: Date.now() - start,
-    costUsd: 0,
-    generatedAt: new Date().toISOString(),
-    knowledgeFiles: [],
     intent: intent ?? 'general',
     error,
   }

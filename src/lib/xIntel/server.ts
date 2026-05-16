@@ -8,8 +8,6 @@ type GatewayChatResult = {
   ok: boolean
   status: number
   content: string
-  costUsd: number
-  durationMs: number
   error?: string
 }
 
@@ -82,7 +80,6 @@ export async function callGatewayChat(args: {
   feature: string
   timeoutMs?: number
 }): Promise<GatewayChatResult> {
-  const startedAt = Date.now()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), args.timeoutMs ?? 35_000)
   const headers: Record<string, string> = {
@@ -105,29 +102,23 @@ export async function callGatewayChat(args: {
       signal: controller.signal,
     })
 
-    const durationMs = Date.now() - startedAt
     if (!response.ok) {
       const body = await response.text().catch(() => '')
       return {
         ok: false,
         status: response.status,
         content: '',
-        costUsd: 0,
-        durationMs,
         error: body ? `Gateway HTTP ${response.status}: ${body.slice(0, 220)}` : `Gateway HTTP ${response.status}`,
       }
     }
 
     const raw = (await response.json().catch(() => null)) as GatewayChatResponse | null
     const content = raw?.choices?.[0]?.message?.content?.trim() ?? ''
-    const costUsd = Number(raw?.usage?.cost_usd ?? 0)
     if (!content) {
       return {
         ok: false,
         status: response.status,
         content: '',
-        costUsd,
-        durationMs,
         error: 'Gateway returned no content.',
       }
     }
@@ -136,8 +127,6 @@ export async function callGatewayChat(args: {
       ok: true,
       status: response.status,
       content,
-      costUsd,
-      durationMs,
     }
   } catch (error) {
     const timedOut = controller.signal.aborted
@@ -145,8 +134,6 @@ export async function callGatewayChat(args: {
       ok: false,
       status: 0,
       content: '',
-      costUsd: 0,
-      durationMs: Date.now() - startedAt,
       error: timedOut
         ? `Live X request timed out after ${Math.round((args.timeoutMs ?? 35_000) / 1000)} seconds.`
         : error instanceof Error ? error.message : 'Gateway request failed.',

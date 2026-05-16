@@ -59,8 +59,6 @@ async function runAntiEcho(claim: string): Promise<AntiEchoResult> {
       status: 'error',
       strongestCounters: [],
       posts: [],
-      durationMs: response.durationMs,
-      costUsd: response.costUsd,
       generatedAt: new Date().toISOString(),
       error: response.error ?? 'X search returned no result.',
     }
@@ -74,8 +72,6 @@ async function runAntiEcho(claim: string): Promise<AntiEchoResult> {
     summary: parsed.summary,
     strongestCounters: parsed.strongestCounters,
     posts: parsed.posts,
-    durationMs: response.durationMs,
-    costUsd: response.costUsd,
     generatedAt: new Date().toISOString(),
   }
 }

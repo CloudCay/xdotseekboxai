@@ -117,7 +117,7 @@ export function XIntelOverview() {
       href: '/labs/matrix',
       icon: <Zap className="h-5 w-5" />,
       title: 'Matrix',
-      text: 'Controlled multi-engine loading state for Rabbit Hole-style fan-out flows. It is visual only and has no API cost.',
+      text: 'Controlled multi-engine loading state for Rabbit Hole-style fan-out flows. It is visual only and makes no API calls.',
       meta: 'UI only',
     },
   ]
@@ -228,7 +228,7 @@ export function PostRoomTool() {
         <div className="flex flex-col gap-4">
           <Matrix engines={matrixEngines} height={220} doneMessage="Room read ready." />
           {error ? <ErrorCard message={error} /> : null}
-          {result ? <PostRoomResultPanel result={result} /> : <EmptyPanel title="Ready for a room read" text="The result will summarize the room, camps, related posts, dissent, timing, and cost." />}
+          {result ? <PostRoomResultPanel result={result} /> : <EmptyPanel title="Ready for a room read" text="The result will summarize the room, camps, related posts, and dissent." />}
         </div>
       </div>
     </XIntelShell>
@@ -331,7 +331,7 @@ export function XBattleTool() {
         <div className="flex flex-col gap-4">
           <Matrix engines={matrixEngines} height={220} doneMessage="Comparison ready." />
           {error ? <ErrorCard message={error} /> : null}
-          {result ? <BattleResult result={result} /> : <EmptyPanel title="Ready when you are" text="Run a pair to see volume, sentiment, themes, post links, timing, and cost." />}
+          {result ? <BattleResult result={result} /> : <EmptyPanel title="Ready when you are" text="Run a pair to see volume, sentiment, themes, and post links." />}
         </div>
       </div>
     </XIntelShell>
@@ -418,7 +418,7 @@ export function AntiEchoTool() {
         <div className="flex flex-col gap-4">
           <Matrix engines={matrixEngines} height={220} doneMessage="Dissent ready." />
           {error ? <ErrorCard message={error} /> : null}
-          {result ? <AntiEchoResultPanel result={result} /> : <EmptyPanel title="Ready for a claim" text="The result will separate summary, strongest counters, cited posts, timing, and cost." />}
+          {result ? <AntiEchoResultPanel result={result} /> : <EmptyPanel title="Ready for a claim" text="The result will separate summary, strongest counters, and cited posts." />}
         </div>
       </div>
     </XIntelShell>
@@ -464,7 +464,7 @@ export function MatrixLab() {
         <div className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
           <div className="mb-4">
             <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">Demo wrapper</div>
-            <h2 className="mt-2 text-2xl font-black tracking-tight">Random timing preview</h2>
+            <h2 className="mt-2 text-2xl font-black tracking-tight">Random sequence preview</h2>
           </div>
           <MatrixDemo height={360} />
         </div>
@@ -511,7 +511,7 @@ function BattleResult({ result }: { result: XBattleResponse }) {
       <div className="flex flex-col gap-4">
       <SourceAttribution />
       <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">
-        <span>Battle / {(result.totalDurationMs / 1000).toFixed(1)}s / {formatCost(result.totalCostUsd)}</span>
+        <span>Battle</span>
         <span>{X_BATTLE_WINDOW_LABEL[result.window]}</span>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -540,9 +540,6 @@ function SideCard({ side, accent }: { side: XBattleSide; accent: string }) {
           {side.sentiment ? <FieldBlock label="Sentiment" value={side.sentiment} /> : null}
           {side.themes.length ? <ListBlock label="Themes" items={side.themes} /> : null}
           {side.excerpts.length ? <ExcerptBlock items={side.excerpts} /> : null}
-          <div className="border-t border-neutral-200 pt-3 text-[11px] font-black uppercase tracking-[0.16em] text-neutral-500">
-            {(side.durationMs / 1000).toFixed(1)}s / {formatCost(side.costUsd)}
-          </div>
         </div>
       )}
     </article>
@@ -555,7 +552,7 @@ function AntiEchoResultPanel({ result }: { result: AntiEchoResult }) {
   return (
     <article className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
       <div className="mb-5 text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">
-        Dissent / {(result.durationMs / 1000).toFixed(1)}s / {formatCost(result.costUsd)}
+        Dissent
       </div>
       <SourceAttribution />
       <div className="flex flex-col gap-5">
@@ -590,7 +587,7 @@ function PostRoomResultPanel({ result }: { result: PostRoomResult }) {
   return (
     <article className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
       <div className="mb-5 text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">
-        Room read / {(result.durationMs / 1000).toFixed(1)}s / {formatCost(result.costUsd)}
+        Room read
       </div>
       <SourceAttribution />
       <div className="flex flex-col gap-5">
@@ -721,8 +718,4 @@ function initialBattleParams(): { a: string; b: string; window: BattleWindow } {
   const rawWindow = params.get('window')
   const nextWindow: BattleWindow = rawWindow === '24h' || rawWindow === '30d' || rawWindow === '7d' ? rawWindow : '7d'
   return { a: a.slice(0, 32), b: b.slice(0, 32), window: nextWindow }
-}
-
-function formatCost(value: number): string {
-  return `$${value.toFixed(4)}`
 }

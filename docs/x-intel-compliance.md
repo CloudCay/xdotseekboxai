@@ -3,8 +3,8 @@
 X Battle and Anti-Echo are live social-intelligence surfaces for public X conversations. The production stance is:
 
 - Summarize and score public posts; do not redistribute raw bulk X data.
-- Return parsed summaries, themes, counters, paraphrases, post IDs/links, timing, and cost metadata.
-- Do not return the gateway raw response text to the browser.
+- Return parsed summaries, themes, counters, paraphrases, and post IDs/links only.
+- Do not return gateway raw response text, cost, latency, timing, usage, or provider metadata to the browser.
 - Do not add CSV/JSON export of raw post collections.
 - Show attribution wherever post links or post-derived summaries appear: "Data from X" plus links back to the original X URLs.
 - Validate any surfaced source URL to `x.com` or `twitter.com`.
@@ -17,5 +17,5 @@ Current xdot implementation:
 
 - `/api/x-intel/x-battle` and `/api/x-intel/anti-echo` proxy gateway calls server-side.
 - Client bundles do not include the gateway URL or `/v1/chat` request shape.
-- API responses omit raw model content and expose only parsed fields.
+- API responses omit raw model content, provider metadata, cost, and timing fields.
 - Source URLs are sanitized to `x.com` / `twitter.com` before returning to the browser.

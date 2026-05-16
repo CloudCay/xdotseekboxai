@@ -21,8 +21,6 @@ export type XBattleSide = {
   sentiment?: string
   themes: string[]
   excerpts: XIntelExcerpt[]
-  durationMs: number
-  costUsd: number
   error?: string
 }
 
@@ -35,8 +33,6 @@ export type XBattleResponse = {
     a: XBattleSide
     b: XBattleSide
   }
-  totalCostUsd: number
-  totalDurationMs: number
   generatedAt: string
   error?: string
 }
@@ -59,8 +55,6 @@ export type AntiEchoResult = {
   summary?: string
   strongestCounters: string[]
   posts: AntiEchoPost[]
-  durationMs: number
-  costUsd: number
   generatedAt: string
   error?: string
 }
@@ -79,8 +73,6 @@ export type PostRoomResult = {
   positions: string[]
   relatedPosts: AntiEchoPost[]
   dissent?: string
-  durationMs: number
-  costUsd: number
   generatedAt: string
   error?: string
 }
@@ -91,10 +83,6 @@ export type GatewayChatResponse = {
       content?: string
     }
   }>
-  usage?: {
-    cost_usd?: number
-  }
-  latency_ms?: number
 }
 
 export const X_BATTLE_WINDOW_LABEL: Record<BattleWindow, string> = {

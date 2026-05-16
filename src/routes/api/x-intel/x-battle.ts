@@ -63,7 +63,6 @@ function cleanHandle(value: unknown): string {
 }
 
 async function runBattle(input: CleanBattleInput): Promise<XBattleResponse> {
-  const startedAt = Date.now()
   const [a, b] = await Promise.all([
     runSide(input.handleA, input.window),
     runSide(input.handleB, input.window),
@@ -76,8 +75,6 @@ async function runBattle(input: CleanBattleInput): Promise<XBattleResponse> {
     handleB: input.handleB,
     window: input.window,
     sides: { a, b },
-    totalCostUsd: a.costUsd + b.costUsd,
-    totalDurationMs: Date.now() - startedAt,
     generatedAt: new Date().toISOString(),
     error: ok ? undefined : 'Both X searches failed.',
   }
@@ -97,8 +94,6 @@ async function runSide(handle: string, window: BattleWindow): Promise<XBattleSid
       status: 'error',
       themes: [],
       excerpts: [],
-      durationMs: response.durationMs,
-      costUsd: response.costUsd,
       error: response.error ?? 'X search returned no result.',
     }
   }
@@ -111,7 +106,5 @@ async function runSide(handle: string, window: BattleWindow): Promise<XBattleSid
     sentiment: parsed.sentiment,
     themes: parsed.themes,
     excerpts: parsed.excerpts,
-    durationMs: response.durationMs,
-    costUsd: response.costUsd,
   }
 }

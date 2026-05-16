@@ -27,25 +27,10 @@ export interface HelperChatRequest {
   pageContext?: string
 }
 
-export interface HelperUsage {
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens: number
-  cacheCreationTokens: number
-}
-
 export interface HelperChatResponse {
   ok: boolean
   reply: string
-  durationMs: number
-  costUsd: number
-  generatedAt: string
-  knowledgeFiles: string[]
   intent: HelperIntent
   conversationId?: string
-  usage?: HelperUsage
-  cacheHitRatio?: number
-  cached?: boolean
-  persisted?: boolean
   error?: string
 }
