@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -12,11 +12,18 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
+import { cleanseekHref } from '../lib/cleanseekUrl'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
-import { rankPulseVoices, sortPulseVoiceRankings, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
+import {
+  rankPulseVoices,
+  sortPulseVoiceRankings,
+  voiceProfileHref,
+  type PulseVoiceRanking,
+} from '../lib/pulseVoiceRankings'
 import { inferPulseTopicTags, pulseTopicHref } from '../lib/pulseTopics'
-import { openSourcePopup } from '../lib/sourcePopup'
-import { SeekBoxLogo } from './SeekBoxLogo'
+import { LazySection } from './LazySection'
+import { PulseCitationLink } from './PulseCitationLink'
+import { XSiteHeader } from './XSiteHeader'
 
 type PulseCitation = {
   index?: number | null
@@ -191,44 +198,9 @@ export function PulseReaderPage() {
 
   return (
     <main className="min-h-screen bg-[#f7f8f4] text-neutral-950">
+      <XSiteHeader active="reader" title="X.SeekBoxAI Pulse" eyebrow="live X.SeekBoxAI cache" logoSize="lg" />
       <section className="border-b border-neutral-300 bg-[#fbfbf7]">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <a href="/" className="flex items-center gap-3">
-              <SeekBoxLogo tone="light" size="lg" />
-              <div>
-                <div className="text-2xl font-black tracking-tight">X.SeekBoxAI Pulse</div>
-                <div className="text-[11px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                  live X.SeekBoxAI cache
-                </div>
-              </div>
-            </a>
-
-            <nav className="flex flex-wrap gap-2 text-sm font-black">
-              <a href="/pulse" className="rounded-lg bg-neutral-950 px-4 py-2 text-white">
-                Reader
-              </a>
-              <a href="/industries" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-                Industries
-              </a>
-              <a href="/topics" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-                Topics
-              </a>
-              <a href="/labs" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-                Intel
-              </a>
-              <a href="/cleanseek-x" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-                Search live
-              </a>
-              <a href="/xmarks" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-                XMarks
-              </a>
-              <a href="/ticker" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-                Tickers
-              </a>
-            </nav>
-          </header>
-
           <div className="grid gap-6 py-2 lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch">
             <div className="flex h-full flex-col border-l-4 border-neutral-950 bg-white p-5 shadow-[6px_6px_0_rgba(0,0,0,0.08)]">
               <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-5 border-b border-neutral-200 bg-white px-5 py-4">
@@ -349,69 +321,75 @@ export function PulseReaderPage() {
         </aside>
       </section>
 
-      <section className="border-y border-neutral-300 bg-white">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
-          <div>
-            <SectionHeader eyebrow="Trending model" title="Charts from the data we already have" />
-            <p className="max-w-2xl text-sm font-medium leading-7 text-neutral-600">
-              These charts are derived from cached industry rows today. Voice rankings now separate seed handles
-              from discovered accounts so the pulse can learn who keeps appearing over time.
-            </p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              <MiniMetric label="Freshest" value={formatAge(stats.freshest)} text />
-              <MiniMetric label="Hottest" value={stats.hottest} text />
-              <MiniMetric label="Avg heat" value={stats.avgHeat} />
+      <LazySection label="Preparing charts" placeholderHeight={320}>
+        <section className="border-y border-neutral-300 bg-white">
+          <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
+            <div>
+              <SectionHeader eyebrow="Trending model" title="Charts from the data we already have" />
+              <p className="max-w-2xl text-sm font-medium leading-7 text-neutral-600">
+                These charts are derived from cached industry rows today. Voice rankings now separate seed handles
+                from discovered accounts so the pulse can learn who keeps appearing over time.
+              </p>
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <MiniMetric label="Freshest" value={formatAge(stats.freshest)} text />
+                <MiniMetric label="Hottest" value={stats.hottest} text />
+                <MiniMetric label="Avg heat" value={stats.avgHeat} />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <ChartPanel title="Lead scope trend" icon={<LineChart className="h-5 w-5" />}>
+                <Sparkline values={hero?.spark ?? []} />
+                <div className="mt-3 text-sm font-black">{hero?.scopeLabel ?? 'Pulse feed'}</div>
+                <div className="text-xs font-semibold text-neutral-500">Derived heat across recent cached runs.</div>
+              </ChartPanel>
+              <ChartPanel title="Topic tags" icon={<TrendingUp className="h-5 w-5" />}>
+                <div className="space-y-3">
+                  {topicBars.length ? (
+                    topicBars.map((t) => <TopicScoreLink key={t.label} label={t.label} value={t.value} max={topicBars[0]?.value ?? 1} />)
+                  ) : (
+                    <EmptyChart label="No tags found yet" />
+                  )}
+                </div>
+              </ChartPanel>
             </div>
           </div>
+        </section>
+      </LazySection>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <ChartPanel title="Lead scope trend" icon={<LineChart className="h-5 w-5" />}>
-              <Sparkline values={hero?.spark ?? []} />
-              <div className="mt-3 text-sm font-black">{hero?.scopeLabel ?? 'Pulse feed'}</div>
-              <div className="text-xs font-semibold text-neutral-500">Derived heat across recent cached runs.</div>
-            </ChartPanel>
-            <ChartPanel title="Topic tags" icon={<TrendingUp className="h-5 w-5" />}>
-              <div className="space-y-3">
-                {topicBars.length ? (
-                  topicBars.map((t) => <TopicScoreLink key={t.label} label={t.label} value={t.value} max={topicBars[0]?.value ?? 1} />)
-                ) : (
-                  <EmptyChart label="No tags found yet" />
-                )}
-              </div>
-            </ChartPanel>
+      <LazySection label="Preparing brief shelf" placeholderHeight={420}>
+        <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <SectionHeader eyebrow="Brief shelf" title="Open briefs, citations, and source trails" />
+          <div className="grid gap-4 lg:grid-cols-3">
+            {visible.length ? (
+              visible.slice(0, 12).map((pulse) => <BriefCard key={`${pulse.row.id}-brief`} pulse={pulse} />)
+            ) : (
+              <EmptyPanel title="No briefs to show" body="The shelf is wired to pulse_runs and will populate from completed industry rows." />
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      </LazySection>
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <SectionHeader eyebrow="Brief shelf" title="Open briefs, citations, and source trails" />
-        <div className="grid gap-4 lg:grid-cols-3">
-          {visible.length ? (
-            visible.slice(0, 12).map((pulse) => <BriefCard key={`${pulse.row.id}-brief`} pulse={pulse} />)
-          ) : (
-            <EmptyPanel title="No briefs to show" body="The shelf is wired to pulse_runs and will populate from completed industry rows." />
-          )}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 pb-24 pt-2 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-4 border border-neutral-300 bg-neutral-950 px-5 py-5 text-white md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-400">Deep mode</div>
-            <div className="mt-1 text-2xl font-black">Need a fresh pull or custom angle?</div>
-            <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-300">
-              Keep reading cached highlights here. Use the live search console when the question deserves a new run.
-            </p>
+      <LazySection label="Preparing live-search actions" placeholderHeight={180}>
+        <section className="mx-auto max-w-7xl px-4 pb-24 pt-2 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 border border-neutral-300 bg-neutral-950 px-5 py-5 text-white md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-400">Deep mode</div>
+              <div className="mt-1 text-2xl font-black">Need a fresh pull or custom angle?</div>
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-300">
+                Keep reading cached highlights here. Use the live search console when the question deserves a new run.
+              </p>
+            </div>
+            <a
+              href="/cleanseek-x"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-300 px-5 py-3 text-sm font-black text-neutral-950"
+            >
+              Search live
+              <Search className="h-4 w-4" />
+            </a>
           </div>
-          <a
-            href="/cleanseek-x"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-300 px-5 py-3 text-sm font-black text-neutral-950"
-          >
-            Search live
-            <Search className="h-4 w-4" />
-          </a>
-        </div>
-      </section>
+        </section>
+      </LazySection>
     </main>
   )
 }
@@ -656,7 +634,7 @@ function antiEchoUrl(pulse: DerivedPulse): string {
 
 function liveSearchUrl(pulse: DerivedPulse): string {
   const query = `${pulse.scopeLabel} X pulse: ${pulse.headline}. Include recent posts, dissent, source links, and what changed.`
-  return `/cleanseek-x?q=${encodeURIComponent(query)}&latest=1&preset=web&autorun=1`
+  return cleanseekHref({ query, latest: true, preset: 'web', autorun: true })
 }
 
 function postRoomUrl(pulse: DerivedPulse): string {
@@ -749,13 +727,6 @@ function industryTargetForPulse(pulse: DerivedPulse): { slug: string; label: str
   return { slug: industry.slug, label: industry.label, href: `/industries/${industry.slug}` }
 }
 
-function sourceClick(event: MouseEvent<HTMLAnchorElement>, url: string | null | undefined) {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
-  if (!url) return
-  event.preventDefault()
-  openSourcePopup(url)
-}
-
 function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="mb-4">
@@ -787,7 +758,7 @@ function MiniMetric({ label, value, text = false }: { label: string; value: numb
   return (
     <div
       tabIndex={insight ? 0 : undefined}
-      title={insight ?? undefined}
+      aria-label={insight ? `${label}: ${value}. ${insight}` : undefined}
       className="group relative border border-neutral-300 bg-[#f7f8f4] px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
     >
       <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">
@@ -849,9 +820,13 @@ function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         {pulse.handles.slice(0, 5).map((handle) => (
-          <span key={handle} className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-black text-neutral-600">
+          <a
+            key={handle}
+            href={voiceProfileHref(handle)}
+            className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-black text-neutral-600 hover:bg-neutral-950 hover:text-white"
+          >
             @{handle}
-          </span>
+          </a>
         ))}
       </div>
       <PulseActions pulse={pulse} />
@@ -897,17 +872,7 @@ function BriefCard({ pulse }: { pulse: DerivedPulse }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {citations.slice(0, 4).map((citation, index) => (
-            <a
-              key={`${pulse.row.id}-${citation.url ?? index}`}
-              href={citation.url ?? '#'}
-              onClick={(event) => sourceClick(event, citation.url)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-full bg-neutral-950 px-2.5 py-1 text-xs font-black text-white"
-            >
-              [{citation.index ?? index + 1}]
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            <PulseCitationLink key={`${pulse.row.id}-${citation.url ?? index}`} citation={citation} index={index} />
           ))}
         </div>
         <PulseActions pulse={pulse} compact />
@@ -979,9 +944,9 @@ function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number })
         ? 'bg-amber-50 text-amber-900 border-amber-200'
         : 'bg-neutral-100 text-neutral-700 border-neutral-300'
   return (
-    <div>
+    <a href={voiceProfileHref(voice.handle)} className="group block">
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
-        <span className="min-w-0 truncate text-neutral-700">@{voice.displayHandle}</span>
+        <span className="min-w-0 truncate text-neutral-700 group-hover:text-neutral-950 group-hover:underline">@{voice.displayHandle}</span>
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wide ${badge}`}>{voice.source}</span>
       </div>
       <div className="h-2 bg-neutral-100">
@@ -991,7 +956,7 @@ function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number })
         <span>{voice.seenCount} runs · {voice.citationCount} cites</span>
         <span>{voice.rankScore}</span>
       </div>
-    </div>
+    </a>
   )
 }
 
@@ -1033,20 +998,14 @@ function CitationRefs({ citations, limit = 4, compact = false }: { citations: Pu
     <div className={`${compact ? 'mt-3' : 'mt-4'} flex flex-wrap items-center gap-2`}>
       <span className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Sources</span>
       {refs.map((citation, index) => (
-        <a
-          key={`${citation.url ?? index}`}
-          href={citation.url ?? '#'}
-          onClick={(event) => sourceClick(event, citation.url)}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-[#fbfbf7] px-2.5 py-1 text-[10px] font-black text-neutral-700 hover:border-neutral-950"
-        >
-          [{citation.index ?? index + 1}]
-          <ExternalLink className="h-3 w-3" />
-        </a>
+        <CitationLink key={`${citation.url ?? index}`} citation={citation} index={index} />
       ))}
     </div>
   )
+}
+
+function CitationLink({ citation, index }: { citation: PulseCitation; index: number }) {
+  return <PulseCitationLink citation={citation} index={index} />
 }
 
 function ScorePill({ label, value }: { label: string; value: number }) {
@@ -1054,7 +1013,7 @@ function ScorePill({ label, value }: { label: string; value: number }) {
   return (
     <div
       tabIndex={insight ? 0 : undefined}
-      title={insight ?? undefined}
+      aria-label={insight ? `${label}: ${value}. ${insight}` : undefined}
       className="group relative bg-neutral-100 px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
     >
       <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-neutral-500">

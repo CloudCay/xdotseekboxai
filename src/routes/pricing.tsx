@@ -1,107 +1,95 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Check, Zap } from 'lucide-react'
-import { SeekBoxLogo } from '../components/SeekBoxLogo'
+import { XSiteHeader } from '../components/XSiteHeader'
+import { POWER_LIVE_X_MONTHLY_PLAN } from '../lib/pricingCatalog'
 
 export const Route = createFileRoute('/pricing')({
   component: PricingPage,
 })
 
 function PricingPage() {
+  const plan = POWER_LIVE_X_MONTHLY_PLAN
   return (
-    <div className="min-h-screen bg-[#050B14] text-slate-50">
-      <div className="max-w-6xl mx-auto px-6 py-14">
-        <div className="flex items-center justify-between gap-4">
-          <Link to="/" className="inline-flex items-center gap-3 font-black text-lg tracking-tight">
-            <SeekBoxLogo tone="dark" size="sm" />
-            X.SeekBoxAI
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/cleanseek-x"
-              className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800/50"
-            >
-              Try CleanSeek-X
-            </Link>
-            <a
-              href="/signin?returnTo=/pricing"
-              className="rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800/50"
-            >
-              Sign in
-            </a>
-          </div>
-        </div>
-
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+    <main className="min-h-screen bg-[#f7f8f4] text-neutral-950">
+      <XSiteHeader title="X.SeekBoxAI Pricing" eyebrow="plans and billing" />
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-xs font-black text-cyan-200">
+            <div className="inline-flex items-center gap-2 border border-neutral-300 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-neutral-600">
               <Zap className="h-3.5 w-3.5" /> Live X · Multi-model search
             </div>
-            <h1 className="mt-5 text-4xl md:text-5xl font-black tracking-tight text-white">
+            <h1 className="mt-5 text-4xl font-black tracking-tight text-neutral-950 md:text-5xl">
               One plan. All models. Live X context.
             </h1>
-            <p className="mt-4 text-slate-300 leading-relaxed">
-              Compare answers side-by-side across top AI models and web engines. Turn on Live X mode for recency-first results and
+            <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-neutral-600">
+              Compare answers side-by-side across top AI models and web search. Turn on Live X mode for recency-first results and
               live-context formatting.
             </p>
 
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="mt-8 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               {[
-                '10+ model/providers in one run',
-                'Live X mode + Deep Live Dive',
-                'Search history (when signed in)',
-                'Stripe checkout + role/subscription status',
-                'Magic link + Google sign-in',
+                ...plan.features,
+                'Magic link and Google sign-in',
                 'Turnstile captcha support',
               ].map((t) => (
-                <div key={t} className="flex items-start gap-2 rounded-2xl border border-slate-800 bg-black/20 px-4 py-3">
-                  <Check className="mt-0.5 h-4 w-4 text-emerald-400 shrink-0" />
-                  <div className="text-slate-200">{t}</div>
+                <div key={t} className="flex items-start gap-2 border border-neutral-300 bg-white px-4 py-3">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-neutral-950" />
+                  <div className="font-semibold text-neutral-700">{t}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-7 shadow-[0_30px_90px_-30px_rgba(0,0,0,0.7)]">
+          <div className="border border-neutral-300 bg-white p-7 shadow-[6px_6px_0_rgba(0,0,0,0.08)]">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-xs font-black tracking-widest text-slate-400 uppercase">Power tier</div>
-                <div className="mt-1 text-2xl font-black text-white">X.SeekBoxAI + Live X</div>
+                <div className="text-xs font-black uppercase tracking-widest text-neutral-500">{plan.tier}</div>
+                <div className="mt-1 text-2xl font-black text-neutral-950">{plan.title}</div>
               </div>
-              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100">
-                Monthly
+              <div className="border border-neutral-950 bg-neutral-950 px-3 py-2 text-xs font-black text-white">
+                {plan.badge}
               </div>
             </div>
 
             <div className="mt-6 flex items-end gap-2">
-              <div className="text-5xl font-black text-white">$20</div>
-              <div className="pb-2 text-slate-400 font-bold">/ month</div>
+              {plan.listAmount ? (
+                <div className="pb-2 text-xl font-black text-neutral-400 line-through">{plan.listAmount}</div>
+              ) : null}
+              <div className="text-5xl font-black text-neutral-950">{plan.displayAmount}</div>
+              <div className="pb-2 font-bold text-neutral-500">/ {plan.interval}</div>
+            </div>
+            {plan.discountAmount ? (
+              <div className="mt-2 inline-flex border border-neutral-300 bg-[#f7f8f4] px-3 py-1 text-xs font-black text-neutral-700">
+                {plan.discountAmount} coupon applied at checkout
+              </div>
+            ) : null}
+
+            <div className="mt-4 text-sm font-semibold leading-6 text-neutral-600">
+              {plan.subtitle} You’ll be asked to sign in before checkout. After payment, your account page will confirm subscription status.
             </div>
 
-            <div className="mt-4 text-sm text-slate-400">
-              You’ll be asked to sign in before checkout. After payment, your account page will confirm subscription status.
-            </div>
-
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
                 to="/checkout"
-                className="inline-flex items-center justify-center rounded-2xl bg-cyan-500 text-[#050B14] font-black px-6 py-4 hover:brightness-110"
+                search={{ plan: plan.id }}
+                className="inline-flex items-center justify-center bg-neutral-950 px-6 py-4 font-black text-white hover:bg-neutral-800"
               >
                 Start checkout
               </Link>
               <Link
                 to="/account"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/30 text-white font-bold px-6 py-4 hover:bg-slate-800/50"
+                className="inline-flex items-center justify-center border border-neutral-300 bg-white px-6 py-4 font-bold text-neutral-950 hover:border-neutral-950"
               >
                 View account
               </Link>
             </div>
 
-            <div className="mt-6 text-xs text-slate-500">
+            <div className="mt-6 text-xs font-semibold text-neutral-500">
               Note: Search requires <span className="font-mono">VITE_BACKEND_URL</span>. Sign-in requires Supabase env vars.
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

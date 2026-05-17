@@ -57,7 +57,7 @@ export const XDOT_SITE_PROFILE = {
   stagingHost: 'x.seekboxai.com',
   localHost: '127.0.0.1:3001',
   positioning: 'LIVE SEEKBOX CACHE for reading X-oriented industry, ticker, and highlight data before searching live.',
-  canonicalSurfaces: ['pulse_reader', 'industry_pages', 'cleanseek_x', 'ticker', 'xmarks', 'account_signin'],
+  canonicalSurfaces: ['pulse_reader', 'industry_pages', 'cleanseek_x', 'second_opinion', 'ticker', 'xmarks', 'account_signin'],
 } as const
 
 export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
@@ -99,14 +99,14 @@ export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
     label: 'CleanSeek-X',
     routes: ['/cleanseek-x', '/cleanseek-x/desktop'],
     routePrefix: '/cleanseek-x/',
-    description: 'Live multi-engine search console with X-forward prompts, modifiers, personas, and history.',
+    description: 'Live multi-model search console with X-forward prompts, modifiers, personas, and history.',
     support: [
-      'Help choose engines, presets, prompt modifiers, and live mode.',
+      'Help choose models, search sources, presets, prompt modifiers, and live mode.',
       'Explain personalization seed, persona text, and saved history classes.',
       'Troubleshoot backend URL, Supabase session, and streaming results.',
     ],
     starters: [
-      'Which engine preset should I use?',
+      'Which model/search preset should I use?',
       'Why did live search not return X signals?',
       'How does personalization affect this search?',
     ],
@@ -125,6 +125,22 @@ export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
       'How do I run a stock pulse?',
       'What is the ticker page best for?',
       'Why is my watchlist not saving?',
+    ],
+  },
+  {
+    id: 'second_opinion',
+    label: 'Second Opinion extension',
+    routes: ['/second-opinion'],
+    description: 'Chrome extension landing page for page-level second opinions and CleanSeek-X handoff.',
+    support: [
+      'Explain how to download and load the unpacked Chrome extension.',
+      'Help users understand transient reads, compare reads, and optional sign-in syncing.',
+      'Troubleshoot /api/second-opinion, Chrome permissions, and active-page context capture.',
+    ],
+    starters: [
+      'How do I install the extension?',
+      'What does Sync sign-in do?',
+      'Why can the extension not read this page?',
     ],
   },
   {

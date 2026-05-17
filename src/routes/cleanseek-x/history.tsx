@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Link2, Play, RefreshCw, Trash2 } from 'lucide-react'
+import { cleanseekHref } from '../../lib/cleanseekUrl'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { ensureAccount } from '../../lib/ensureAccount'
-import { SeekBoxLogo } from '../../components/SeekBoxLogo'
+import { XSiteHeader } from '../../components/XSiteHeader'
 
 export const Route = createFileRoute('/cleanseek-x/history')({
   component: CleanSeekXHistoryPage,
@@ -160,8 +161,9 @@ function CleanSeekXHistoryPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#050B14] text-slate-50">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+    <main className="min-h-screen bg-[#f7f8f4] text-neutral-950">
+      <XSiteHeader active="search" title="X.SeekBoxAI History" eyebrow="saved search sessions" />
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           <button
             data-testid="history-back-button"
@@ -172,19 +174,18 @@ function CleanSeekXHistoryPage() {
               }
               navigate({ to: '/cleanseek-x' })
             }}
-            className="inline-flex items-center justify-center h-10 w-10 rounded-2xl border border-slate-700 bg-slate-900/30 hover:bg-slate-800/50"
+            className="inline-flex h-10 w-10 items-center justify-center border border-neutral-300 bg-white hover:border-neutral-950"
           >
-            <ArrowLeft className="h-4 w-4 text-slate-200" />
+            <ArrowLeft className="h-4 w-4 text-neutral-800" />
           </button>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
-              <SeekBoxLogo tone="dark" size="sm" />
               <div data-testid="history-title" className="text-2xl font-black tracking-tight">
-                CleanSeek X · History
+                Search History
               </div>
             </div>
-            <div className="mt-1 text-xs text-slate-400">
+            <div className="mt-1 text-xs font-semibold text-neutral-500">
               {email ? email : userId ? `User ${userId.slice(0, 8)}…` : '—'} · last 100 sessions
             </div>
           </div>
@@ -192,7 +193,7 @@ function CleanSeekXHistoryPage() {
           <button
             data-testid="history-refresh-button"
             onClick={() => void load()}
-            className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/30 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-800/50"
+            className="inline-flex items-center gap-2 border border-neutral-300 bg-white px-4 py-2 text-sm font-black text-neutral-900 hover:border-neutral-950"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
@@ -250,9 +251,9 @@ function CleanSeekXHistoryPage() {
             <div className="mt-6 space-y-3">
               {filtered.map((r) => {
                 const q = (r.query ?? '').trim()
-                const to = q ? `/cleanseek-x?q=${encodeURIComponent(q)}&latest=1` : '/cleanseek-x?latest=1'
+                const to = q ? cleanseekHref({ query: q, latest: true, preset: '' }) : '/cleanseek-x?latest=1'
                 const runTo = q
-                  ? `/cleanseek-x?q=${encodeURIComponent(q)}&latest=1&autorun=1`
+                  ? cleanseekHref({ query: q, latest: true, preset: '', autorun: true })
                   : '/cleanseek-x?latest=1'
 
                 return (
@@ -349,7 +350,7 @@ function CleanSeekXHistoryPage() {
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="text-xs font-black text-slate-200">{er.engine ?? 'engine'}</div>
+                                  <div className="text-xs font-black text-slate-200">{er.engine ?? 'model'}</div>
                                   <div className={`text-[11px] font-bold ${er.is_error ? 'text-red-200' : 'text-slate-500'}`}>
                                     {er.is_error ? 'error' : 'ok'}
                                   </div>
@@ -370,6 +371,6 @@ function CleanSeekXHistoryPage() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   )
 }

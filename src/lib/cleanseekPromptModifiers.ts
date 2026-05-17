@@ -8,9 +8,28 @@ export const RESPONSE_LENGTH_LEVELS = [
   { label: 'In-depth', hint: '600+ words', instruction: ' [Provide a comprehensive response of 600+ words with depth, examples, and nuance.]' },
 ] as const
 
+const RESPONSE_LENGTH_WORD_BUDGETS = [75, 100, 150, 400, 600] as const
+
 export function getResponseInstruction(level: number): string {
   const i = Math.max(0, Math.min(4, Math.round(level)))
   return RESPONSE_LENGTH_LEVELS[i]?.instruction ?? ''
+}
+
+export function responseLengthWordBudget(level: number): number {
+  const i = Math.max(0, Math.min(RESPONSE_LENGTH_WORD_BUDGETS.length - 1, Math.round(level)))
+  return RESPONSE_LENGTH_WORD_BUDGETS[i] ?? RESPONSE_LENGTH_WORD_BUDGETS[0]
+}
+
+export function isResponseLengthAllowed(level: number, maxWords: number | null | undefined): boolean {
+  return !maxWords || responseLengthWordBudget(level) <= maxWords
+}
+
+export function bestResponseLengthForLimit(maxWords: number | null | undefined): number | null {
+  if (!maxWords) return null
+  for (let level = RESPONSE_LENGTH_WORD_BUDGETS.length - 1; level >= 0; level -= 1) {
+    if (isResponseLengthAllowed(level, maxWords)) return level
+  }
+  return 0
 }
 
 export const TONE_LEVELS = [

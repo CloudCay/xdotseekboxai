@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, BarChart3, Database, FlaskConical, KeyRound, Lock, RefreshCw, ShieldCheck } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
-const API_KEY_STORAGE_KEY = 'seekbox_whales_unusual_whales_api_key_v1'
-const REMEMBER_STORAGE_KEY = 'seekbox_whales_remember_key_v1'
+const LEGACY_API_KEY_STORAGE_KEYS = [
+  'seekbox_whales_unusual_whales_api_key_v1',
+  'seekbox_whales_remember_key_v1',
+]
 
 const WHALE_BOARD_SYMBOLS: WhaleBoardSymbol[] = [
   {
@@ -70,7 +72,7 @@ type IncludeFlags = {
 type WhalesPayload = {
   symbol: string
   fetchedAt: string
-  keySource?: 'user' | 'server'
+  keySource?: 'user'
   endpoints: string[]
   errors: string[]
   metrics: {
@@ -159,7 +161,6 @@ export function WhalesEditionPanel({
 }) {
   const [activeSymbol, setActiveSymbol] = useState<string>(() => normalizeWhaleSymbol(symbol) || 'NVDA')
   const [apiKey, setApiKey] = useState<string>('')
-  const [rememberKey, setRememberKey] = useState<boolean>(false)
   const [showKey, setShowKey] = useState<boolean>(false)
   const [minPremium, setMinPremium] = useState<string>('250000')
   const [side, setSide] = useState<'all' | 'ask' | 'bid'>('all')
@@ -210,30 +211,13 @@ export function WhalesEditionPanel({
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const remembered = window.localStorage.getItem(REMEMBER_STORAGE_KEY) === 'true'
-    setRememberKey(remembered)
-    if (remembered) setApiKey(window.localStorage.getItem(API_KEY_STORAGE_KEY) ?? '')
+    LEGACY_API_KEY_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key))
   }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(REMEMBER_STORAGE_KEY, rememberKey ? 'true' : 'false')
-    if (rememberKey && apiKey.trim()) {
-      window.localStorage.setItem(API_KEY_STORAGE_KEY, apiKey.trim())
-    } else if (!rememberKey) {
-      window.localStorage.removeItem(API_KEY_STORAGE_KEY)
-    }
-  }, [apiKey, rememberKey])
 
   const requestSnapshot = useCallback(async (args: { symbol: string; include?: IncludeFlags; minPremium?: number | string; labs?: LabKey[] }) => {
     const requestSymbol = normalizeWhaleSymbol(args.symbol) || 'NVDA'
     const ownKey = apiKey.trim()
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (!ownKey && isSupabaseConfigured && supabase) {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-      if (token) headers.Authorization = `Bearer ${token}`
-    }
     const response = await fetch('/api/unusual-whales', {
       method: 'POST',
       headers,
@@ -344,8 +328,8 @@ export function WhalesEditionPanel({
           </div>
           <div className="mt-2 text-lg font-black text-slate-100">{cleanSymbol} tape scanner</div>
           <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
-            Connect your own Unusual Whales key for BYOK whale-flow reads, or use hosted X.SeekBoxAI access when your
-            role allows it.
+            Paste your personal Unusual Whales key when you want to run a whale-flow read. The key is not saved by
+            X.SeekBoxAI.
           </p>
         </div>
         <div className={`rounded-2xl border px-3 py-2 text-center ${biasClass(biasTone)}`}>
@@ -363,8 +347,8 @@ export function WhalesEditionPanel({
                 Connect your own Unusual Whales
               </div>
               <p className="mt-1 text-xs font-semibold leading-5 text-slate-300">
-                Paste your personal UW API key to run this page against your plan. X.SeekBoxAI does not save the key
-                unless you choose to remember it on this device.
+                Paste your personal UW API key to run this page against your plan. It is sent only to this server route
+                for the current request.
               </p>
             </div>
             <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
@@ -397,7 +381,8 @@ export function WhalesEditionPanel({
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
               type={showKey ? 'text' : 'password'}
-              autoComplete="off"
+              autoComplete="current-password"
+              name="uw-api-key"
               spellCheck={false}
               placeholder="Paste your UW API key"
               className="min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-950/45 px-3 py-2 text-sm font-semibold text-slate-100 outline-none focus:border-cyan-400/50"
@@ -443,16 +428,6 @@ export function WhalesEditionPanel({
           <Toggle label="Market tide" checked={include.marketTide} onChange={(checked) => setInclude((next) => ({ ...next, marketTide: checked }))} />
         </div>
 
-        <label className="flex items-center gap-2 rounded-2xl border border-slate-700/70 bg-black/20 px-3 py-2 text-xs font-semibold text-slate-300">
-          <input
-            type="checkbox"
-            checked={rememberKey}
-            onChange={(event) => setRememberKey(event.target.checked)}
-            className="h-4 w-4 accent-cyan-400"
-          />
-          Remember this key on this device only
-        </label>
-
         <div className="flex gap-2">
           <button
             type="button"
@@ -467,8 +442,6 @@ export function WhalesEditionPanel({
             type="button"
             onClick={() => {
               setApiKey('')
-              setRememberKey(false)
-              if (typeof window !== 'undefined') window.localStorage.removeItem(API_KEY_STORAGE_KEY)
             }}
             className="rounded-2xl border border-slate-700 bg-slate-900/35 px-3 py-2 text-[11px] font-black text-slate-200 hover:border-slate-500"
           >
@@ -662,7 +635,7 @@ export function WhalesEditionPanel({
           <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-3">
             <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">X.SeekBoxAI read</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-              Key mode: {payload.keySource === 'server' ? 'X.SeekBoxAI hosted' : 'User supplied'}
+              Key mode: user supplied
             </div>
             <div className="mt-2 space-y-2">
               {tapeRead.map((item) => (
@@ -741,8 +714,8 @@ export function WhalesEditionPanel({
           <div className="flex items-start gap-2 rounded-2xl border border-slate-700/70 bg-slate-950/35 px-3 py-2 text-[11px] leading-5 text-slate-400">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
             <span>
-              Third-party data. Hosted-key usage should move behind role quotas before wider release. This is a
-              research surface, not financial advice.
+              Third-party data. The UW key is user supplied for this request. This is a research surface, not financial
+              advice.
             </span>
           </div>
         </div>
@@ -753,8 +726,8 @@ export function WhalesEditionPanel({
             Bring your own UW key
           </div>
           <p className="mt-2 text-xs leading-5 text-slate-400">
-            Hosted mode reads `UW_API_KEY` from Netlify for approved X.SeekBoxAI users. Everyone else can connect their
-            own Unusual Whales key and keep usage tied to their UW account.
+            Paste your personal Unusual Whales key to run this page against your plan. X.SeekBoxAI does not save it to
+            Supabase or browser storage.
           </p>
         </div>
       )}

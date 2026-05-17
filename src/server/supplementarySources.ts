@@ -27,8 +27,28 @@ export type SupplementaryPayload = {
   weather: { location: string; line: string } | null
   wikipedia: { title: string; extract: string; url?: string } | null
   rss: Array<{ feed: string; items: { title: string; link?: string }[] }>
-  quotes: Array<{ symbol: string; price?: string; changePercent?: string; error?: string }>
+  quotes: SupplementaryQuote[]
   meta: { ms: number; errors: string[] }
+}
+
+export type SupplementaryQuote = {
+  symbol: string
+  source: 'Twelve Data'
+  name?: string
+  exchange?: string
+  micCode?: string
+  currency?: string
+  datetime?: string
+  price?: string
+  open?: string
+  high?: string
+  low?: string
+  previousClose?: string
+  change?: string
+  changePercent?: string
+  volume?: string
+  isMarketOpen?: boolean
+  error?: string
 }
 
 async function fetchWithTimeout(
@@ -172,37 +192,75 @@ async function twelveDataQuotes(
   apiKey: string | undefined,
   errors: string[],
 ): Promise<SupplementaryPayload['quotes']> {
-  if (!apiKey?.trim() || symbols.length === 0) return []
+  if (symbols.length === 0) return []
+  const key = cleanTwelveDataApiKey(apiKey)
+  if (!key) {
+    return symbols.slice(0, 4).map((symbol) => ({
+      symbol,
+      source: 'Twelve Data',
+      error: 'Set TWELVE_DATA_API_KEY or TWELVE_API_KEY on the server.',
+    }))
+  }
   const quotes: SupplementaryPayload['quotes'] = []
   const slice = symbols.slice(0, 4)
   await Promise.all(
     slice.map(async (symbol) => {
       try {
-        const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`
+        const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(key)}`
         const res = await fetchWithTimeout(url, undefined, 5000)
         const j = (await res.json()) as Record<string, unknown>
         if (!res.ok) {
           quotes.push({
             symbol,
+            source: 'Twelve Data',
             error: typeof j.message === 'string' ? j.message : `HTTP ${res.status}`,
           })
           return
         }
         if ((j as { status?: string }).status === 'error') {
-          quotes.push({ symbol, error: String(j.message ?? 'error') })
+          quotes.push({ symbol, source: 'Twelve Data', error: String(j.message ?? 'error') })
           return
         }
         quotes.push({
-          symbol,
-          price: j.close != null ? String(j.close) : j.price != null ? String(j.price) : undefined,
-          changePercent: j.percent_change != null ? String(j.percent_change) : undefined,
+          symbol: quoteField(j, 'symbol') ?? symbol,
+          source: 'Twelve Data',
+          name: quoteField(j, 'name'),
+          exchange: quoteField(j, 'exchange'),
+          micCode: quoteField(j, 'mic_code'),
+          currency: quoteField(j, 'currency'),
+          datetime: quoteField(j, 'datetime'),
+          price: quoteField(j, 'close') ?? quoteField(j, 'price'),
+          open: quoteField(j, 'open'),
+          high: quoteField(j, 'high'),
+          low: quoteField(j, 'low'),
+          previousClose: quoteField(j, 'previous_close'),
+          change: quoteField(j, 'change'),
+          changePercent: quoteField(j, 'percent_change'),
+          volume: quoteField(j, 'volume'),
+          isMarketOpen: typeof j.is_market_open === 'boolean' ? j.is_market_open : undefined,
         })
       } catch (e) {
-        quotes.push({ symbol, error: e instanceof Error ? e.message : String(e) })
+        const message = e instanceof Error ? e.message : String(e)
+        errors.push(`twelve data ${symbol}: ${message}`)
+        quotes.push({ symbol, source: 'Twelve Data', error: message })
       }
     }),
   )
   return quotes
+}
+
+function cleanTwelveDataApiKey(apiKey?: string | null): string | undefined {
+  return apiKey?.trim() || process.env.TWELVE_DATA_API_KEY?.trim() || process.env.TWELVE_API_KEY?.trim() || undefined
+}
+
+function quoteField(row: Record<string, unknown>, key: string): string | undefined {
+  const value = row[key]
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? trimmed : undefined
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return undefined
 }
 
 export function formatSupplementaryPrefix(p: SupplementaryPayload): string {
@@ -219,7 +277,9 @@ export function formatSupplementaryPrefix(p: SupplementaryPayload): string {
   if (p.quotes.length) {
     const q = p.quotes
       .map((x) =>
-        x.error ? `${x.symbol}: ${x.error}` : `${x.symbol}: ${x.price ?? '?'} (${x.changePercent ?? '?'}%)`,
+        x.error
+          ? `${x.symbol}: ${x.error}`
+          : `${x.symbol}: ${x.price ?? '?'} (${formatQuotePercent(x.changePercent) ?? '?'})`,
       )
       .join('; ')
     blocks.push(`Quotes (Twelve Data): ${q}`)
@@ -243,7 +303,7 @@ export async function gatherSupplementaryContext(args: {
     openMeteoSnippet(query, errors),
     wikipediaSnippet(query, errors),
     rssSnippets(errors),
-    twelveDataQuotes(symbols, args.twelveApiKey ?? process.env.TWELVE_API_KEY, errors),
+    twelveDataQuotes(symbols, args.twelveApiKey ?? process.env.TWELVE_DATA_API_KEY ?? process.env.TWELVE_API_KEY, errors),
   ])
 
   return {
@@ -253,4 +313,10 @@ export async function gatherSupplementaryContext(args: {
     quotes,
     meta: { ms: Date.now() - t0, errors },
   }
+}
+
+function formatQuotePercent(value?: string): string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed) return undefined
+  return trimmed.endsWith('%') ? trimmed : `${trimmed}%`
 }

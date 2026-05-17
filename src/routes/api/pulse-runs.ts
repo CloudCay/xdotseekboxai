@@ -17,6 +17,11 @@ const PUBLIC_PULSE_SELECT = [
 ].join(',')
 
 const BLOCKED_PUBLIC_STATUSES = new Set(['error', 'failed', 'failure', 'cancelled', 'canceled', 'running', 'pending', 'queued', 'in_progress'])
+const PUBLIC_CACHE_HEADERS = {
+  'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'public, max-age=0, must-revalidate',
+  'netlify-cdn-cache-control': 'public, durable, max-age=60, stale-while-revalidate=600',
+}
 
 type PublicPulseCitation = {
   index?: number | null
@@ -88,10 +93,7 @@ export const Route = createFileRoute('/api/pulse-runs')({
 
         return new Response(JSON.stringify({ rows }), {
           status: 200,
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            'cache-control': 'no-store',
-          },
+          headers: PUBLIC_CACHE_HEADERS,
         })
       },
     },
@@ -170,17 +172,18 @@ function sanitizePublicPulseRow(value: unknown): PublicPulseRow | null {
 
 function sanitizePublicCitations(value: unknown): PublicPulseCitation[] {
   if (!Array.isArray(value)) return []
-  return value
-    .slice(0, 24)
-    .map((item, index) => {
-      const obj = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
-      const url = cleanPublicUrl(obj.url)
-      if (!url) return null
-      const rawIndex = typeof obj.index === 'number' ? obj.index : Number(obj.index)
-      const citationIndex = Number.isFinite(rawIndex) && rawIndex > 0 ? Math.round(rawIndex) : index + 1
-      return { index: citationIndex, url }
+  const citations: PublicPulseCitation[] = []
+  for (const [index, item] of value.slice(0, 24).entries()) {
+    const obj = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
+    const url = cleanPublicUrl(obj.url)
+    if (!url) continue
+    const rawIndex = typeof obj.index === 'number' ? obj.index : Number(obj.index)
+    citations.push({
+      index: Number.isFinite(rawIndex) && rawIndex > 0 ? Math.round(rawIndex) : index + 1,
+      url,
     })
-    .filter((citation): citation is PublicPulseCitation => Boolean(citation))
+  }
+  return citations
 }
 
 function cleanPublicUrl(value: unknown): string | null {

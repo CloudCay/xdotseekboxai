@@ -164,7 +164,7 @@ export function Matrix({
       <canvas
         ref={canvasRef}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
-        aria-label="Parallel engine loading animation"
+        aria-label="Parallel model loading animation"
       />
       <div
         style={{

@@ -13,15 +13,11 @@ export const Route = createFileRoute('/api/unusual-whales')({
 
         let symbol: string
         let apiKey: string
-        let keySource: 'user' | 'server'
+        let keySource: 'user'
         try {
           symbol = cleanSymbol(body.symbol)
-          const userApiKey = cleanOptionalApiKey(body.apiKey)
-          const serverApiKey = cleanServerApiKey(process.env.UW_API_KEY)
-          if (!userApiKey && serverApiKey) await requireHostedKeyAccess(request)
-          apiKey = userApiKey ?? serverApiKey ?? ''
-          keySource = userApiKey ? 'user' : 'server'
-          if (!apiKey) throw new Error('Enter your Unusual Whales API key or set UW_API_KEY on the server.')
+          apiKey = cleanApiKey(body.apiKey)
+          keySource = 'user'
         } catch (error) {
           return Response.json({ error: error instanceof Error ? error.message : 'Invalid request.' }, { status: 400 })
         }
@@ -329,66 +325,13 @@ function cleanSymbol(value: unknown): string {
   return symbol
 }
 
-function cleanOptionalApiKey(value: unknown): string | null {
-  if (value == null || value === '') return null
+function cleanApiKey(value: unknown): string {
+  if (value == null || value === '') throw new Error('Paste your personal Unusual Whales API key to run this request.')
   if (typeof value !== 'string') throw new Error('Enter a valid Unusual Whales API key.')
   const key = value.trim()
-  if (!key) return null
+  if (!key) throw new Error('Paste your personal Unusual Whales API key to run this request.')
   if (key.length < 12) throw new Error('Enter a valid Unusual Whales API key.')
   return key
-}
-
-function cleanServerApiKey(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const key = value.trim()
-  return key.length >= 12 ? key : null
-}
-
-async function requireHostedKeyAccess(request: Request): Promise<void> {
-  const token = readBearerToken(request.headers.get('authorization'))
-  if (!token) throw new Error('Sign in to use the hosted Unusual Whales key, or paste your own key.')
-
-  const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL
-  const publicKey = getSupabasePublicKey()
-  if (!supabaseUrl || !publicKey) throw new Error('Hosted Unusual Whales mode needs Supabase env for sign-in checks.')
-
-  const userResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
-    headers: {
-      apikey: publicKey,
-      Authorization: `Bearer ${token}`,
-    },
-    signal: AbortSignal.timeout(8_000),
-  })
-  if (!userResponse.ok) throw new Error('Sign in again to use the hosted Unusual Whales key, or paste your own key.')
-
-  const user = (await userResponse.json()) as Record<string, unknown>
-  const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : ''
-  const allowedEmails = parseAllowedEmails(process.env.UW_ALLOWED_EMAILS)
-  if (allowedEmails.length && !allowedEmails.includes(email)) {
-    throw new Error('This hosted Unusual Whales key is limited to approved X.SeekBoxAI users.')
-  }
-}
-
-function getSupabasePublicKey(): string | undefined {
-  return (
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.VITE_SUPABASE_ANON_KEY ??
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
-  )
-}
-
-function readBearerToken(value: string | null): string | null {
-  const match = value?.match(/^Bearer\s+(.+)$/i)
-  return match?.[1]?.trim() || null
-}
-
-function parseAllowedEmails(value: unknown): string[] {
-  if (typeof value !== 'string') return []
-  return value
-    .split(',')
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
 }
 
 function cleanMoney(value: unknown, fallback: number): number {
@@ -458,11 +401,12 @@ function normalizeFlowAlerts(raw: unknown): NormalizedAlertRow[] {
     .map((row) => {
       const isCall = pickBoolean(row, ['is_call', 'isCall']) || /call/i.test(pickString(row, ['option_type', 'call_put', 'side']) ?? '')
       const isPut = pickBoolean(row, ['is_put', 'isPut']) || /put/i.test(pickString(row, ['option_type', 'call_put', 'side']) ?? '')
+      const side: NormalizedAlertRow['side'] = isCall ? 'CALL' : isPut ? 'PUT' : 'UNKNOWN'
       return {
         id: pickString(row, ['id', 'alert_id']),
         contract: pickString(row, ['option_symbol', 'contract', 'option_contract', 'symbol']),
         rule: pickString(row, ['rule_name', 'rule', 'alert_rule', 'alert_type', 'name']),
-        side: isCall ? 'CALL' : isPut ? 'PUT' : 'UNKNOWN',
+        side,
         sentiment: pickString(row, ['sentiment', 'direction', 'side', 'ask_bid']),
         premium: pickNumber(row, ['total_premium', 'premium', 'cost_basis', 'trade_premium']),
         volume: pickNumber(row, ['volume', 'total_volume', 'size']),
