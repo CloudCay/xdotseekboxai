@@ -180,12 +180,16 @@ export function Matrix({
           <div
             key={engine.id}
             style={{
+              minWidth: 0,
               padding: '10px 12px',
               fontSize: 10,
               fontFamily: '"JetBrains Mono", Menlo, monospace',
               fontWeight: 700,
               letterSpacing: '0.18em',
               textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
               color: engine.color,
             }}
           >
