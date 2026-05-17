@@ -19,6 +19,7 @@ import {
 import { helperStore, useHelperStore } from '@/lib/helper/store'
 import type { HelperMessage } from '@/lib/helper/types'
 import { sanitizeTryTopic, stripDangerousControls } from '@/lib/helper/sanitize'
+import { cleanseekHref } from '@/lib/cleanseekUrl'
 import { themeForSeekly, type SeeklyThemeName } from './seeklyTheme'
 
 const SEEKLY_FONT = '"Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif'
@@ -431,7 +432,7 @@ function Bubble({
             type="button"
             onClick={() => {
               helperStore.setOpen(false)
-              window.location.href = `/cleanseek-x?q=${encodeURIComponent(tryTopic)}`
+              window.location.href = cleanseekHref({ query: tryTopic, latest: true, preset: '' })
             }}
             className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold"
             style={{

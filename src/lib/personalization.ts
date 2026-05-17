@@ -189,16 +189,13 @@ export function buildPersonalizationContext(args: {
   const seed = normalizePersonalizationSeed(args.seed ?? DEFAULT_PERSONALIZATION_SEED)
   const explicitPersonaText = cleanShortText(args.explicitPersonaText, 1200)
   const profileNote = cleanShortText(seed.profileNote, 800)
-  const preferredLens = cleanShortText(seed.preferredLens, 500) || defaultLensForLevel(level)
-  const historyClass = seed.historyClassing
+  const customPreferredLens = cleanShortText(seed.preferredLens, 500)
+  const preferredLens = customPreferredLens || defaultLensForLevel(level)
+  const classification = seed.historyClassing
     ? classifySearchHistory(args.query)
     : historyClass('general_research', [], 'low')
-  const enabled = seed.enabled && (Boolean(profileNote) || Boolean(preferredLens) || Boolean(explicitPersonaText))
-  const promptSuffix = enabled
-    ? ` [X.SeekBoxAI personalization v1: role=${roleId}; level=${level}; history_class=${historyClass.primary}; lens=${preferredLens}${
-        profileNote ? `; profile_note=${profileNote}` : ''
-      }. Use only explicit user-provided personalization. Do not infer sensitive traits.]`
-    : ''
+  const enabled = seed.enabled && (Boolean(profileNote) || Boolean(customPreferredLens) || Boolean(explicitPersonaText))
+  const promptSuffix = ''
 
   return {
     enabled,
@@ -210,7 +207,7 @@ export function buildPersonalizationContext(args: {
     preferredLens,
     explicitPersonaText,
     promptSuffix,
-    historyClass,
+    historyClass: classification,
     metadata: {
       version: 1,
       enabled,
@@ -219,7 +216,7 @@ export function buildPersonalizationContext(args: {
       preferredLens: enabled ? preferredLens : null,
       hasProfileNote: Boolean(profileNote),
       hasExplicitPersona: Boolean(explicitPersonaText),
-      historyClass,
+      historyClass: classification,
     },
   }
 }

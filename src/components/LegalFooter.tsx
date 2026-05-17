@@ -29,9 +29,13 @@ export function LegalFooter() {
   return (
     <footer className={`border-t px-4 py-5 sm:px-6 lg:px-8 ${classes.wrap}`}>
       <div className="mx-auto flex max-w-7xl flex-col gap-2 text-[11px] font-semibold leading-5 sm:text-xs">
-        <p className={classes.text}>
-          X.SeekBoxAI is not affiliated with or endorsed by X Corp. X is a trademark of X Corp.
-        </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <a href="/roadmap" className={`${classes.text} font-black underline underline-offset-4 hover:opacity-80`}>
+            Roadmap
+          </a>
+          <span className={classes.text}>Feature voting and product direction</span>
+        </div>
+        <p className={classes.text}>X.SeekBoxAI is not affiliated with or endorsed by X Corp. X is a trademark of X Corp.</p>
       </div>
     </footer>
   )

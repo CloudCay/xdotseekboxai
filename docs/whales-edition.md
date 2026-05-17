@@ -1,38 +1,36 @@
 # SeekBox Whales Edition
 
-SeekBox Whales Edition is the ticker-page layer for Unusual Whales data. It supports two key modes:
+SeekBox Whales Edition is the ticker-page layer for Unusual Whales data. Current mode is strict BYOK:
 
-- Hosted key mode: Netlify stores `UW_API_KEY`; signed-in SeekBox users can call `/api/unusual-whales` without pasting a key.
-- BYO key mode: users paste their own Unusual Whales API key in the browser.
-- A pasted key overrides the hosted key for that request.
-- Any user-supplied key is sent only to the local `/api/unusual-whales` server route for that request.
+- Users paste their own Unusual Whales API key in the browser.
+- The key is sent only to the local `/api/unusual-whales` server route for the current request.
 - The route forwards the key to `https://api.unusualwhales.com` using `Authorization: Bearer ...`.
 - SeekBox does not write the key to Supabase.
-- If the user checks "Remember this key on this device", the browser stores it in local storage on that device only.
-- Hosted key mode verifies the Supabase session token before using `UW_API_KEY`.
-- Set `UW_ALLOWED_EMAILS=email1@example.com,email2@example.com` to limit hosted-key access further during personal/dev use.
+- SeekBox does not write the key to local storage.
+- The current UI purges the old localStorage key names from the earlier remember-key build.
+- The field is a password-style input so Chrome may offer autofill/password-manager handling, but the app does not own or rely on that storage.
+- Server-hosted shared key mode is disabled for now, even if `UW_API_KEY` exists in Netlify.
 - The seeded board currently watches `OKE` (ONEOK), `AAPL`, `SPY`, and `VIX`.
 - When the `uw_symbols` migration exists, the ticker page reads the seeded public watchlist from Supabase and falls back to the bundled four-symbol list if the table is missing.
 
 ## User-Facing Copy
 
-Use "Connect your own Unusual Whales key" for the BYO key prompt. Avoid copy that implies SeekBox includes, resells, or redistributes Unusual Whales data for general users.
+Use "Connect your own Unusual Whales key" for the key prompt. Avoid copy that implies SeekBox includes, resells, or redistributes Unusual Whales data for general users.
 
-- Hosted mode: private SeekBox access for approved signed-in users.
-- BYO key mode: the user supplies their own UW key and usage stays tied to their UW account.
-- Remembered keys stay in browser local storage on that device only.
+- BYOK mode: the user supplies their own UW key and usage stays tied to their UW account.
+- Do not mention hosted access in current user-facing copy.
+- Do not offer a localStorage remember-key toggle.
 - The page should continue to describe output as a research surface, not financial advice.
 
 ## License Posture
 
 Unusual Whales' non-professional API acknowledgement says the API is for personal use and that redistribution, including derived data, can revoke access or terminate the subscription. For that reason:
 
-- do not show hosted-key results to anonymous users
-- do not expose a shared hosted key to general users
+- do not expose a shared hosted key to users
 - do not store raw provider payloads
 - keep stored snapshots private to the signed-in user with RLS
 - prefer short retention windows and cleanup jobs
-- use BYO key mode for anyone outside the approved personal/dev audience
+- use BYOK mode until the business/licensing posture changes
 
 Source: https://storage.googleapis.com/uwassets/Unusual_Whales_Non-Professional_API_Acknowledgement.pdf
 
@@ -55,7 +53,7 @@ The UI normalizes those responses into:
 
 ## UW Lab Packs
 
-The ticker page now has opt-in lab packs for deliberately over-sampling the API during personal/dev discovery. These calls run only when a signed-in hosted-key user or BYO-key user clicks `Run`; nothing auto-loads.
+The ticker page now has opt-in lab packs for deliberately over-sampling the API during personal/dev discovery. These calls run only when a BYOK user clicks `Run`; nothing auto-loads.
 
 - Market impact: `/api/market/top-net-impact`, `/api/market/oi-change`, `/api/market/sector-etfs`, `/api/market/total-options-volume`
 - Gamma/vol: `/api/stock/{ticker}/greek-exposure`, `/api/stock/{ticker}/iv-rank`, `/api/stock/{ticker}/max-pain`, `/api/stock/{ticker}/volatility/stats`, `/api/stock/{ticker}/volatility/term-structure`
@@ -95,4 +93,4 @@ If SeekBox later pays for a higher Unusual Whales tier, do not expose a shared k
 - endpoint-level cost controls, especially around market tide and realtime/streaming data
 - a provider setting such as `UNUSUAL_WHALES_SHARED_ENABLED=true` so shared-key mode is explicit
 
-Until those controls exist, keep hosted-key access signed-in and preferably email-limited.
+Until those controls exist, keep shared-key mode disabled.

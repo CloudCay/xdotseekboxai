@@ -19,7 +19,7 @@ export const Route = createFileRoute('/api/supplementary')({
         const payload = await gatherSupplementaryContext({
           query,
           symbols,
-          twelveApiKey: process.env.TWELVE_API_KEY,
+          twelveApiKey: process.env.TWELVE_DATA_API_KEY ?? process.env.TWELVE_API_KEY,
         })
         const prefix = formatSupplementaryPrefix(payload)
         return Response.json({ ...payload, prefix })

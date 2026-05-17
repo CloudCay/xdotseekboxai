@@ -1,22 +1,29 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Activity,
   AlertCircle,
   ArrowRight,
+  BarChart3,
+  Cpu,
+  DollarSign,
   ExternalLink,
   Loader2,
   MessageSquare,
   Radar,
+  RefreshCw,
   Search,
   ShieldAlert,
   Swords,
   Zap,
 } from 'lucide-react'
 import { getClientId } from '../../lib/clientId'
+import { rankPulseVoices } from '../../lib/pulseVoiceRankings'
 import { antiEcho, postRoom, xBattle } from '../../lib/xIntel/client'
 import { X_BATTLE_WINDOW_LABEL } from '../../lib/xIntel/types'
 import type { AntiEchoResult, BattleWindow, PostRoomResult, XBattleResponse, XBattleSide } from '../../lib/xIntel/types'
 import { Matrix, MatrixDemo, type MatrixEngine } from './Matrix'
-import { SeekBoxLogo } from '../SeekBoxLogo'
+import { IconNavLink } from '../IconNav'
+import { XSiteHeader } from '../XSiteHeader'
 
 const SAMPLE_PAIRS: Array<{ a: string; b: string; window: BattleWindow }> = [
   { a: 'sama', b: 'elonmusk', window: '7d' },
@@ -41,6 +48,74 @@ const SAMPLE_ROOMS = [
 
 type LabKey = 'overview' | 'post-room' | 'x-battle' | 'anti-echo' | 'matrix'
 
+type PulseSuggestionRow = {
+  id: string
+  scope_type: string | null
+  scope_value: string | null
+  handles: string[] | null
+  summary: string | null
+  citations: Array<{ url?: string | null }> | null
+  tags: string[] | null
+  created_at: string
+}
+
+type CurrentBattleStart = {
+  a: string
+  b: string
+  window: BattleWindow
+  label: string
+}
+
+type GatewaySummaryRow = {
+  key: string
+  calls?: number
+  count?: number
+  cost_usd: number
+  avg_latency_ms?: number | null
+  in_tok?: number
+  out_tok?: number
+}
+
+type GatewayStatsPayload = {
+  totals: {
+    calls: number
+    cost_usd: number
+    input_tokens: number
+    output_tokens: number
+    errors: number
+    cache_hits: number
+    avg_latency_ms: number
+    p95_latency_ms: number
+  } | null
+  by_app: GatewaySummaryRow[]
+  by_provider: GatewaySummaryRow[]
+  as_of: string | null
+}
+
+type GatewayCostRollup = {
+  total_cost_usd: number
+  total_calls: number
+  total_pulses: number
+  total_images: number
+  rows: GatewaySummaryRow[]
+}
+
+type GatewayLogSnapshot = {
+  generatedAt: string
+  source: {
+    mode: 'cloudflare-admin-costs' | 'cloudflare-public-stats'
+    statsWindow: string
+    costWindow: string | null
+    adminRollups: boolean
+  }
+  stats: GatewayStatsPayload | null
+  costs: {
+    endpoint: GatewayCostRollup | null
+    provider: GatewayCostRollup | null
+    app: GatewayCostRollup | null
+  } | null
+}
+
 export function XIntelShell({
   active,
   title,
@@ -56,28 +131,46 @@ export function XIntelShell({
 }) {
   return (
     <main className="min-h-screen bg-[#f7f8f4] text-neutral-950">
+      <XSiteHeader
+        active="intel"
+        title="X.SeekBoxAI Intel"
+        eyebrow="live X workbench"
+        logoSize="lg"
+        navChildren={
+          <>
+            <IconNavLink
+              href="/labs/post-room"
+              active={active === 'post-room'}
+              label="Post Room"
+              description="Map a post, handle, ticker, or topic."
+              icon={<Radar className="h-4 w-4" />}
+            />
+            <IconNavLink
+              href="/labs/x-battle"
+              active={active === 'x-battle'}
+              label="X Battle"
+              description="Compare two handles over the same window."
+              icon={<Swords className="h-4 w-4" />}
+            />
+            <IconNavLink
+              href="/labs/anti-echo"
+              active={active === 'anti-echo'}
+              label="Anti-Echo"
+              description="Find substantive dissent against a claim."
+              icon={<ShieldAlert className="h-4 w-4" />}
+            />
+            <IconNavLink
+              href="/labs/matrix"
+              active={active === 'matrix'}
+              label="Matrix"
+              description="Preview the multi-model loading state."
+              icon={<Cpu className="h-4 w-4" />}
+            />
+          </>
+        }
+      />
       <section className="border-b border-neutral-300 bg-[#fbfbf7]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <a href="/" className="flex items-center gap-3">
-              <SeekBoxLogo tone="light" size="lg" />
-              <div>
-                <div className="text-2xl font-black tracking-tight">X.SeekBoxAI Intel</div>
-                <div className="text-[11px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                  live X workbench
-                </div>
-              </div>
-            </a>
-            <nav className="flex flex-wrap gap-2 text-sm font-black">
-              <TopNav href="/pulse" active={false}>Reader</TopNav>
-              <TopNav href="/industries" active={false}>Industries</TopNav>
-              <TopNav href="/labs" active={active === 'overview'}>Intel</TopNav>
-              <TopNav href="/labs/post-room" active={active === 'post-room'}>Post Room</TopNav>
-              <TopNav href="/labs/x-battle" active={active === 'x-battle'}>X Battle</TopNav>
-              <TopNav href="/labs/anti-echo" active={active === 'anti-echo'}>Anti-Echo</TopNav>
-              <TopNav href="/labs/matrix" active={active === 'matrix'}>Matrix</TopNav>
-            </nav>
-          </header>
           <div className="max-w-4xl border-l-4 border-neutral-950 bg-white p-5 shadow-[6px_6px_0_rgba(0,0,0,0.08)]">
             <div className="text-[11px] font-black uppercase tracking-[0.24em] text-neutral-500">{eyebrow}</div>
             <h1 className="mt-3 text-3xl font-black leading-[1.05] tracking-tight sm:text-5xl">{title}</h1>
@@ -117,7 +210,7 @@ export function XIntelOverview() {
       href: '/labs/matrix',
       icon: <Zap className="h-5 w-5" />,
       title: 'Matrix',
-      text: 'Controlled multi-engine loading state for Rabbit Hole-style fan-out flows. It is visual only and makes no API calls.',
+      text: 'Controlled multi-model loading state for Rabbit Hole-style fan-out flows. It is visual only and makes no API calls.',
       meta: 'UI only',
     },
   ]
@@ -148,11 +241,147 @@ export function XIntelOverview() {
   )
 }
 
+function usePulseSuggestionRows() {
+  const [rows, setRows] = useState<PulseSuggestionRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const response = await fetch('/api/pulse-runs?limit=120&scope_type=industry')
+        const json = (await response.json()) as { rows?: PulseSuggestionRow[] }
+        if (!cancelled) setRows(Array.isArray(json.rows) ? json.rows : [])
+      } catch {
+        if (!cancelled) setRows([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return { rows, loading }
+}
+
+function uniqueFirst(values: string[], limit: number): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const value of values) {
+    const clean = value.replace(/\s+/g, ' ').trim()
+    if (!clean) continue
+    const key = clean.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(clean)
+    if (out.length >= limit) break
+  }
+  return out
+}
+
+function scopeLabel(value: string | null | undefined): string {
+  const clean = value?.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!clean) return 'Current conversation'
+  return clean.replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
+}
+
+function tagLabel(row: PulseSuggestionRow): string {
+  const tags = (row.tags ?? [])
+    .map((tag) => tag.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(0, 3)
+  return tags.length ? tags.join(', ') : 'emerging themes'
+}
+
+function deriveRoomStarts(rows: PulseSuggestionRow[]): string[] {
+  return uniqueFirst(
+    rows.map((row) => `${scopeLabel(row.scope_value)} conversation around ${tagLabel(row)}`),
+    8,
+  )
+}
+
+function deriveClaimStarts(rows: PulseSuggestionRow[]): string[] {
+  return uniqueFirst(
+    rows.map((row) => `The ${scopeLabel(row.scope_value).toLowerCase()} conversation is being driven by ${tagLabel(row)}.`),
+    8,
+  )
+}
+
+function deriveBattleStarts(rows: PulseSuggestionRow[]): CurrentBattleStart[] {
+  const voices = rankPulseVoices(rows, 48).filter((voice) => voice.source !== 'seed')
+  const byScope = new Map<string, typeof voices>()
+  for (const voice of voices) {
+    const list = byScope.get(voice.scopeKey) ?? []
+    list.push(voice)
+    byScope.set(voice.scopeKey, list)
+  }
+
+  const pairs: CurrentBattleStart[] = []
+  for (const list of byScope.values()) {
+    const first = list[0]
+    const second = list.find((voice) => voice.handle !== first?.handle)
+    if (!first || !second) continue
+    pairs.push({
+      a: first.displayHandle,
+      b: second.displayHandle,
+      window: '7d',
+      label: `${scopeLabel(first.scopeValue)}: @${first.displayHandle} / @${second.displayHandle}`,
+    })
+    if (pairs.length >= 8) break
+  }
+
+  if (pairs.length) return pairs
+
+  for (let i = 0; i + 1 < voices.length && pairs.length < 8; i += 2) {
+    pairs.push({
+      a: voices[i].displayHandle,
+      b: voices[i + 1].displayHandle,
+      window: '7d',
+      label: `@${voices[i].displayHandle} / @${voices[i + 1].displayHandle}`,
+    })
+  }
+  return pairs
+}
+
+function StartsSection({
+  title,
+  note,
+  children,
+}: {
+  title: string
+  note?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="mt-6">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">{title}</div>
+        {note ? <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-400">{note}</div> : null}
+      </div>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
+}
+
+function LoadingCurrentStarts({ loading, hasItems }: { loading: boolean; hasItems: boolean }) {
+  if (!loading && hasItems) return null
+  return (
+    <div className="rounded-lg border border-dashed border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-xs font-bold text-neutral-500">
+      {loading ? 'Finding current starts from cache...' : 'No current starts found yet.'}
+    </div>
+  )
+}
+
 export function PostRoomTool() {
   const [input, setInput] = useState(() => initialRoomParam() ?? SAMPLE_ROOMS[0])
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<PostRoomResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { rows: pulseRows, loading: pulseLoading } = usePulseSuggestionRows()
+  const currentRooms = useMemo(() => deriveRoomStarts(pulseRows), [pulseRows])
 
   const matrixEngines = useMemo<MatrixEngine[]>(() => [
     { id: 'room', name: 'Room', model: 'scan', color: '#0ea5e9', highlight: '#7dd3fc', status: running ? 'thinking' : result?.ok ? 'done' : 'idle' },
@@ -208,22 +437,34 @@ export function PostRoomTool() {
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {running ? 'Reading the room' : 'Read the room'}
           </button>
-          <div className="mt-6">
-            <div className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Planted starts</div>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLE_ROOMS.map((sample) => (
-                <button
-                  key={sample}
-                  type="button"
-                  disabled={running}
-                  onClick={() => run(sample)}
-                  className="rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
-                >
-                  {sample}
-                </button>
-              ))}
-            </div>
-          </div>
+          <StartsSection title="Curated starts" note="fixed">
+            {SAMPLE_ROOMS.map((sample) => (
+              <button
+                key={sample}
+                type="button"
+                disabled={running}
+                onClick={() => run(sample)}
+                className="rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
+              >
+                {sample}
+              </button>
+            ))}
+          </StartsSection>
+
+          <StartsSection title="Current from cache" note="recent pulse rows">
+            <LoadingCurrentStarts loading={pulseLoading} hasItems={currentRooms.length > 0} />
+            {currentRooms.map((sample) => (
+              <button
+                key={sample}
+                type="button"
+                disabled={running}
+                onClick={() => run(sample)}
+                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
+              >
+                {sample}
+              </button>
+            ))}
+          </StartsSection>
         </div>
         <div className="flex flex-col gap-4">
           <Matrix engines={matrixEngines} height={220} doneMessage="Room read ready." />
@@ -243,6 +484,8 @@ export function XBattleTool() {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<XBattleResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { rows: pulseRows, loading: pulseLoading } = usePulseSuggestionRows()
+  const currentPairs = useMemo(() => deriveBattleStarts(pulseRows), [pulseRows])
 
   const matrixEngines = useMemo<MatrixEngine[]>(() => [
     { id: 'a', name: cleanAt(handleA) || 'Side A', model: 'handle scan', color: '#0ea5e9', highlight: '#7dd3fc', status: running ? 'thinking' : result?.ok ? 'done' : 'idle' },
@@ -311,22 +554,34 @@ export function XBattleTool() {
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {running ? 'Running comparison' : 'Start battle'}
           </button>
-          <div className="mt-6">
-            <div className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Planted starts</div>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLE_PAIRS.map((sample) => (
-                <button
-                  key={`${sample.a}-${sample.b}-${sample.window}`}
-                  type="button"
-                  disabled={running}
-                  onClick={() => run(sample)}
-                  className="rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
-                >
-                  @{sample.a} / @{sample.b}
-                </button>
-              ))}
-            </div>
-          </div>
+          <StartsSection title="Curated starts" note="fixed">
+            {SAMPLE_PAIRS.map((sample) => (
+              <button
+                key={`${sample.a}-${sample.b}-${sample.window}`}
+                type="button"
+                disabled={running}
+                onClick={() => run(sample)}
+                className="rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
+              >
+                @{sample.a} / @{sample.b}
+              </button>
+            ))}
+          </StartsSection>
+
+          <StartsSection title="Current from cache" note="discovered voices">
+            <LoadingCurrentStarts loading={pulseLoading} hasItems={currentPairs.length > 0} />
+            {currentPairs.map((sample) => (
+              <button
+                key={`${sample.a}-${sample.b}-${sample.label}`}
+                type="button"
+                disabled={running}
+                onClick={() => run(sample)}
+                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
+              >
+                {sample.label}
+              </button>
+            ))}
+          </StartsSection>
         </div>
         <div className="flex flex-col gap-4">
           <Matrix engines={matrixEngines} height={220} doneMessage="Comparison ready." />
@@ -343,6 +598,8 @@ export function AntiEchoTool() {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<AntiEchoResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { rows: pulseRows, loading: pulseLoading } = usePulseSuggestionRows()
+  const currentClaims = useMemo(() => deriveClaimStarts(pulseRows), [pulseRows])
 
   const matrixEngines = useMemo<MatrixEngine[]>(() => [
     { id: 'claim', name: 'Claim', model: 'read', color: '#14b8a6', highlight: '#5eead4', status: running ? 'thinking' : result?.ok ? 'done' : 'idle' },
@@ -398,22 +655,34 @@ export function AntiEchoTool() {
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {running ? 'Finding dissent' : 'Find dissent'}
           </button>
-          <div className="mt-6">
-            <div className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Planted starts</div>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLE_CLAIMS.map((sample) => (
-                <button
-                  key={sample}
-                  type="button"
-                  disabled={running}
-                  onClick={() => run(sample)}
-                  className="rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
-                >
-                  {sample}
-                </button>
-              ))}
-            </div>
-          </div>
+          <StartsSection title="Curated starts" note="fixed">
+            {SAMPLE_CLAIMS.map((sample) => (
+              <button
+                key={sample}
+                type="button"
+                disabled={running}
+                onClick={() => run(sample)}
+                className="rounded-lg border border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
+              >
+                {sample}
+              </button>
+            ))}
+          </StartsSection>
+
+          <StartsSection title="Current from cache" note="recent topics">
+            <LoadingCurrentStarts loading={pulseLoading} hasItems={currentClaims.length > 0} />
+            {currentClaims.map((sample) => (
+              <button
+                key={sample}
+                type="button"
+                disabled={running}
+                onClick={() => run(sample)}
+                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-left text-xs font-black text-neutral-700 disabled:opacity-50"
+              >
+                {sample}
+              </button>
+            ))}
+          </StartsSection>
         </div>
         <div className="flex flex-col gap-4">
           <Matrix engines={matrixEngines} height={220} doneMessage="Dissent ready." />
@@ -426,59 +695,259 @@ export function AntiEchoTool() {
 }
 
 export function MatrixLab() {
-  const [controlledEngines, setControlledEngines] = useState<MatrixEngine[]>(() => [
-    { id: 'retrieve', name: 'Retrieve', model: 'sources', color: '#0ea5e9', highlight: '#7dd3fc', status: 'idle' },
-    { id: 'compare', name: 'Compare', model: 'parallel', color: '#a78bfa', highlight: '#ddd6fe', status: 'idle' },
-    { id: 'synthesize', name: 'Synthesize', model: 'brief', color: '#10b981', highlight: '#86efac', status: 'idle' },
-  ])
-
-  const simulate = () => {
-    setControlledEngines((prev) => prev.map((engine) => ({ ...engine, status: 'thinking' })))
-    controlledEngines.forEach((_, index) => {
-      window.setTimeout(() => {
-        setControlledEngines((prev) => prev.map((engine, idx) => (idx === index ? { ...engine, status: 'done' } : engine)))
-      }, 900 + index * 900)
-    })
-  }
+  const { snapshot, previous, loading, error, autoRefresh, setAutoRefresh, refresh } = useGatewayLogMonitor()
+  const matrixEngines = useMemo(() => buildGatewayEngines(snapshot, previous), [previous, snapshot])
+  const totals = snapshot?.stats?.totals ?? null
+  const endpointRows = snapshot?.costs?.endpoint?.rows ?? []
+  const providerRows = snapshot?.costs?.provider?.rows ?? snapshot?.stats?.by_provider ?? []
+  const appRows = snapshot?.costs?.app?.rows ?? snapshot?.stats?.by_app ?? []
 
   return (
     <XIntelShell
       active="matrix"
-      eyebrow="Pure UI"
-      title="A controlled loading state for parallel work."
-      description="Matrix does not call an API. It renders the engine states you pass in, so production code can connect it to real fan-out request state."
+      eyebrow="CF log monitor"
+      title="Watch the SeekBox API logs resolve in real time."
+      description="Matrix now polls the deployed gateway for sanitized Supabase-backed log summaries: call volume, spend, providers, endpoints, latency, and error counts."
     >
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">Controlled</div>
-              <h2 className="mt-2 text-2xl font-black tracking-tight">Production shape</h2>
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">Live gateway</div>
+              <h2 className="mt-2 text-2xl font-black tracking-tight">api_calls pulse</h2>
+              <div className="mt-1 text-xs font-bold text-neutral-500">
+                {snapshot ? `Updated ${formatClock(snapshot.generatedAt)} · ${snapshot.source.adminRollups ? 'admin cost rollups enabled' : 'public stats only'}` : 'Waiting for first snapshot'}
+              </div>
             </div>
-            <button type="button" onClick={simulate} className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-black text-white">
-              Simulate run
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-black ${autoRefresh ? 'border-neutral-950 bg-neutral-950 text-white' : 'border-neutral-300 bg-white text-neutral-800'}`}
+              >
+                <Activity className="h-4 w-4" />
+                {autoRefresh ? 'Auto on' : 'Auto off'}
+              </button>
+              <button
+                type="button"
+                onClick={refresh}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-black text-neutral-800 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
-          <Matrix engines={controlledEngines} height={360} doneMessage="Production handoff ready." />
+          <Matrix engines={matrixEngines} height={340} doneMessage="Gateway quiet. Logs current." />
+          {error ? <ErrorCard message={error} compact /> : null}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <GatewayMetric icon={<BarChart3 className="h-4 w-4" />} label="Calls" value={formatInteger(totals?.calls)} />
+            <GatewayMetric icon={<DollarSign className="h-4 w-4" />} label="Cost" value={formatMoney(totals?.cost_usd)} />
+            <GatewayMetric icon={<AlertCircle className="h-4 w-4" />} label="Errors" value={formatInteger(totals?.errors)} />
+            <GatewayMetric icon={<Activity className="h-4 w-4" />} label="P95" value={formatMs(totals?.p95_latency_ms)} />
+          </div>
         </div>
-        <div className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col gap-4">
+          <LogRollupPanel title="Endpoints" rows={endpointRows} emptyText="Admin endpoint rollups need SBX_ADMIN_TOKEN on the server." />
+          <LogRollupPanel title="Providers" rows={providerRows} maxRows={30} />
+          <LogRollupPanel title="Apps" rows={appRows} />
+        </div>
+      </div>
+
+      <div className="mt-5 border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
+        <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div className="mb-4">
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">Demo wrapper</div>
-            <h2 className="mt-2 text-2xl font-black tracking-tight">Random sequence preview</h2>
+            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">Fallback preview</div>
+            <h2 className="mt-2 text-2xl font-black tracking-tight">Manual sequence harness</h2>
+            <p className="mt-2 text-sm font-semibold leading-6 text-neutral-600">
+              Keep this around as a quick way to test the animation states without touching live gateway data.
+            </p>
           </div>
-          <MatrixDemo height={360} />
+          <div>
+            <MatrixDemo height={280} />
+          </div>
         </div>
       </div>
     </XIntelShell>
   )
 }
 
-function TopNav({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function useGatewayLogMonitor() {
+  const [snapshot, setSnapshot] = useState<GatewayLogSnapshot | null>(null)
+  const [previous, setPrevious] = useState<GatewayLogSnapshot | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const latestRef = useRef<GatewayLogSnapshot | null>(null)
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/gateway-logs?window=1h&cost_window=24h', { cache: 'no-store' })
+      if (!response.ok) throw new Error(`Gateway monitor failed (${response.status}).`)
+      const next = (await response.json()) as GatewayLogSnapshot
+      setPrevious(latestRef.current)
+      latestRef.current = next
+      setSnapshot(next)
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : 'Gateway monitor failed.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  useEffect(() => {
+    if (!autoRefresh) return
+    const id = window.setInterval(refresh, 10_000)
+    return () => window.clearInterval(id)
+  }, [autoRefresh, refresh])
+
+  return { snapshot, previous, loading, error, autoRefresh, setAutoRefresh, refresh }
+}
+
+function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: GatewayLogSnapshot | null): MatrixEngine[] {
+  const currentRows = gatewayProviderRows(snapshot)
+    .filter((row) => row.key !== 'unknown')
+    .slice(0, 12)
+  const previousByKey = new Map(gatewayProviderRows(previous).map((row) => [row.key, row]))
+
+  if (!currentRows.length) {
+    return [
+      { id: 'gateway', name: 'Gateway', model: 'waiting', color: '#0ea5e9', highlight: '#7dd3fc', status: snapshot ? 'done' : 'thinking' },
+      { id: 'supabase', name: 'Supa', model: 'api_calls', color: '#10b981', highlight: '#86efac', status: snapshot ? 'done' : 'idle' },
+      { id: 'costs', name: 'Costs', model: 'rollups', color: '#a78bfa', highlight: '#ddd6fe', status: snapshot?.costs ? 'done' : 'idle' },
+    ]
+  }
+
+  return currentRows.map((row, index) => {
+    const previousCalls = rowVolume(previousByKey.get(row.key))
+    const calls = rowVolume(row)
+    return {
+      id: row.key,
+      name: providerLabel(row.key),
+      model: `${formatInteger(calls)} uses · ${formatMoney(row.cost_usd)}`,
+      ...providerColor(row.key, index),
+      status: calls > previousCalls ? 'thinking' : 'done',
+    }
+  })
+}
+
+function gatewayProviderRows(snapshot: GatewayLogSnapshot | null): GatewaySummaryRow[] {
+  return snapshot?.costs?.provider?.rows?.length ? snapshot.costs.provider.rows : snapshot?.stats?.by_provider ?? []
+}
+
+function rowVolume(row: GatewaySummaryRow | undefined): number {
+  return Number(row?.count ?? row?.calls ?? 0) || 0
+}
+
+function GatewayMetric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <a href={href} className={`rounded-lg px-4 py-2 ${active ? 'bg-neutral-950 text-white' : 'border border-neutral-300 bg-white text-neutral-800'}`}>
-      {children}
-    </a>
+    <div className="border border-neutral-300 bg-[#fbfbf7] p-3">
+      <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
+        {icon}
+        {label}
+      </div>
+      <div className="text-2xl font-black tracking-tight text-neutral-950">{value}</div>
+    </div>
   )
+}
+
+function LogRollupPanel({
+  title,
+  rows,
+  emptyText = 'No rows in this window.',
+  maxRows = 8,
+}: {
+  title: string
+  rows: GatewaySummaryRow[]
+  emptyText?: string
+  maxRows?: number
+}) {
+  return (
+    <div className="border border-neutral-300 bg-white p-4 shadow-[3px_3px_0_rgba(0,0,0,0.05)]">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">{title}</div>
+        <Cpu className="h-4 w-4 text-neutral-500" />
+      </div>
+      {rows.length ? (
+        <div className="flex flex-col divide-y divide-neutral-200">
+          {rows.slice(0, maxRows).map((row) => (
+            <div key={row.key} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 text-xs font-bold">
+              <div className="min-w-0 truncate text-neutral-800" title={row.key}>{row.key}</div>
+              <div className="font-mono text-neutral-500">{formatInteger(row.count ?? row.calls)}</div>
+              <div className="font-mono text-neutral-950">{formatMoney(row.cost_usd)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-neutral-300 bg-[#fbfbf7] px-3 py-2 text-xs font-bold text-neutral-500">{emptyText}</div>
+      )}
+    </div>
+  )
+}
+
+function providerLabel(value: string): string {
+  const labels: Record<string, string> = {
+    xai: 'xAI',
+    openai: 'OpenAI',
+    groq: 'Groq',
+    tavily: 'Tavily',
+    brave: 'Brave',
+    wikimedia: 'Wiki',
+    api_calls: 'API Calls',
+    pulse_runs: 'Pulse Runs',
+    'google-ai-studio': 'Gemini',
+    'workers-ai': 'Workers AI',
+  }
+  return labels[value] ?? value.replace(/[-_]+/g, ' ').replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
+}
+
+function providerColor(value: string, index: number): Pick<MatrixEngine, 'color' | 'highlight'> {
+  const colors: Array<Pick<MatrixEngine, 'color' | 'highlight'>> = [
+    { color: '#0ea5e9', highlight: '#7dd3fc' },
+    { color: '#a78bfa', highlight: '#ddd6fe' },
+    { color: '#10b981', highlight: '#86efac' },
+    { color: '#f97316', highlight: '#fdba74' },
+    { color: '#64748b', highlight: '#f8fafc' },
+  ]
+  const known: Record<string, Pick<MatrixEngine, 'color' | 'highlight'>> = {
+    xai: { color: '#64748b', highlight: '#f8fafc' },
+    openai: { color: '#10b981', highlight: '#86efac' },
+    groq: { color: '#f97316', highlight: '#fdba74' },
+    tavily: { color: '#8b5cf6', highlight: '#ddd6fe' },
+    brave: { color: '#fb923c', highlight: '#fed7aa' },
+    wikimedia: { color: '#6366f1', highlight: '#c7d2fe' },
+    api_calls: { color: '#14b8a6', highlight: '#99f6e4' },
+    pulse_runs: { color: '#e11d48', highlight: '#fda4af' },
+    'google-ai-studio': { color: '#0ea5e9', highlight: '#7dd3fc' },
+    'workers-ai': { color: '#f59e0b', highlight: '#fde68a' },
+  }
+  return known[value] ?? colors[index % colors.length]
+}
+
+function formatInteger(value: number | null | undefined): string {
+  return Math.round(Number(value) || 0).toLocaleString()
+}
+
+function formatMoney(value: number | null | undefined): string {
+  return `$${(Number(value) || 0).toFixed(4)}`
+}
+
+function formatMs(value: number | null | undefined): string {
+  const n = Number(value) || 0
+  return n ? `${Math.round(n).toLocaleString()}ms` : '0ms'
+}
+
+function formatClock(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
 }
 
 function HandleField({ label, value, onChange, onSubmit }: {

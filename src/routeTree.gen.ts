@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as XrawRouteImport } from './routes/xraw'
 import { Route as XmarksRouteImport } from './routes/xmarks'
+import { Route as XRouteImport } from './routes/x'
 import { Route as TickerRouteImport } from './routes/ticker'
 import { Route as SuccessRouteImport } from './routes/success'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SeeklyRouteImport } from './routes/seekly'
+import { Route as SeedsRouteImport } from './routes/seeds'
+import { Route as SeedLabRouteImport } from './routes/seed-lab'
+import { Route as SecondOpinionRouteImport } from './routes/second-opinion'
+import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as PulseRouteImport } from './routes/pulse'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as HelperRouteImport } from './routes/helper'
@@ -27,6 +33,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TopicsIndexRouteImport } from './routes/topics/index'
 import { Route as LabsIndexRouteImport } from './routes/labs/index'
 import { Route as IndustriesIndexRouteImport } from './routes/industries/index'
+import { Route as XDesktopRouteImport } from './routes/x/desktop'
+import { Route as VoicesHandleRouteImport } from './routes/voices/$handle'
+import { Route as V1SearchRouteImport } from './routes/v1/search'
+import { Route as V1ChatRouteImport } from './routes/v1/chat'
 import { Route as TopicsTagRouteImport } from './routes/topics/$tag'
 import { Route as LabsXBattleRouteImport } from './routes/labs/x-battle'
 import { Route as LabsPostRoomRouteImport } from './routes/labs/post-room'
@@ -36,18 +46,33 @@ import { Route as IndustriesVerticalRouteImport } from './routes/industries/$ver
 import { Route as CleanseekXRabbitholexRouteImport } from './routes/cleanseek-x/rabbitholex'
 import { Route as CleanseekXHistoryRouteImport } from './routes/cleanseek-x/history'
 import { Route as CleanseekXDesktopRouteImport } from './routes/cleanseek-x/desktop'
+import { Route as ApiXDiscoverRouteImport } from './routes/api/x-discover'
 import { Route as ApiUnusualWhalesRouteImport } from './routes/api/unusual-whales'
 import { Route as ApiSupplementaryRouteImport } from './routes/api/supplementary'
 import { Route as ApiSecondOpinionRouteImport } from './routes/api/second-opinion'
+import { Route as ApiRoadmapVotesRouteImport } from './routes/api/roadmap-votes'
 import { Route as ApiPulseVoicesRouteImport } from './routes/api/pulse-voices'
 import { Route as ApiPulseRunsRouteImport } from './routes/api/pulse-runs'
+import { Route as ApiGatewayLogsRouteImport } from './routes/api/gateway-logs'
+import { Route as LegacySearchStreamRouteImport } from './routes/legacy/search/stream'
 import { Route as ApiXIntelXBattleRouteImport } from './routes/api/x-intel/x-battle'
 import { Route as ApiXIntelPostRoomRouteImport } from './routes/api/x-intel/post-room'
 import { Route as ApiXIntelAntiEchoRouteImport } from './routes/api/x-intel/anti-echo'
+import { Route as ApiSearchStreamRouteImport } from './routes/api/search/stream'
 
+const XrawRoute = XrawRouteImport.update({
+  id: '/xraw',
+  path: '/xraw',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const XmarksRoute = XmarksRouteImport.update({
   id: '/xmarks',
   path: '/xmarks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const XRoute = XRouteImport.update({
+  id: '/x',
+  path: '/x',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TickerRoute = TickerRouteImport.update({
@@ -68,6 +93,26 @@ const SigninRoute = SigninRouteImport.update({
 const SeeklyRoute = SeeklyRouteImport.update({
   id: '/seekly',
   path: '/seekly',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeedsRoute = SeedsRouteImport.update({
+  id: '/seeds',
+  path: '/seeds',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeedLabRoute = SeedLabRouteImport.update({
+  id: '/seed-lab',
+  path: '/seed-lab',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SecondOpinionRoute = SecondOpinionRouteImport.update({
+  id: '/second-opinion',
+  path: '/second-opinion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoadmapRoute = RoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PulseRoute = PulseRouteImport.update({
@@ -135,6 +180,26 @@ const IndustriesIndexRoute = IndustriesIndexRouteImport.update({
   path: '/industries/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const XDesktopRoute = XDesktopRouteImport.update({
+  id: '/desktop',
+  path: '/desktop',
+  getParentRoute: () => XRoute,
+} as any)
+const VoicesHandleRoute = VoicesHandleRouteImport.update({
+  id: '/voices/$handle',
+  path: '/voices/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1SearchRoute = V1SearchRouteImport.update({
+  id: '/v1/search',
+  path: '/v1/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1ChatRoute = V1ChatRouteImport.update({
+  id: '/v1/chat',
+  path: '/v1/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TopicsTagRoute = TopicsTagRouteImport.update({
   id: '/topics/$tag',
   path: '/topics/$tag',
@@ -180,6 +245,11 @@ const CleanseekXDesktopRoute = CleanseekXDesktopRouteImport.update({
   path: '/desktop',
   getParentRoute: () => CleanseekXRoute,
 } as any)
+const ApiXDiscoverRoute = ApiXDiscoverRouteImport.update({
+  id: '/api/x-discover',
+  path: '/api/x-discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUnusualWhalesRoute = ApiUnusualWhalesRouteImport.update({
   id: '/api/unusual-whales',
   path: '/api/unusual-whales',
@@ -195,6 +265,11 @@ const ApiSecondOpinionRoute = ApiSecondOpinionRouteImport.update({
   path: '/api/second-opinion',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRoadmapVotesRoute = ApiRoadmapVotesRouteImport.update({
+  id: '/api/roadmap-votes',
+  path: '/api/roadmap-votes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPulseVoicesRoute = ApiPulseVoicesRouteImport.update({
   id: '/api/pulse-voices',
   path: '/api/pulse-voices',
@@ -203,6 +278,16 @@ const ApiPulseVoicesRoute = ApiPulseVoicesRouteImport.update({
 const ApiPulseRunsRoute = ApiPulseRunsRouteImport.update({
   id: '/api/pulse-runs',
   path: '/api/pulse-runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGatewayLogsRoute = ApiGatewayLogsRouteImport.update({
+  id: '/api/gateway-logs',
+  path: '/api/gateway-logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegacySearchStreamRoute = LegacySearchStreamRouteImport.update({
+  id: '/legacy/search/stream',
+  path: '/legacy/search/stream',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiXIntelXBattleRoute = ApiXIntelXBattleRouteImport.update({
@@ -220,6 +305,11 @@ const ApiXIntelAntiEchoRoute = ApiXIntelAntiEchoRouteImport.update({
   path: '/api/x-intel/anti-echo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSearchStreamRoute = ApiSearchStreamRouteImport.update({
+  id: '/api/search/stream',
+  path: '/api/search/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -232,16 +322,25 @@ export interface FileRoutesByFullPath {
   '/helper': typeof HelperRoute
   '/pricing': typeof PricingRoute
   '/pulse': typeof PulseRoute
+  '/roadmap': typeof RoadmapRoute
+  '/second-opinion': typeof SecondOpinionRoute
+  '/seed-lab': typeof SeedLabRoute
+  '/seeds': typeof SeedsRoute
   '/seekly': typeof SeeklyRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/ticker': typeof TickerRoute
+  '/x': typeof XRouteWithChildren
   '/xmarks': typeof XmarksRoute
+  '/xraw': typeof XrawRoute
+  '/api/gateway-logs': typeof ApiGatewayLogsRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/pulse-voices': typeof ApiPulseVoicesRoute
+  '/api/roadmap-votes': typeof ApiRoadmapVotesRoute
   '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
+  '/api/x-discover': typeof ApiXDiscoverRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
@@ -251,12 +350,18 @@ export interface FileRoutesByFullPath {
   '/labs/post-room': typeof LabsPostRoomRoute
   '/labs/x-battle': typeof LabsXBattleRoute
   '/topics/$tag': typeof TopicsTagRoute
+  '/v1/chat': typeof V1ChatRoute
+  '/v1/search': typeof V1SearchRoute
+  '/voices/$handle': typeof VoicesHandleRoute
+  '/x/desktop': typeof XDesktopRoute
   '/industries/': typeof IndustriesIndexRoute
   '/labs/': typeof LabsIndexRoute
   '/topics/': typeof TopicsIndexRoute
+  '/api/search/stream': typeof ApiSearchStreamRoute
   '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
   '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
   '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
+  '/legacy/search/stream': typeof LegacySearchStreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -269,16 +374,25 @@ export interface FileRoutesByTo {
   '/helper': typeof HelperRoute
   '/pricing': typeof PricingRoute
   '/pulse': typeof PulseRoute
+  '/roadmap': typeof RoadmapRoute
+  '/second-opinion': typeof SecondOpinionRoute
+  '/seed-lab': typeof SeedLabRoute
+  '/seeds': typeof SeedsRoute
   '/seekly': typeof SeeklyRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/ticker': typeof TickerRoute
+  '/x': typeof XRouteWithChildren
   '/xmarks': typeof XmarksRoute
+  '/xraw': typeof XrawRoute
+  '/api/gateway-logs': typeof ApiGatewayLogsRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/pulse-voices': typeof ApiPulseVoicesRoute
+  '/api/roadmap-votes': typeof ApiRoadmapVotesRoute
   '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
+  '/api/x-discover': typeof ApiXDiscoverRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
@@ -288,12 +402,18 @@ export interface FileRoutesByTo {
   '/labs/post-room': typeof LabsPostRoomRoute
   '/labs/x-battle': typeof LabsXBattleRoute
   '/topics/$tag': typeof TopicsTagRoute
+  '/v1/chat': typeof V1ChatRoute
+  '/v1/search': typeof V1SearchRoute
+  '/voices/$handle': typeof VoicesHandleRoute
+  '/x/desktop': typeof XDesktopRoute
   '/industries': typeof IndustriesIndexRoute
   '/labs': typeof LabsIndexRoute
   '/topics': typeof TopicsIndexRoute
+  '/api/search/stream': typeof ApiSearchStreamRoute
   '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
   '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
   '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
+  '/legacy/search/stream': typeof LegacySearchStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -307,16 +427,25 @@ export interface FileRoutesById {
   '/helper': typeof HelperRoute
   '/pricing': typeof PricingRoute
   '/pulse': typeof PulseRoute
+  '/roadmap': typeof RoadmapRoute
+  '/second-opinion': typeof SecondOpinionRoute
+  '/seed-lab': typeof SeedLabRoute
+  '/seeds': typeof SeedsRoute
   '/seekly': typeof SeeklyRoute
   '/signin': typeof SigninRoute
   '/success': typeof SuccessRoute
   '/ticker': typeof TickerRoute
+  '/x': typeof XRouteWithChildren
   '/xmarks': typeof XmarksRoute
+  '/xraw': typeof XrawRoute
+  '/api/gateway-logs': typeof ApiGatewayLogsRoute
   '/api/pulse-runs': typeof ApiPulseRunsRoute
   '/api/pulse-voices': typeof ApiPulseVoicesRoute
+  '/api/roadmap-votes': typeof ApiRoadmapVotesRoute
   '/api/second-opinion': typeof ApiSecondOpinionRoute
   '/api/supplementary': typeof ApiSupplementaryRoute
   '/api/unusual-whales': typeof ApiUnusualWhalesRoute
+  '/api/x-discover': typeof ApiXDiscoverRoute
   '/cleanseek-x/desktop': typeof CleanseekXDesktopRoute
   '/cleanseek-x/history': typeof CleanseekXHistoryRoute
   '/cleanseek-x/rabbitholex': typeof CleanseekXRabbitholexRoute
@@ -326,12 +455,18 @@ export interface FileRoutesById {
   '/labs/post-room': typeof LabsPostRoomRoute
   '/labs/x-battle': typeof LabsXBattleRoute
   '/topics/$tag': typeof TopicsTagRoute
+  '/v1/chat': typeof V1ChatRoute
+  '/v1/search': typeof V1SearchRoute
+  '/voices/$handle': typeof VoicesHandleRoute
+  '/x/desktop': typeof XDesktopRoute
   '/industries/': typeof IndustriesIndexRoute
   '/labs/': typeof LabsIndexRoute
   '/topics/': typeof TopicsIndexRoute
+  '/api/search/stream': typeof ApiSearchStreamRoute
   '/api/x-intel/anti-echo': typeof ApiXIntelAntiEchoRoute
   '/api/x-intel/post-room': typeof ApiXIntelPostRoomRoute
   '/api/x-intel/x-battle': typeof ApiXIntelXBattleRoute
+  '/legacy/search/stream': typeof LegacySearchStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -346,16 +481,25 @@ export interface FileRouteTypes {
     | '/helper'
     | '/pricing'
     | '/pulse'
+    | '/roadmap'
+    | '/second-opinion'
+    | '/seed-lab'
+    | '/seeds'
     | '/seekly'
     | '/signin'
     | '/success'
     | '/ticker'
+    | '/x'
     | '/xmarks'
+    | '/xraw'
+    | '/api/gateway-logs'
     | '/api/pulse-runs'
     | '/api/pulse-voices'
+    | '/api/roadmap-votes'
     | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
+    | '/api/x-discover'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
@@ -365,12 +509,18 @@ export interface FileRouteTypes {
     | '/labs/post-room'
     | '/labs/x-battle'
     | '/topics/$tag'
+    | '/v1/chat'
+    | '/v1/search'
+    | '/voices/$handle'
+    | '/x/desktop'
     | '/industries/'
     | '/labs/'
     | '/topics/'
+    | '/api/search/stream'
     | '/api/x-intel/anti-echo'
     | '/api/x-intel/post-room'
     | '/api/x-intel/x-battle'
+    | '/legacy/search/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -383,16 +533,25 @@ export interface FileRouteTypes {
     | '/helper'
     | '/pricing'
     | '/pulse'
+    | '/roadmap'
+    | '/second-opinion'
+    | '/seed-lab'
+    | '/seeds'
     | '/seekly'
     | '/signin'
     | '/success'
     | '/ticker'
+    | '/x'
     | '/xmarks'
+    | '/xraw'
+    | '/api/gateway-logs'
     | '/api/pulse-runs'
     | '/api/pulse-voices'
+    | '/api/roadmap-votes'
     | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
+    | '/api/x-discover'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
@@ -402,12 +561,18 @@ export interface FileRouteTypes {
     | '/labs/post-room'
     | '/labs/x-battle'
     | '/topics/$tag'
+    | '/v1/chat'
+    | '/v1/search'
+    | '/voices/$handle'
+    | '/x/desktop'
     | '/industries'
     | '/labs'
     | '/topics'
+    | '/api/search/stream'
     | '/api/x-intel/anti-echo'
     | '/api/x-intel/post-room'
     | '/api/x-intel/x-battle'
+    | '/legacy/search/stream'
   id:
     | '__root__'
     | '/'
@@ -420,16 +585,25 @@ export interface FileRouteTypes {
     | '/helper'
     | '/pricing'
     | '/pulse'
+    | '/roadmap'
+    | '/second-opinion'
+    | '/seed-lab'
+    | '/seeds'
     | '/seekly'
     | '/signin'
     | '/success'
     | '/ticker'
+    | '/x'
     | '/xmarks'
+    | '/xraw'
+    | '/api/gateway-logs'
     | '/api/pulse-runs'
     | '/api/pulse-voices'
+    | '/api/roadmap-votes'
     | '/api/second-opinion'
     | '/api/supplementary'
     | '/api/unusual-whales'
+    | '/api/x-discover'
     | '/cleanseek-x/desktop'
     | '/cleanseek-x/history'
     | '/cleanseek-x/rabbitholex'
@@ -439,12 +613,18 @@ export interface FileRouteTypes {
     | '/labs/post-room'
     | '/labs/x-battle'
     | '/topics/$tag'
+    | '/v1/chat'
+    | '/v1/search'
+    | '/voices/$handle'
+    | '/x/desktop'
     | '/industries/'
     | '/labs/'
     | '/topics/'
+    | '/api/search/stream'
     | '/api/x-intel/anti-echo'
     | '/api/x-intel/post-room'
     | '/api/x-intel/x-battle'
+    | '/legacy/search/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -458,37 +638,65 @@ export interface RootRouteChildren {
   HelperRoute: typeof HelperRoute
   PricingRoute: typeof PricingRoute
   PulseRoute: typeof PulseRoute
+  RoadmapRoute: typeof RoadmapRoute
+  SecondOpinionRoute: typeof SecondOpinionRoute
+  SeedLabRoute: typeof SeedLabRoute
+  SeedsRoute: typeof SeedsRoute
   SeeklyRoute: typeof SeeklyRoute
   SigninRoute: typeof SigninRoute
   SuccessRoute: typeof SuccessRoute
   TickerRoute: typeof TickerRoute
+  XRoute: typeof XRouteWithChildren
   XmarksRoute: typeof XmarksRoute
+  XrawRoute: typeof XrawRoute
+  ApiGatewayLogsRoute: typeof ApiGatewayLogsRoute
   ApiPulseRunsRoute: typeof ApiPulseRunsRoute
   ApiPulseVoicesRoute: typeof ApiPulseVoicesRoute
+  ApiRoadmapVotesRoute: typeof ApiRoadmapVotesRoute
   ApiSecondOpinionRoute: typeof ApiSecondOpinionRoute
   ApiSupplementaryRoute: typeof ApiSupplementaryRoute
   ApiUnusualWhalesRoute: typeof ApiUnusualWhalesRoute
+  ApiXDiscoverRoute: typeof ApiXDiscoverRoute
   IndustriesVerticalRoute: typeof IndustriesVerticalRoute
   LabsAntiEchoRoute: typeof LabsAntiEchoRoute
   LabsMatrixRoute: typeof LabsMatrixRoute
   LabsPostRoomRoute: typeof LabsPostRoomRoute
   LabsXBattleRoute: typeof LabsXBattleRoute
   TopicsTagRoute: typeof TopicsTagRoute
+  V1ChatRoute: typeof V1ChatRoute
+  V1SearchRoute: typeof V1SearchRoute
+  VoicesHandleRoute: typeof VoicesHandleRoute
   IndustriesIndexRoute: typeof IndustriesIndexRoute
   LabsIndexRoute: typeof LabsIndexRoute
   TopicsIndexRoute: typeof TopicsIndexRoute
+  ApiSearchStreamRoute: typeof ApiSearchStreamRoute
   ApiXIntelAntiEchoRoute: typeof ApiXIntelAntiEchoRoute
   ApiXIntelPostRoomRoute: typeof ApiXIntelPostRoomRoute
   ApiXIntelXBattleRoute: typeof ApiXIntelXBattleRoute
+  LegacySearchStreamRoute: typeof LegacySearchStreamRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/xraw': {
+      id: '/xraw'
+      path: '/xraw'
+      fullPath: '/xraw'
+      preLoaderRoute: typeof XrawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/xmarks': {
       id: '/xmarks'
       path: '/xmarks'
       fullPath: '/xmarks'
       preLoaderRoute: typeof XmarksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/x': {
+      id: '/x'
+      path: '/x'
+      fullPath: '/x'
+      preLoaderRoute: typeof XRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ticker': {
@@ -517,6 +725,34 @@ declare module '@tanstack/react-router' {
       path: '/seekly'
       fullPath: '/seekly'
       preLoaderRoute: typeof SeeklyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seeds': {
+      id: '/seeds'
+      path: '/seeds'
+      fullPath: '/seeds'
+      preLoaderRoute: typeof SeedsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seed-lab': {
+      id: '/seed-lab'
+      path: '/seed-lab'
+      fullPath: '/seed-lab'
+      preLoaderRoute: typeof SeedLabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/second-opinion': {
+      id: '/second-opinion'
+      path: '/second-opinion'
+      fullPath: '/second-opinion'
+      preLoaderRoute: typeof SecondOpinionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap': {
+      id: '/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof RoadmapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pulse': {
@@ -610,6 +846,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndustriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/x/desktop': {
+      id: '/x/desktop'
+      path: '/desktop'
+      fullPath: '/x/desktop'
+      preLoaderRoute: typeof XDesktopRouteImport
+      parentRoute: typeof XRoute
+    }
+    '/voices/$handle': {
+      id: '/voices/$handle'
+      path: '/voices/$handle'
+      fullPath: '/voices/$handle'
+      preLoaderRoute: typeof VoicesHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/search': {
+      id: '/v1/search'
+      path: '/v1/search'
+      fullPath: '/v1/search'
+      preLoaderRoute: typeof V1SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/chat': {
+      id: '/v1/chat'
+      path: '/v1/chat'
+      fullPath: '/v1/chat'
+      preLoaderRoute: typeof V1ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/topics/$tag': {
       id: '/topics/$tag'
       path: '/topics/$tag'
@@ -673,6 +937,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CleanseekXDesktopRouteImport
       parentRoute: typeof CleanseekXRoute
     }
+    '/api/x-discover': {
+      id: '/api/x-discover'
+      path: '/api/x-discover'
+      fullPath: '/api/x-discover'
+      preLoaderRoute: typeof ApiXDiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/unusual-whales': {
       id: '/api/unusual-whales'
       path: '/api/unusual-whales'
@@ -694,6 +965,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSecondOpinionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/roadmap-votes': {
+      id: '/api/roadmap-votes'
+      path: '/api/roadmap-votes'
+      fullPath: '/api/roadmap-votes'
+      preLoaderRoute: typeof ApiRoadmapVotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/pulse-voices': {
       id: '/api/pulse-voices'
       path: '/api/pulse-voices'
@@ -706,6 +984,20 @@ declare module '@tanstack/react-router' {
       path: '/api/pulse-runs'
       fullPath: '/api/pulse-runs'
       preLoaderRoute: typeof ApiPulseRunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gateway-logs': {
+      id: '/api/gateway-logs'
+      path: '/api/gateway-logs'
+      fullPath: '/api/gateway-logs'
+      preLoaderRoute: typeof ApiGatewayLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legacy/search/stream': {
+      id: '/legacy/search/stream'
+      path: '/legacy/search/stream'
+      fullPath: '/legacy/search/stream'
+      preLoaderRoute: typeof LegacySearchStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/x-intel/x-battle': {
@@ -729,6 +1021,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiXIntelAntiEchoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/search/stream': {
+      id: '/api/search/stream'
+      path: '/api/search/stream'
+      fullPath: '/api/search/stream'
+      preLoaderRoute: typeof ApiSearchStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -748,6 +1047,16 @@ const CleanseekXRouteWithChildren = CleanseekXRoute._addFileChildren(
   CleanseekXRouteChildren,
 )
 
+interface XRouteChildren {
+  XDesktopRoute: typeof XDesktopRoute
+}
+
+const XRouteChildren: XRouteChildren = {
+  XDesktopRoute: XDesktopRoute,
+}
+
+const XRouteWithChildren = XRoute._addFileChildren(XRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
@@ -759,28 +1068,42 @@ const rootRouteChildren: RootRouteChildren = {
   HelperRoute: HelperRoute,
   PricingRoute: PricingRoute,
   PulseRoute: PulseRoute,
+  RoadmapRoute: RoadmapRoute,
+  SecondOpinionRoute: SecondOpinionRoute,
+  SeedLabRoute: SeedLabRoute,
+  SeedsRoute: SeedsRoute,
   SeeklyRoute: SeeklyRoute,
   SigninRoute: SigninRoute,
   SuccessRoute: SuccessRoute,
   TickerRoute: TickerRoute,
+  XRoute: XRouteWithChildren,
   XmarksRoute: XmarksRoute,
+  XrawRoute: XrawRoute,
+  ApiGatewayLogsRoute: ApiGatewayLogsRoute,
   ApiPulseRunsRoute: ApiPulseRunsRoute,
   ApiPulseVoicesRoute: ApiPulseVoicesRoute,
+  ApiRoadmapVotesRoute: ApiRoadmapVotesRoute,
   ApiSecondOpinionRoute: ApiSecondOpinionRoute,
   ApiSupplementaryRoute: ApiSupplementaryRoute,
   ApiUnusualWhalesRoute: ApiUnusualWhalesRoute,
+  ApiXDiscoverRoute: ApiXDiscoverRoute,
   IndustriesVerticalRoute: IndustriesVerticalRoute,
   LabsAntiEchoRoute: LabsAntiEchoRoute,
   LabsMatrixRoute: LabsMatrixRoute,
   LabsPostRoomRoute: LabsPostRoomRoute,
   LabsXBattleRoute: LabsXBattleRoute,
   TopicsTagRoute: TopicsTagRoute,
+  V1ChatRoute: V1ChatRoute,
+  V1SearchRoute: V1SearchRoute,
+  VoicesHandleRoute: VoicesHandleRoute,
   IndustriesIndexRoute: IndustriesIndexRoute,
   LabsIndexRoute: LabsIndexRoute,
   TopicsIndexRoute: TopicsIndexRoute,
+  ApiSearchStreamRoute: ApiSearchStreamRoute,
   ApiXIntelAntiEchoRoute: ApiXIntelAntiEchoRoute,
   ApiXIntelPostRoomRoute: ApiXIntelPostRoomRoute,
   ApiXIntelXBattleRoute: ApiXIntelXBattleRoute,
+  LegacySearchStreamRoute: LegacySearchStreamRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

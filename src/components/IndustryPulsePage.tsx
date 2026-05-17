@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Activity,
   ArrowRight,
@@ -11,11 +11,20 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
+import { cleanseekHref } from '../lib/cleanseekUrl'
 import { INDUSTRY_PAGES, getIndustryPage, type IndustryPageConfig } from '../lib/industryCatalog'
-import { extractHandlesFromText, normalizeXHandle, rankPulseVoices, sortPulseVoiceRankings, type PulseVoiceRanking } from '../lib/pulseVoiceRankings'
+import {
+  extractHandlesFromText,
+  normalizeXHandle,
+  rankPulseVoices,
+  sortPulseVoiceRankings,
+  voiceProfileHref,
+  type PulseVoiceRanking,
+} from '../lib/pulseVoiceRankings'
 import { pulseTopicHref } from '../lib/pulseTopics'
-import { openSourcePopup } from '../lib/sourcePopup'
-import { SeekBoxLogo } from './SeekBoxLogo'
+import { LazySection } from './LazySection'
+import { PulseCitationLink } from './PulseCitationLink'
+import { XSiteHeader } from './XSiteHeader'
 
 type PulseCitation = {
   index?: number | null
@@ -98,20 +107,23 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!industry) return
+    const activeIndustry = industry
     let cancelled = false
 
     async function load() {
       setLoading(true)
       setError(null)
       try {
-        const [next, voices] = await Promise.all([
-          loadIndustryRows(industry.slug),
-          loadIndustryVoices(industry.slug).catch(() => []),
-        ])
+        const next = await loadIndustryRows(activeIndustry.slug)
         if (cancelled) return
         setRows(next)
-        setPersistedVoices(voices)
+        setPersistedVoices([])
         setSource(next.length ? 'api' : 'empty')
+        setLoading(false)
+
+        void loadIndustryVoices(activeIndustry.slug).then((voices) => {
+          if (!cancelled && voices.length) setPersistedVoices(voices)
+        })
       } catch (e) {
         if (cancelled) return
         setRows([])
@@ -129,14 +141,14 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
     }
   }, [industry])
 
-  const derived = useMemo(() => deriveIndustryRows(rows, industry), [rows, industry])
+  const derived = useMemo(() => (industry ? deriveIndustryRows(rows, industry) : { latest: null, history: [] }), [rows, industry])
   const latest = derived.latest
   const sections = latest ? splitSections(latest.row.summary ?? '') : []
   const stats = useMemo(() => summarizeRows(derived.history), [derived.history])
   const voiceRankings = useMemo(() => {
     if (persistedVoices.length) return sortPulseVoiceRankings(persistedVoices, 10)
     const derivedVoices = rankPulseVoices(derived.history.map((row) => row.row), 8)
-    return derivedVoices.length ? derivedVoices : seedVoiceRankings(industry)
+    return derivedVoices.length ? derivedVoices : industry ? seedVoiceRankings(industry) : []
   }, [derived.history, industry, persistedVoices])
   const questions = industry?.questions ?? []
 
@@ -261,103 +273,71 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
         </aside>
       </section>
 
-      <section className="border-y border-neutral-300 bg-white">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">Citations</div>
-            <h2 className="mt-1 text-3xl font-black tracking-tight">Open the receipts</h2>
-            <p className="mt-3 max-w-xl text-sm font-semibold leading-7 text-neutral-600">
-              The page is meant to be read fast, but every cached pulse keeps the source trail visible so a customer
-              can decide when to run a fresh live pull.
-            </p>
+      <LazySection label="Preparing citations" placeholderHeight={300}>
+        <section className="border-y border-neutral-300 bg-white">
+          <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">Citations</div>
+              <h2 className="mt-1 text-3xl font-black tracking-tight">Open the receipts</h2>
+              <p className="mt-3 max-w-xl text-sm font-semibold leading-7 text-neutral-600">
+                The page is meant to be read fast, but every cached pulse keeps the source trail visible so a customer
+                can decide when to run a fresh live pull.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(latest?.row.citations ?? []).length ? (
+                (latest?.row.citations ?? []).slice(0, 10).map((citation, index) => (
+                  <PulseCitationLink
+                    key={`${citation.url ?? index}`}
+                    citation={citation}
+                    index={index}
+                    layout="card"
+                    showProfile={false}
+                  />
+                ))
+              ) : (
+                <div className="border border-dashed border-neutral-300 bg-[#f7f8f4] px-4 py-8 text-sm font-bold text-neutral-500">
+                  No citations cached yet for this vertical.
+                </div>
+              )}
+            </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(latest?.row.citations ?? []).length ? (
-              (latest?.row.citations ?? []).slice(0, 10).map((citation, index) => (
-                <a
-                  key={`${citation.url ?? index}`}
-                  href={citation.url ?? '#'}
-                  onClick={(event) => sourceClick(event, citation.url)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between gap-3 border border-neutral-300 bg-[#f7f8f4] px-4 py-3 text-sm font-black text-neutral-800 hover:border-neutral-950"
-                >
-                  <span>Source [{citation.index ?? index + 1}]</span>
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              ))
-            ) : (
-              <div className="border border-dashed border-neutral-300 bg-[#f7f8f4] px-4 py-8 text-sm font-bold text-neutral-500">
-                No citations cached yet for this vertical.
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+        </section>
+      </LazySection>
 
-      <section className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-4 border border-neutral-300 bg-neutral-950 px-5 py-5 text-white md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-400">Deep pull</div>
-            <div className="mt-1 text-xl font-black sm:text-2xl">Turn the cached read into a customer question.</div>
-            <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-300">
-              This is where live search earns the click: fresh X posts, dissent, trader/fan/operator sentiment, and citations.
-            </p>
+      <LazySection label="Preparing live-search actions" placeholderHeight={180}>
+        <section className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 border border-neutral-300 bg-neutral-950 px-5 py-5 text-white md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-400">Deep pull</div>
+              <div className="mt-1 text-xl font-black sm:text-2xl">Turn the cached read into a customer question.</div>
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-300">
+                This is where live search earns the click: fresh X posts, dissent, trader/fan/operator sentiment, and citations.
+              </p>
+            </div>
+            <a
+              href={searchUrl(industry, questions[0] ?? `${industry.label} pulse on X this week`)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-300 px-5 py-3 text-sm font-black text-neutral-950"
+            >
+              Search live
+              <Search className="h-4 w-4" />
+            </a>
+            <a
+              href={antiEchoUrl(latest, industry)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-5 py-3 text-sm font-black text-white"
+            >
+              Find dissent
+              <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
-          <a
-            href={searchUrl(industry, questions[0] ?? `${industry.label} pulse on X this week`)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-300 px-5 py-3 text-sm font-black text-neutral-950"
-          >
-            Search live
-            <Search className="h-4 w-4" />
-          </a>
-          <a
-            href={antiEchoUrl(latest, industry)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-5 py-3 text-sm font-black text-white"
-          >
-            Find dissent
-            <ArrowRight className="h-4 w-4" />
-          </a>
-        </div>
-      </section>
+        </section>
+      </LazySection>
     </main>
   )
 }
 
 function IndustryHeader() {
-  return (
-    <header className="border-b border-neutral-300 bg-[#fbfbf7]">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-        <a href="/" className="flex items-center gap-3">
-          <SeekBoxLogo tone="light" size="md" />
-          <div>
-            <div className="text-xl font-black tracking-tight">X.SeekBoxAI Pulse</div>
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">industry desk</div>
-          </div>
-        </a>
-        <nav className="flex flex-wrap gap-2 text-sm font-black">
-          <a href="/pulse" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Reader
-          </a>
-          <a href="/industries" className="rounded-lg bg-neutral-950 px-4 py-2 text-white">
-            Industries
-          </a>
-          <a href="/topics" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Topics
-          </a>
-          <a href="/labs" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Intel
-          </a>
-          <a href="/ticker" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Ticker
-          </a>
-          <a href="/cleanseek-x" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Search live
-          </a>
-        </nav>
-      </div>
-    </header>
-  )
+  return <XSiteHeader active="industries" title="X.SeekBoxAI Pulse" eyebrow="industry desk" />
 }
 
 async function loadIndustryRows(slug: string): Promise<PulseRow[]> {
@@ -453,7 +433,7 @@ function formatAge(createdAt: string): string {
 
 function searchUrl(industry: IndustryPageConfig, question: string) {
   const query = `${industry.label} X pulse: ${question}. Include recent X posts, sentiment, dissent, and citations.`
-  return `/cleanseek-x?q=${encodeURIComponent(query)}&latest=1&preset=web&autorun=1`
+  return cleanseekHref({ query, latest: true, preset: 'web', autorun: true })
 }
 
 function antiEchoUrl(latest: DerivedIndustryRow | null, industry: IndustryPageConfig): string {
@@ -461,13 +441,6 @@ function antiEchoUrl(latest: DerivedIndustryRow | null, industry: IndustryPageCo
   const sections = latest ? splitSections(latest.row.summary ?? '') : []
   const claim = (sections[0] || latest?.row.summary || fallback).replace(/\s+/g, ' ').trim().slice(0, 600)
   return `/labs/anti-echo?claim=${encodeURIComponent(claim)}`
-}
-
-function sourceClick(event: MouseEvent<HTMLAnchorElement>, url: string | null | undefined) {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
-  if (!url) return
-  event.preventDefault()
-  openSourcePopup(url)
 }
 
 function seedVoiceRankings(industry: IndustryPageConfig): PulseVoiceRanking[] {
@@ -535,20 +508,14 @@ function CitationRefs({ citations, limit = 4 }: { citations: PulseCitation[] | n
     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-3">
       <span className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Referenced sources</span>
       {refs.map((citation, index) => (
-        <a
-          key={`${citation.url ?? index}`}
-          href={citation.url ?? '#'}
-          onClick={(event) => sourceClick(event, citation.url)}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-[#fbfbf7] px-2.5 py-1 text-[10px] font-black text-neutral-700 hover:border-neutral-950"
-        >
-          [{citation.index ?? index + 1}]
-          <ExternalLink className="h-3 w-3" />
-        </a>
+        <CitationLink key={`${citation.url ?? index}`} citation={citation} index={index} />
       ))}
     </div>
   )
+}
+
+function CitationLink({ citation, index }: { citation: PulseCitation; index: number }) {
+  return <PulseCitationLink citation={citation} index={index} />
 }
 
 function ChartPanel({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
@@ -610,9 +577,9 @@ function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number })
         ? 'bg-amber-50 text-amber-900 border-amber-200'
         : 'bg-neutral-100 text-neutral-700 border-neutral-300'
   return (
-    <div>
+    <a href={voiceProfileHref(voice.handle)} className="group block">
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
-        <span className="min-w-0 truncate text-neutral-700">@{voice.displayHandle}</span>
+        <span className="min-w-0 truncate text-neutral-700 group-hover:text-neutral-950 group-hover:underline">@{voice.displayHandle}</span>
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wide ${badge}`}>{voice.source}</span>
       </div>
       <div className="h-2 bg-neutral-100">
@@ -622,7 +589,7 @@ function VoiceRankBar({ voice, max }: { voice: PulseVoiceRanking; max: number })
         <span>{voice.seenCount ? `${voice.seenCount} runs` : 'seed'} · {voice.citationCount} cites</span>
         <span>{voice.rankScore}</span>
       </div>
-    </div>
+    </a>
   )
 }
 
