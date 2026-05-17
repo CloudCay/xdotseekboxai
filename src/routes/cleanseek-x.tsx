@@ -38,6 +38,7 @@ import { optionalEnv } from '../lib/env'
 import { IconNavButton } from '../components/IconNav'
 import { XSiteHeader } from '../components/XSiteHeader'
 import { CLEANSEEK_QUERY_MAX_CHARS, compactCleanseekQuery } from '../lib/cleanseekUrl'
+import { bestPostCount, formatCompactNumber, metricBasisLabel, type PulseRunMetrics } from '../lib/pulseMetrics'
 import {
   getAccountProfileSummary,
   getLocalAccountProfileSummary,
@@ -531,9 +532,11 @@ type XDiscoverResponse = {
     authorized?: boolean
     query?: string
     resultCount?: number
+    matchedPostCount?: number | null
     geo?: { label?: string | null; longitude?: number; latitude?: number; radius?: string } | null
     reason?: string
   }
+  signal_metrics?: PulseRunMetrics
   posts?: Array<{
     id?: string
     url?: string
@@ -901,6 +904,7 @@ function buildXDiscoverSearchBody(rawQuery: string, deepDive: boolean): Record<s
 
 function formatXDiscoverRawPlaygroundContent(payload: XDiscoverResponse): string {
   const access = payload.access ?? {}
+  const signalMetrics = payload.signal_metrics ?? null
   const posts = Array.isArray(payload.posts) ? payload.posts : []
   const authors = Array.isArray(payload.authors_ranked) ? payload.authors_ranked : []
   const limitations = Array.isArray(payload.limitations) ? payload.limitations.filter(Boolean) : []
@@ -934,9 +938,11 @@ function formatXDiscoverRawPlaygroundContent(payload: XDiscoverResponse): string
     .filter(Boolean)
     .join(', ')
   const error = payload.error ? ` Error: ${typeof payload.error === 'string' ? payload.error : JSON.stringify(payload.error).slice(0, 220)}` : ''
+  const volume = signalMetrics ? formatSignalMetrics(signalMetrics) : ''
 
   return [
     `**Access check:** /api/x-discover ${payload.ok ? 'queried X Recent Search' : 'did not return X posts'} using ${access.provider ?? 'x-api-recent-search'}. Token configured: ${access.tokenConfigured ? 'yes' : 'no'}. Authorized: ${access.authorized === false ? 'no' : 'yes'}. Query: ${access.query ?? 'not built'}. Geo: ${geoLabel}. Results: ${access.resultCount ?? posts.length}.${error}`,
+    volume ? `**Observed volume:**\n${volume}` : '',
     topPosters ? `**Top posters:**\n${topPosters}` : '**Top posters:**\nNo ranked authors returned.',
     rawSignals ? `**Raw signals:**\n${rawSignals}` : '**Raw signals:**\nNo post-level records returned.',
     topHandleText ? `**Voices:**\n${topHandleText}` : '',
@@ -947,6 +953,20 @@ function formatXDiscoverRawPlaygroundContent(payload: XDiscoverResponse): string
   ]
     .filter(Boolean)
     .join('\n\n')
+}
+
+function formatSignalMetrics(metrics: PulseRunMetrics): string {
+  const posts = bestPostCount(metrics)
+  return [
+    `Posts matched: ${formatCompactNumber(posts)}`,
+    `Sample inspected: ${formatCompactNumber(metrics.samplePostCount)}`,
+    `Replies observed: ${formatCompactNumber(metrics.replyCount)}`,
+    `Views observed: ${formatCompactNumber(metrics.viewCount)}`,
+    `Basis: ${metricBasisLabel(metrics.basis)}`,
+    metrics.notes ? `Note: ${metrics.notes}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 function formatPulseRawPlaygroundContent(payload: PulseSearchResponse, body: PulseSearchBody): string {

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  Activity,
   AlertTriangle,
   BarChart3,
+  Eye,
   ExternalLink,
   Flame,
   Info,
   LineChart,
+  MessageCircle,
   Newspaper,
   Search,
   Sparkles,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cleanseekHref } from '../lib/cleanseekUrl'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
+import { bestPostCount, formatCompactNumber, metricBasisLabel, type PulseRunMetrics } from '../lib/pulseMetrics'
 import {
   rankPulseVoices,
   sortPulseVoiceRankings,
@@ -40,6 +42,7 @@ type PulseRow = {
   handles: string[] | null
   summary: string | null
   citations: PulseCitation[] | null
+  metrics: PulseRunMetrics | null
   tags: string[] | null
   status: string | null
   created_at: string
@@ -92,6 +95,7 @@ const FALLBACK_ROWS: PulseRow[] = [
       { index: 2, url: 'https://x.com/i/status/2051344780328858040' },
       { index: 3, url: 'https://x.com/i/status/2051678219812675875' },
     ],
+    metrics: null,
     tags: ['industry:tech-saas', 'window:7d'],
     status: 'completed',
     created_at: new Date().toISOString(),
@@ -107,6 +111,7 @@ const FALLBACK_ROWS: PulseRow[] = [
     summary:
       '1. Healthcare discussion is mixed: optimism around diagnostics and prevention is colliding with regulatory, trust, and evidence-quality questions.\n\n2. Dominant themes: prevention, AI workflow, clinical evidence, and patient trust.\n\n3. Top posts worth knowing: researchers cite AI diagnostics; clinicians push back on hype; wellness voices emphasize prevention.\n\n4. Dissent: several voices warn that shortcuts without evidence will create more confusion than progress.',
     citations: [{ index: 1, url: 'https://x.com/i/status/2050000000000000001' }],
+    metrics: null,
     tags: ['industry:healthcare', 'window:7d'],
     status: 'completed',
     created_at: new Date(Date.now() - 38 * 60 * 1000).toISOString(),
@@ -259,9 +264,9 @@ export function PulseReaderPage() {
 
       <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-4 lg:px-8">
         <StatCard icon={<Newspaper className="h-5 w-5" />} label="Pulse rows" value={String(stats.count)} />
+        <StatCard icon={<MessageCircle className="h-5 w-5" />} label="Posts counted" value={formatCompactNumber(stats.posts)} />
+        <StatCard icon={<Eye className="h-5 w-5" />} label="Views observed" value={formatCompactNumber(stats.views)} />
         <StatCard icon={<ExternalLink className="h-5 w-5" />} label="Citations" value={String(stats.citations)} />
-        <StatCard icon={<Activity className="h-5 w-5" />} label="Avg heat" value={stats.avgHeat ? String(stats.avgHeat) : '—'} />
-        <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Freshest" value={stats.freshest ? formatAge(stats.freshest) : '—'} />
       </section>
 
       {error ? (
@@ -683,6 +688,9 @@ function formatAge(createdAt: string): string {
 function summarize(pulses: DerivedPulse[]) {
   const count = pulses.length
   const citations = pulses.reduce((sum, pulse) => sum + pulse.citationCount, 0)
+  const posts = sumMetric(pulses, (metrics) => bestPostCount(metrics))
+  const replies = sumMetric(pulses, (metrics) => metrics.replyCount)
+  const views = sumMetric(pulses, (metrics) => metrics.viewCount)
   const avgHeat = pulses.length ? Math.round(pulses.reduce((sum, pulse) => sum + pulse.heat, 0) / pulses.length) : 0
   const hottest = pulses[0]?.scopeLabel ?? 'Pulse'
   const freshest = pulses.reduce((latest, pulse) => {
@@ -691,10 +699,26 @@ function summarize(pulses: DerivedPulse[]) {
   return {
     count,
     citations,
+    posts,
+    replies,
+    views,
     avgHeat,
     hottest,
     freshest,
   }
+}
+
+function sumMetric(pulses: DerivedPulse[], pick: (metrics: PulseRunMetrics) => number | null | undefined): number | null {
+  let total = 0
+  let found = false
+  for (const pulse of pulses) {
+    if (!pulse.row.metrics) continue
+    const value = pick(pulse.row.metrics)
+    if (value === null || value === undefined || !Number.isFinite(value)) continue
+    total += value
+    found = true
+  }
+  return found ? total : null
 }
 
 function topTopicTags(pulses: DerivedPulse[]) {
@@ -813,6 +837,7 @@ function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
       <p className="mt-3 text-sm font-semibold leading-6 text-neutral-600">{pulse.dek}</p>
       <p className="mt-4 border-l-2 border-neutral-950 pl-3 text-sm font-bold leading-6 text-neutral-800">{pulse.why}</p>
       <CitationRefs citations={pulse.row.citations} limit={4} />
+      <PulseMetricsStrip metrics={pulse.row.metrics} />
       <div className="mt-5 grid grid-cols-3 gap-2">
         <ScorePill label="Heat" value={pulse.heat} />
         <ScorePill label="Novelty" value={pulse.novelty} />
@@ -831,6 +856,28 @@ function HighlightCard({ pulse }: { pulse: DerivedPulse }) {
       </div>
       <PulseActions pulse={pulse} />
     </article>
+  )
+}
+
+function PulseMetricsStrip({ metrics }: { metrics: PulseRunMetrics | null }) {
+  if (!metrics) return null
+  const posts = bestPostCount(metrics)
+  const items = [
+    { label: 'Posts', value: formatCompactNumber(posts) },
+    { label: 'Replies', value: formatCompactNumber(metrics.replyCount) },
+    { label: 'Views', value: formatCompactNumber(metrics.viewCount) },
+    { label: 'Basis', value: metricBasisLabel(metrics.basis) },
+  ].filter((item) => item.value !== '-')
+  if (!items.length) return null
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-2 border-t border-neutral-200 pt-4 sm:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className="bg-neutral-50 px-3 py-2">
+          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">{item.label}</div>
+          <div className="mt-0.5 text-sm font-black text-neutral-950">{item.value}</div>
+        </div>
+      ))}
+    </div>
   )
 }
 

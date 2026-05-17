@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
-  Activity,
   ArrowRight,
   BarChart3,
   Clock3,
-  ExternalLink,
+  Eye,
   LineChart,
+  MessageCircle,
   Newspaper,
   Search,
   Sparkles,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cleanseekHref } from '../lib/cleanseekUrl'
 import { INDUSTRY_PAGES, getIndustryPage, type IndustryPageConfig } from '../lib/industryCatalog'
+import { bestPostCount, formatCompactNumber, metricBasisLabel, type PulseRunMetrics } from '../lib/pulseMetrics'
 import {
   extractHandlesFromText,
   normalizeXHandle,
@@ -41,6 +42,7 @@ type PulseRow = {
   handles: string[] | null
   summary: string | null
   citations: PulseCitation[] | null
+  metrics: PulseRunMetrics | null
   tags: string[] | null
   status: string | null
   created_at: string
@@ -202,8 +204,8 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
             <div className="text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">My read</div>
             <p className="mt-3 text-base font-black leading-7">{industry.whyGrok}</p>
             <div className="mt-5 grid grid-cols-3 gap-2">
-              <MiniMetric label="Rows" value={stats.count} />
-              <MiniMetric label="Cites" value={stats.citations} />
+              <MiniMetric label="Posts" value={formatCompactNumber(bestPostCount(latest?.row.metrics))} text />
+              <MiniMetric label="Views" value={formatCompactNumber(latest?.row.metrics?.viewCount)} text />
               <MiniMetric label="Age" value={latest ? formatAge(latest.row.created_at) : '—'} text />
             </div>
           </div>
@@ -212,8 +214,8 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
 
       <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-4 lg:px-8">
         <StatCard icon={<Newspaper className="h-5 w-5" />} label="Briefs cached" value={String(stats.count)} />
-        <StatCard icon={<ExternalLink className="h-5 w-5" />} label="Citations" value={String(stats.citations)} />
-        <StatCard icon={<Activity className="h-5 w-5" />} label="Avg heat" value={stats.avgHeat ? String(stats.avgHeat) : '—'} />
+        <StatCard icon={<MessageCircle className="h-5 w-5" />} label="Posts counted" value={formatCompactNumber(stats.posts)} />
+        <StatCard icon={<Eye className="h-5 w-5" />} label="Views observed" value={formatCompactNumber(stats.views)} />
         <StatCard icon={<Clock3 className="h-5 w-5" />} label="Latest age" value={latest ? formatAge(latest.row.created_at) : '—'} />
       </section>
 
@@ -228,6 +230,7 @@ export function IndustryPulsePage({ slug }: { slug: string }) {
           {latest ? (
             <>
               <PulseSection title="Executive read" eyebrow="What matters" body={sections[0] ?? latest.row.summary ?? ''} citations={latest.row.citations} />
+              <MetricSection metrics={latest.row.metrics} />
               <PulseSection title="Themes" eyebrow="Narrative clusters" body={sections[1] ?? ''} citations={latest.row.citations} />
               <PulseSection title="Posts worth knowing" eyebrow="Source trail" body={sections[2] ?? ''} citations={latest.row.citations} />
               <PulseSection title="Dissent" eyebrow="Where consensus breaks" body={sections[3] ?? ''} citations={latest.row.citations} />
@@ -408,12 +411,29 @@ function cleanSection(section: string): string {
 function summarizeRows(rows: DerivedIndustryRow[]) {
   const count = rows.length
   const citations = rows.reduce((sum, row) => sum + row.citationCount, 0)
+  const posts = sumMetric(rows, (metrics) => bestPostCount(metrics))
+  const views = sumMetric(rows, (metrics) => metrics.viewCount)
   const avgHeat = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.heat, 0) / rows.length) : 0
   return {
     count,
     citations,
+    posts,
+    views,
     avgHeat,
   }
+}
+
+function sumMetric(rows: DerivedIndustryRow[], pick: (metrics: PulseRunMetrics) => number | null | undefined): number | null {
+  let total = 0
+  let found = false
+  for (const row of rows) {
+    if (!row.row.metrics) continue
+    const value = pick(row.row.metrics)
+    if (value === null || value === undefined || !Number.isFinite(value)) continue
+    total += value
+    found = true
+  }
+  return found ? total : null
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -497,6 +517,29 @@ function PulseSection({ title, eyebrow, body, citations }: { title: string; eyeb
       <h2 className="mt-1 text-2xl font-black tracking-tight">{title}</h2>
       <p className="mt-4 whitespace-pre-line text-sm font-semibold leading-7 text-neutral-700">{body}</p>
       <CitationRefs citations={citations ?? null} />
+    </article>
+  )
+}
+
+function MetricSection({ metrics }: { metrics: PulseRunMetrics | null }) {
+  if (!metrics) return null
+  const cards = [
+    { label: 'Posts', value: formatCompactNumber(bestPostCount(metrics)) },
+    { label: 'Replies', value: formatCompactNumber(metrics.replyCount) },
+    { label: 'Views', value: formatCompactNumber(metrics.viewCount) },
+    { label: 'Basis', value: metricBasisLabel(metrics.basis) },
+  ].filter((card) => card.value !== '-')
+  if (!cards.length) return null
+  return (
+    <article className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
+      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">Observed volume</div>
+      <h2 className="mt-1 text-2xl font-black tracking-tight">What this run counted</h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        {cards.map((card) => (
+          <MiniMetric key={card.label} label={card.label} value={card.value} text />
+        ))}
+      </div>
+      {metrics.notes ? <p className="mt-3 text-xs font-semibold leading-5 text-neutral-500">{metrics.notes}</p> : null}
     </article>
   )
 }

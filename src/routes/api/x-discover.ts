@@ -1,4 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { rankSeekBoxCandidates, type CandidateVoiceClass, type SeekBoxCandidate } from '../../lib/rankingPipeline'
+import type { PulseRunMetrics } from '../../lib/pulseMetrics'
 
 const DISCOVERY_ROLE = 'superadmin'
 const DEFAULT_TULSA_GEO = {
@@ -8,6 +10,7 @@ const DEFAULT_TULSA_GEO = {
   radius: '25mi',
 }
 const X_RECENT_SEARCH_URL = 'https://api.x.com/2/tweets/search/recent'
+const X_RECENT_COUNTS_URL = 'https://api.x.com/2/tweets/counts/recent'
 
 type XDiscoverRequest = {
   query: string
@@ -74,6 +77,16 @@ type XApiResponse = {
   errors?: unknown[]
 }
 
+type XCountsResponse = {
+  meta?: {
+    total_tweet_count?: number
+  }
+  data?: Array<{
+    tweet_count?: number
+  }>
+  errors?: unknown[]
+}
+
 type DiscoveredPost = {
   id: string
   url: string
@@ -108,12 +121,16 @@ type RankedAuthor = {
   name: string | null
   location: string | null
   verified: boolean
+  voice_class: CandidateVoiceClass
   post_count: number
   engagement_score: number
+  rank_score: number
+  rank_explanation: string[]
   followers_count: number | null
   tweet_count: number | null
   cited_post_urls: string[]
   location_basis: Array<'geo' | 'profile_location' | 'text_match'>
+  latest_post_at: string | null
 }
 
 export const Route = createFileRoute('/api/x-discover')({
@@ -179,10 +196,13 @@ export const Route = createFileRoute('/api/x-discover')({
         }
 
         const endpoint = buildXRecentSearchUrl(xQuery, cleaned)
-        const upstream = await fetch(endpoint, {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: AbortSignal.timeout(15_000),
-        }).catch((error) => error)
+        const [upstream, countResult] = await Promise.all([
+          fetch(endpoint, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(15_000),
+          }).catch((error) => error),
+          fetchXRecentPostCount(token, xQuery, cleaned),
+        ])
 
         if (upstream instanceof Error) {
           return Response.json(
@@ -233,6 +253,7 @@ export const Route = createFileRoute('/api/x-discover')({
         }
 
         const posts = buildDiscoveredPosts(payload, cleaned)
+        const signalMetrics = buildSignalMetrics(posts, countResult)
         const authors = rankAuthors(posts).slice(0, 25)
 
         return Response.json({
@@ -245,9 +266,11 @@ export const Route = createFileRoute('/api/x-discover')({
             query: xQuery,
             geo: cleaned.geo,
             resultCount: posts.length,
+            matchedPostCount: signalMetrics.matchedPostCount ?? null,
             newest_id: payload.meta?.newest_id ?? null,
             oldest_id: payload.meta?.oldest_id ?? null,
           },
+          signal_metrics: signalMetrics,
           posts,
           authors_ranked: cleaned.rank_authors ? authors : [],
           limitations: [
@@ -357,6 +380,35 @@ function buildXRecentSearchUrl(query: string, request: XDiscoverRequest): string
   return endpoint.toString()
 }
 
+function buildXRecentCountsUrl(query: string, request: XDiscoverRequest): string {
+  const endpoint = new URL(X_RECENT_COUNTS_URL)
+  endpoint.searchParams.set('query', query)
+  endpoint.searchParams.set('start_time', new Date(Date.now() - request.window_days * 86_400_000).toISOString())
+  return endpoint.toString()
+}
+
+async function fetchXRecentPostCount(
+  token: string,
+  query: string,
+  request: XDiscoverRequest,
+): Promise<{ count: number | null; error: string | null }> {
+  const response = await fetch(buildXRecentCountsUrl(query, request), {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
+  }).catch((error) => error)
+
+  if (response instanceof Error) return { count: null, error: response.message }
+  const payload = (await response.json().catch(() => null)) as XCountsResponse | null
+  if (!response.ok || !payload) {
+    return { count: null, error: payload?.errors ? JSON.stringify(payload.errors).slice(0, 240) : `X counts HTTP ${response.status}` }
+  }
+  const metaCount = cleanNumber(payload.meta?.total_tweet_count)
+  const bucketCount = Array.isArray(payload.data)
+    ? payload.data.reduce((sum, bucket) => sum + (cleanNumber(bucket.tweet_count) ?? 0), 0)
+    : null
+  return { count: metaCount ?? bucketCount, error: null }
+}
+
 function buildDiscoveredPosts(payload: XApiResponse, request: XDiscoverRequest): DiscoveredPost[] {
   const users = new Map((payload.includes?.users ?? []).map((user) => [user.id, user]))
   const places = new Map((payload.includes?.places ?? []).map((place) => [place.id, place]))
@@ -416,12 +468,16 @@ function rankAuthors(posts: DiscoveredPost[]): RankedAuthor[] {
         name: post.author.name,
         location: post.author.location,
         verified: post.author.verified,
+        voice_class: inferVoiceClass(post.author),
         post_count: 0,
         engagement_score: 0,
+        rank_score: 0,
+        rank_explanation: [],
         followers_count: post.author.followers_count,
         tweet_count: post.author.tweet_count,
         cited_post_urls: [],
         location_basis: [],
+        latest_post_at: null,
       } satisfies RankedAuthor)
 
     current.post_count += 1
@@ -429,12 +485,134 @@ function rankAuthors(posts: DiscoveredPost[]): RankedAuthor[] {
       post.public_metrics.likes + post.public_metrics.reposts * 2 + post.public_metrics.replies + post.public_metrics.quotes * 2
     if (current.cited_post_urls.length < 8) current.cited_post_urls.push(post.url)
     if (!current.location_basis.includes(post.geo.basis)) current.location_basis.push(post.geo.basis)
+    current.latest_post_at = maxIso(current.latest_post_at, post.created_at)
     byHandle.set(key, current)
   }
 
-  return Array.from(byHandle.values()).sort(
-    (a, b) => b.post_count - a.post_count || b.engagement_score - a.engagement_score || a.username.localeCompare(b.username),
-  )
+  const authors = Array.from(byHandle.values())
+  const postMax = Math.max(...authors.map((author) => author.post_count), 1)
+  const engagementMax = Math.max(...authors.map((author) => author.engagement_score), 1)
+  const followerMax = Math.max(...authors.map((author) => author.followers_count ?? 0), 1)
+  const ranked = rankSeekBoxCandidates({
+    mode: 'x-discover-authors',
+    candidates: authors.map((author) => authorToCandidate(author, { postMax, engagementMax, followerMax })),
+    limit: authors.length,
+    diversify: false,
+  })
+  const rankById = new Map(ranked.map((candidate) => [candidate.id, candidate]))
+
+  return authors
+    .map((author) => {
+      const rankedAuthor = rankById.get(`x-author:${author.username.toLowerCase()}`)
+      return {
+        ...author,
+        rank_score: rankedAuthor?.score ?? 0,
+        rank_explanation: rankedAuthor?.explanation ?? [],
+      }
+    })
+    .sort((a, b) => b.rank_score - a.rank_score || b.post_count - a.post_count || b.engagement_score - a.engagement_score || a.username.localeCompare(b.username))
+}
+
+function buildSignalMetrics(
+  posts: DiscoveredPost[],
+  countResult: { count: number | null; error: string | null },
+): PulseRunMetrics {
+  const samplePostCount = posts.length
+  const replyCount = posts.reduce((sum, post) => sum + post.public_metrics.replies, 0)
+  const likeCount = posts.reduce((sum, post) => sum + post.public_metrics.likes, 0)
+  const repostCount = posts.reduce((sum, post) => sum + post.public_metrics.reposts, 0)
+  const quoteCount = posts.reduce((sum, post) => sum + post.public_metrics.quotes, 0)
+  const viewPosts = posts.filter((post) => post.public_metrics.impressions !== null)
+  const viewCount = viewPosts.length
+    ? viewPosts.reduce((sum, post) => sum + (post.public_metrics.impressions ?? 0), 0)
+    : null
+  const basis = countResult.count !== null
+    ? samplePostCount > 0 ? 'mixed' : 'x_recent_counts'
+    : 'x_recent_sample'
+
+  return {
+    basis,
+    matchedPostCount: countResult.count,
+    samplePostCount,
+    replyCount,
+    viewCount,
+    likeCount,
+    repostCount,
+    quoteCount,
+    confidence: countResult.count !== null ? 'medium' : 'low',
+    notes: countResult.error
+      ? `X counts unavailable; sampled ${samplePostCount} returned posts.`
+      : `X counts matched ${countResult.count ?? 0} posts; sampled ${samplePostCount} returned posts.`,
+    generatedAt: new Date().toISOString(),
+  }
+}
+
+function authorToCandidate(
+  author: RankedAuthor,
+  max: { postMax: number; engagementMax: number; followerMax: number },
+): SeekBoxCandidate {
+  const locationQuality = author.location_basis.includes('geo')
+    ? 95
+    : author.location_basis.includes('profile_location')
+      ? 70
+      : author.location_basis.includes('text_match')
+        ? 48
+        : 20
+  const followerScore = author.followers_count ? Math.log10(author.followers_count + 1) / Math.log10(max.followerMax + 1) * 100 : 0
+
+  return {
+    id: `x-author:${author.username.toLowerCase()}`,
+    sourceKind: 'x',
+    entityType: 'voice',
+    voiceClass: author.voice_class,
+    title: `@${author.username}`,
+    summary: author.name ?? author.location,
+    sourceName: 'x-api-recent-search',
+    sourceId: author.username.toLowerCase(),
+    sourceUrl: `https://x.com/${author.username}`,
+    safePublic: true,
+    createdAt: author.latest_post_at,
+    features: {
+      relevance: locationQuality,
+      credibility: Math.max(author.verified ? 78 : 35, followerScore),
+      recency: recencyScore(author.latest_post_at),
+      velocity: author.post_count / max.postMax * 100,
+      engagement: author.engagement_score / max.engagementMax * 100,
+      geoFit: locationQuality,
+      sourceQuality: locationQuality,
+      sentiment: 50,
+      novelty: author.verified ? 25 : 60,
+    },
+    metadata: {
+      post_count: author.post_count,
+      engagement_score: author.engagement_score,
+      followers_count: author.followers_count,
+      location_basis: author.location_basis,
+    },
+  }
+}
+
+function inferVoiceClass(author: DiscoveredPost['author']): CandidateVoiceClass {
+  const text = `${author.name ?? ''} ${author.location ?? ''}`.toLowerCase()
+  if (/\b(news|times|journal|media|radio|tv|press|reporter|anchor|editor)\b/.test(text)) return 'media'
+  if (/\b(official|city of|university|school|gov|agency|department|chamber)\b/.test(text)) return 'institution'
+  if (/\b(co|inc|llc|studio|shop|restaurant|venue|brand)\b/.test(text)) return 'brand'
+  if ((author.followers_count ?? 0) >= 50000 || author.verified) return 'creator'
+  return 'real_person'
+}
+
+function recencyScore(value: string | null): number {
+  if (!value) return 35
+  const ageMs = Date.now() - new Date(value).getTime()
+  if (!Number.isFinite(ageMs) || ageMs < 0) return 50
+  const ageHours = ageMs / 3_600_000
+  return Math.max(15, Math.round(100 - ageHours * 3))
+}
+
+function maxIso(a: string | null, b: string | null): string | null {
+  if (!a) return b
+  if (!b) return a
+  return new Date(a).getTime() >= new Date(b).getTime() ? a : b
 }
 
 async function authorizeInternalRequest(request: Request): Promise<{ allowed: true } | { allowed: false; reason: string; status: number }> {

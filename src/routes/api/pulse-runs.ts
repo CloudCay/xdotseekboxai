@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { scopeValuesForIndustrySlug } from '../../lib/industryCatalog'
+import type { PulseRunMetrics } from '../../lib/pulseMetrics'
 
 const PUBLIC_PULSE_SELECT = [
   'id',
@@ -11,6 +12,7 @@ const PUBLIC_PULSE_SELECT = [
   'handles',
   'summary',
   'citations',
+  'metrics',
   'tags',
   'status',
   'created_at',
@@ -38,6 +40,7 @@ type PublicPulseRow = {
   handles: string[] | null
   summary: string | null
   citations: PublicPulseCitation[] | null
+  metrics: PulseRunMetrics | null
   tags: string[] | null
   status: string | null
   created_at: string
@@ -164,10 +167,30 @@ function sanitizePublicPulseRow(value: unknown): PublicPulseRow | null {
     handles: cleanStringArray(row.handles, 40, 80),
     summary,
     citations: sanitizePublicCitations(row.citations),
+    metrics: sanitizePublicMetrics(row.metrics),
     tags: cleanStringArray(row.tags, 40, 80),
     status,
     created_at: cleanString(row.created_at, 80) || new Date().toISOString(),
   }
+}
+
+function sanitizePublicMetrics(value: unknown): PulseRunMetrics | null {
+  if (!value || typeof value !== 'object') return null
+  const obj = value as Record<string, unknown>
+  const metrics: PulseRunMetrics = {
+    basis: cleanString(obj.basis, 40),
+    matchedPostCount: cleanNonNegativeNumber(obj.matchedPostCount, 1_000_000_000),
+    samplePostCount: cleanNonNegativeNumber(obj.samplePostCount, 1_000_000),
+    replyCount: cleanNonNegativeNumber(obj.replyCount, 1_000_000_000),
+    viewCount: cleanNonNegativeNumber(obj.viewCount, 100_000_000_000_000),
+    likeCount: cleanNonNegativeNumber(obj.likeCount, 100_000_000_000),
+    repostCount: cleanNonNegativeNumber(obj.repostCount, 100_000_000_000),
+    quoteCount: cleanNonNegativeNumber(obj.quoteCount, 100_000_000_000),
+    confidence: cleanString(obj.confidence, 40),
+    notes: cleanString(obj.notes, 240),
+    generatedAt: cleanString(obj.generatedAt, 80),
+  }
+  return Object.values(metrics).some((item) => item !== null && item !== undefined) ? metrics : null
 }
 
 function sanitizePublicCitations(value: unknown): PublicPulseCitation[] {
@@ -203,6 +226,12 @@ function cleanString(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null
   const clean = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim()
   return clean ? clean.slice(0, max) : null
+}
+
+function cleanNonNegativeNumber(value: unknown, max: number): number | null {
+  const raw = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+  if (!Number.isFinite(raw) || raw < 0) return null
+  return Math.min(Math.round(raw), max)
 }
 
 function cleanStringArray(value: unknown, maxItems: number, maxChars: number): string[] {
