@@ -69,8 +69,8 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<SiteThemeMode>(() => readSiteTheme())
-  const [font, setFont] = useState<SiteFontScale>(() => readSiteFontScale())
+  const [theme, setTheme] = useState<SiteThemeMode>('light')
+  const [font, setFont] = useState<SiteFontScale>(0)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {

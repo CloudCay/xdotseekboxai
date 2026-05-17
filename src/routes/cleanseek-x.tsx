@@ -1252,6 +1252,18 @@ function shouldUseSplitSearchApi(baseUrl: string): boolean {
   return isSeekBoxApiBase(baseUrl)
 }
 
+function makeSearchOperationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `search_${crypto.randomUUID()}`
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(12)
+    crypto.getRandomValues(bytes)
+    return `search_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
+  }
+  return `search_${Date.now().toString(36)}`
+}
+
 async function getSupabaseAccessToken(): Promise<string | null> {
   const sb = isSupabaseConfigured ? supabase : null
   if (!sb) return null
@@ -3792,6 +3804,16 @@ export function CleanSeekLite({
 
     const clientId = getClientId()
     const streamUserId = authUserId ?? clientId
+    const operationId = makeSearchOperationId()
+    const runHeaders = (app: string, feature: string): Record<string, string> => ({
+      'X-App': app,
+      'X-Feature': feature,
+      'X-Operation-Id': operationId,
+      'X-Search-Run-Id': operationId,
+      'X-Session-Id': clientId,
+      'X-Client-Id': clientId,
+      ...(authUserId ? { 'X-User-Id': authUserId } : {}),
+    })
 
     if (!authUserId) {
       const sessionSearchCount = incrementSessionSearchCount()
@@ -3908,14 +3930,15 @@ export function CleanSeekLite({
     const searchRequestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
+      ...runHeaders('XSeekBoxAI', rawPlayground ? 'cleanseek-x-raw-stream' : 'cleanseek-x-stream'),
     }
     const pulseRequestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-App': 'XRaw-Playground',
+      ...runHeaders('XRaw-Playground', 'cleanseek-x-pulse'),
     }
     const discoverRequestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-App': 'XRaw-Playground',
+      ...runHeaders('XRaw-Playground', 'cleanseek-x-discover'),
     }
     const isRawXRequest = (request: StreamSearchRequest): boolean =>
       rawPlayground && request.providers.length > 0 && request.providers.every(isLiveXProvider)
@@ -3926,6 +3949,8 @@ export function CleanSeekLite({
       sessionId: clientId,
       clientId,
       userId: streamUserId,
+      operationId,
+      searchRunId: operationId,
       searchSource: rawPlayground ? 'xraw' : xmarksMode ? 'xmarks' : 'cleanseek',
       platform: 'web',
       promptCharacterCount: request.query.length,
@@ -4175,8 +4200,7 @@ export function CleanSeekLite({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-App': 'XSeekBoxAI',
-            'X-Feature': `cleanseek-x-desktop-${provider}`,
+            ...runHeaders('XSeekBoxAI', `cleanseek-x-desktop-${provider}`),
           },
           signal: ac.signal,
           body: JSON.stringify({
@@ -4282,8 +4306,7 @@ export function CleanSeekLite({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-App': 'XSeekBoxAI',
-            'X-Feature': `cleanseek-x-desktop-${provider}`,
+            ...runHeaders('XSeekBoxAI', `cleanseek-x-desktop-${provider}`),
           },
           signal: ac.signal,
           body: JSON.stringify({

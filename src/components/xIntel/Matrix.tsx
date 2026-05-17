@@ -147,6 +147,7 @@ export function Matrix({
   }, [onAllDone])
 
   const allDone = engines.length > 0 && engines.every((engine) => engine.status === 'done')
+  const compactLabels = engines.length > 8
 
   return (
     <div
@@ -179,13 +180,14 @@ export function Matrix({
         {engines.map((engine) => (
           <div
             key={engine.id}
+            title={engine.name}
             style={{
               minWidth: 0,
-              padding: '10px 12px',
-              fontSize: 10,
+              padding: compactLabels ? '10px 5px' : '10px 12px',
+              fontSize: compactLabels ? 9 : 10,
               fontFamily: '"JetBrains Mono", Menlo, monospace',
               fontWeight: 700,
-              letterSpacing: '0.18em',
+              letterSpacing: compactLabels ? '0.06em' : '0.18em',
               textTransform: 'uppercase',
               whiteSpace: 'nowrap',
               overflow: 'hidden',

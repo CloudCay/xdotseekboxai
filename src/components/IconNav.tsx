@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { useCallback, useState, type ButtonHTMLAttributes, type FocusEvent, type MouseEvent, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   BookOpen,
@@ -8,11 +8,23 @@ import {
   FlaskConical,
   Hash,
   LineChart,
+  Radio,
   Search,
 } from 'lucide-react'
 
 export type IconNavTone = 'light' | 'dark'
-export type XTopNavActive = 'reader' | 'industries' | 'topics' | 'intel' | 'search' | 'xmarks' | 'ticker' | 'seeds' | 'roadmap' | 'none'
+export type XTopNavActive =
+  | 'reader'
+  | 'industries'
+  | 'topics'
+  | 'intel'
+  | 'search'
+  | 'arena'
+  | 'xmarks'
+  | 'ticker'
+  | 'seeds'
+  | 'roadmap'
+  | 'none'
 
 type IconNavBaseProps = {
   label: string
@@ -71,6 +83,13 @@ const xTopNavItems: Array<{
     label: 'Search live',
     description: 'Run a fresh live model/search pull.',
     icon: <Search className="h-4 w-4" />,
+  },
+  {
+    id: 'arena',
+    href: '/arena',
+    label: 'Arena',
+    description: 'Compare Grok pulse, grounded read, and trend charts.',
+    icon: <Radio className="h-4 w-4" />,
   },
   {
     id: 'xmarks',
@@ -142,18 +161,26 @@ export function XTopNav({
 }
 
 export function IconNavLink({ href, label, description, icon, active = false, tone = 'light', className = '' }: IconNavLinkProps) {
+  const { tooltipStyle, showTooltip, hideTooltip } = useIconNavTooltip(label, description)
+
   return (
     <Link
       to={href as never}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
+      title={description ? `${label}: ${description}` : label}
+      onMouseEnter={(event) => showTooltip(event.currentTarget)}
+      onMouseLeave={hideTooltip}
+      onFocus={(event) => showTooltip(event.currentTarget)}
+      onBlur={hideTooltip}
       className={navClass({ active, tone, className })}
     >
       <span aria-hidden="true" className="flex items-center justify-center">
         {icon}
       </span>
+      <IconNavHoverLabel label={label} />
       <span className="sr-only">{label}</span>
-      <IconNavTooltip label={label} description={description} tone={tone} />
+      <IconNavTooltip label={label} description={description} tone={tone} style={tooltipStyle} />
     </Link>
   )
 }
@@ -168,19 +195,48 @@ export function IconNavButton({
   type = 'button',
   ...buttonProps
 }: IconNavButtonProps) {
+  const { onBlur, onFocus, onMouseEnter, onMouseLeave, ...restButtonProps } = buttonProps
+  const { tooltipStyle, showTooltip, hideTooltip } = useIconNavTooltip(label, description)
+
+  const handleMouseEnter = (event: MouseEvent<HTMLButtonElement>) => {
+    onMouseEnter?.(event)
+    showTooltip(event.currentTarget)
+  }
+
+  const handleMouseLeave = (event: MouseEvent<HTMLButtonElement>) => {
+    onMouseLeave?.(event)
+    hideTooltip()
+  }
+
+  const handleFocus = (event: FocusEvent<HTMLButtonElement>) => {
+    onFocus?.(event)
+    showTooltip(event.currentTarget)
+  }
+
+  const handleBlur = (event: FocusEvent<HTMLButtonElement>) => {
+    onBlur?.(event)
+    hideTooltip()
+  }
+
   return (
     <button
-      {...buttonProps}
+      {...restButtonProps}
       type={type}
       aria-label={label}
-      aria-pressed={buttonProps['aria-pressed'] ?? active}
-      className={navClass({ active, tone, className, disabled: buttonProps.disabled })}
+      aria-pressed={restButtonProps['aria-pressed'] ?? active}
+      title={description ? `${label}: ${description}` : label}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      className={navClass({ active, tone, className, disabled: restButtonProps.disabled })}
     >
       <span aria-hidden="true" className="flex items-center justify-center">
         {icon}
       </span>
+      <IconNavHoverLabel label={label} />
       <span className="sr-only">{label}</span>
-      <IconNavTooltip label={label} description={description} tone={tone} />
+      <IconNavTooltip label={label} description={description} tone={tone} style={tooltipStyle} />
     </button>
   )
 }
@@ -197,7 +253,7 @@ function navClass({
   disabled?: boolean
 }) {
   const base =
-    'group relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2'
+    'group relative inline-flex h-11 min-w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border px-0 text-sm transition-all duration-150 hover:px-3 focus:outline-none focus-visible:px-3 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2'
   const disabledClass = disabled ? 'cursor-not-allowed opacity-55' : ''
 
   if (tone === 'dark') {
@@ -213,11 +269,62 @@ function navClass({
   return `${base} ${toneClass} focus-visible:ring-offset-[#fbfbf7] ${disabledClass} ${className}`.trim()
 }
 
-function IconNavTooltip({ label, description, tone }: { label: string; description?: string; tone: IconNavTone }) {
+function IconNavHoverLabel({ label }: { label: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="max-w-0 overflow-hidden whitespace-nowrap text-xs font-black leading-none opacity-0 transition-all duration-150 group-hover:ml-2 group-hover:max-w-[7.5rem] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[7.5rem] group-focus-visible:opacity-100"
+    >
+      {label}
+    </span>
+  )
+}
+
+type IconNavTooltipStyle = {
+  left: number
+  top: number
+  width: number
+}
+
+function useIconNavTooltip(label: string, description?: string) {
+  const [tooltipStyle, setTooltipStyle] = useState<IconNavTooltipStyle | null>(null)
+
+  const showTooltip = useCallback(
+    (target: HTMLElement) => {
+      if (typeof window === 'undefined') return
+      const rect = target.getBoundingClientRect()
+      const width = description ? 220 : Math.min(180, Math.max(92, label.length * 8 + 40))
+      const gutter = 12
+      const left = Math.min(Math.max(gutter, rect.left + rect.width / 2 - width / 2), Math.max(gutter, window.innerWidth - width - gutter))
+      const top = rect.bottom + 8
+      setTooltipStyle({ left, top, width })
+    },
+    [description, label],
+  )
+
+  const hideTooltip = useCallback(() => setTooltipStyle(null), [])
+
+  return { tooltipStyle, showTooltip, hideTooltip }
+}
+
+function IconNavTooltip({
+  label,
+  description,
+  tone,
+  style,
+}: {
+  label: string
+  description?: string
+  tone: IconNavTone
+  style: IconNavTooltipStyle | null
+}) {
+  if (!style) return null
+
   return (
     <span
       role="tooltip"
-      className={`pointer-events-none absolute right-0 top-[calc(100%+0.5rem)] z-50 w-max max-w-[220px] rounded-xl border px-3 py-2 text-left opacity-0 shadow-xl transition group-hover:opacity-100 group-focus-visible:opacity-100 ${
+      style={{ left: style.left, top: style.top, width: style.width }}
+      className={`pointer-events-none fixed z-[80] rounded-xl border px-3 py-2 text-left shadow-xl ${
         tone === 'dark'
           ? 'border-slate-700 bg-slate-950 text-slate-100'
           : 'border-neutral-800 bg-neutral-950 text-white'

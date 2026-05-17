@@ -51,11 +51,23 @@ function forwardedHeaders(request: Request): Headers {
   const authorization = request.headers.get('authorization')
   const xApp = request.headers.get('x-app')
   const xFeature = request.headers.get('x-feature')
+  const xSessionId = request.headers.get('x-session-id')
+  const xClientId = request.headers.get('x-client-id')
+  const xUserId = request.headers.get('x-user-id')
+  const xOperationId = request.headers.get('x-operation-id')
+  const xRunId = request.headers.get('x-run-id')
+  const xSearchRunId = request.headers.get('x-search-run-id')
   const accept = request.headers.get('accept')
   if (contentType) headers.set('content-type', contentType)
   if (authorization) headers.set('authorization', authorization)
   if (xApp) headers.set('x-app', xApp)
   if (xFeature) headers.set('x-feature', xFeature)
+  if (xSessionId) headers.set('x-session-id', xSessionId)
+  if (xClientId) headers.set('x-client-id', xClientId)
+  if (xUserId) headers.set('x-user-id', xUserId)
+  if (xOperationId) headers.set('x-operation-id', xOperationId)
+  if (xRunId) headers.set('x-run-id', xRunId)
+  if (xSearchRunId) headers.set('x-search-run-id', xSearchRunId)
   if (accept) headers.set('accept', accept)
   return headers
 }
@@ -143,7 +155,7 @@ function corsHeaders(extra?: Record<string, string>): Headers {
   return new Headers({
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',
-    'access-control-allow-headers': 'content-type, authorization, x-app, x-feature, accept',
+    'access-control-allow-headers': 'content-type, authorization, x-app, x-feature, x-session-id, x-client-id, x-user-id, x-operation-id, x-run-id, x-search-run-id, accept',
     ...extra,
   })
 }

@@ -14,11 +14,12 @@ export const Route = createFileRoute('/api/gateway-logs')({
         const baseUrl = seekboxApiUrl()
         const adminToken = readAdminToken()
 
-        const [stats, byEndpoint, byProvider, byApp] = await Promise.all([
+        const [stats, byEndpoint, byProvider, byApp, bySearchRun] = await Promise.all([
           fetchJson(`${baseUrl}/v1/stats?window=${encodeURIComponent(statsWindow)}`),
           adminToken ? fetchJson(`${baseUrl}/v1/admin/costs?window=${encodeURIComponent(costWindow)}&group_by=endpoint`, adminToken) : Promise.resolve(null),
           adminToken ? fetchJson(`${baseUrl}/v1/admin/costs?window=${encodeURIComponent(costWindow)}&group_by=provider`, adminToken) : Promise.resolve(null),
           adminToken ? fetchJson(`${baseUrl}/v1/admin/costs?window=${encodeURIComponent(costWindow)}&group_by=app`, adminToken) : Promise.resolve(null),
+          adminToken ? fetchJson(`${baseUrl}/v1/admin/costs?window=${encodeURIComponent(costWindow)}&group_by=search_run`, adminToken) : Promise.resolve(null),
         ])
 
         const payload = {
@@ -36,6 +37,7 @@ export const Route = createFileRoute('/api/gateway-logs')({
                 endpoint: sanitizeCostRollup(byEndpoint),
                 provider: sanitizeCostRollup(byProvider),
                 app: sanitizeCostRollup(byApp),
+                searchRun: sanitizeCostRollup(bySearchRun),
               }
             : null,
         }
@@ -160,7 +162,7 @@ function sanitizeCostRollup(value: unknown) {
 
 function sanitizeCostRows(value: unknown) {
   if (!Array.isArray(value)) return []
-  return value.slice(0, 30).map((item) => {
+  return value.slice(0, 100).map((item) => {
     const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
     return {
       key: stringOrNull(row.key, 160) ?? 'unknown',
