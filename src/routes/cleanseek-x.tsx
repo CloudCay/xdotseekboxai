@@ -2804,12 +2804,6 @@ function TickerContextPanel(props: {
         {err ? (
           <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs font-semibold text-amber-100">{err}</div>
         ) : null}
-        {quote?.error ? (
-          <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs font-semibold text-amber-100">
-            Twelve Data: {quote.symbol}: {quote.error}
-          </div>
-        ) : null}
-
         <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1fr_1.15fr]">
           <div className="rounded-2xl border border-slate-700/60 bg-black/20 p-4">
             <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Drivers</div>
@@ -2934,7 +2928,7 @@ function TickerContextPanel(props: {
         </div>
         {quote ? (
           quote.error ? (
-            <div className="mt-2 text-xs text-amber-200">{quote.symbol}: {quote.error}</div>
+            <div className="mt-2 text-xs text-slate-400">Quote unavailable.</div>
           ) : (
             <div className="mt-2">
               <div className="flex items-baseline justify-between gap-3">
@@ -2975,7 +2969,7 @@ function TickerContextPanel(props: {
             </div>
           )
         ) : (
-          <div className="mt-2 text-xs text-slate-400">No quote available (set `TWELVE_DATA_API_KEY` or `TWELVE_API_KEY`).</div>
+          <div className="mt-2 text-xs text-slate-400">Quote unavailable.</div>
         )}
       </div>
 

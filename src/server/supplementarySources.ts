@@ -194,13 +194,7 @@ async function twelveDataQuotes(
 ): Promise<SupplementaryPayload['quotes']> {
   if (symbols.length === 0) return []
   const key = cleanTwelveDataApiKey(apiKey)
-  if (!key) {
-    return symbols.slice(0, 4).map((symbol) => ({
-      symbol,
-      source: 'Twelve Data',
-      error: 'Set TWELVE_DATA_API_KEY or TWELVE_API_KEY on the server.',
-    }))
-  }
+  if (!key) return []
   const quotes: SupplementaryPayload['quotes'] = []
   const slice = symbols.slice(0, 4)
   await Promise.all(

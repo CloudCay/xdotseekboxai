@@ -750,7 +750,7 @@ export function MatrixLab() {
         </div>
         <div className="flex flex-col gap-4">
           <LogRollupPanel title="Endpoints" rows={endpointRows} emptyText="Admin endpoint rollups need SBX_ADMIN_TOKEN on the server." />
-          <LogRollupPanel title="Providers" rows={providerRows} />
+          <LogRollupPanel title="Providers" rows={providerRows} maxRows={30} />
           <LogRollupPanel title="Apps" rows={appRows} />
         </div>
       </div>
@@ -812,10 +812,10 @@ function useGatewayLogMonitor() {
 }
 
 function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: GatewayLogSnapshot | null): MatrixEngine[] {
-  const currentRows = (snapshot?.stats?.by_provider ?? [])
+  const currentRows = gatewayProviderRows(snapshot)
     .filter((row) => row.key !== 'unknown')
-    .slice(0, 5)
-  const previousByKey = new Map((previous?.stats?.by_provider ?? []).map((row) => [row.key, row]))
+    .slice(0, 12)
+  const previousByKey = new Map(gatewayProviderRows(previous).map((row) => [row.key, row]))
 
   if (!currentRows.length) {
     return [
@@ -826,16 +826,24 @@ function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: Gate
   }
 
   return currentRows.map((row, index) => {
-    const previousCalls = previousByKey.get(row.key)?.calls ?? 0
-    const calls = row.calls ?? 0
+    const previousCalls = rowVolume(previousByKey.get(row.key))
+    const calls = rowVolume(row)
     return {
       id: row.key,
       name: providerLabel(row.key),
-      model: `${formatInteger(calls)} calls · ${formatMoney(row.cost_usd)}`,
+      model: `${formatInteger(calls)} uses · ${formatMoney(row.cost_usd)}`,
       ...providerColor(row.key, index),
       status: calls > previousCalls ? 'thinking' : 'done',
     }
   })
+}
+
+function gatewayProviderRows(snapshot: GatewayLogSnapshot | null): GatewaySummaryRow[] {
+  return snapshot?.costs?.provider?.rows?.length ? snapshot.costs.provider.rows : snapshot?.stats?.by_provider ?? []
+}
+
+function rowVolume(row: GatewaySummaryRow | undefined): number {
+  return Number(row?.count ?? row?.calls ?? 0) || 0
 }
 
 function GatewayMetric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -850,7 +858,17 @@ function GatewayMetric({ icon, label, value }: { icon: React.ReactNode; label: s
   )
 }
 
-function LogRollupPanel({ title, rows, emptyText = 'No rows in this window.' }: { title: string; rows: GatewaySummaryRow[]; emptyText?: string }) {
+function LogRollupPanel({
+  title,
+  rows,
+  emptyText = 'No rows in this window.',
+  maxRows = 8,
+}: {
+  title: string
+  rows: GatewaySummaryRow[]
+  emptyText?: string
+  maxRows?: number
+}) {
   return (
     <div className="border border-neutral-300 bg-white p-4 shadow-[3px_3px_0_rgba(0,0,0,0.05)]">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -859,7 +877,7 @@ function LogRollupPanel({ title, rows, emptyText = 'No rows in this window.' }: 
       </div>
       {rows.length ? (
         <div className="flex flex-col divide-y divide-neutral-200">
-          {rows.slice(0, 8).map((row) => (
+          {rows.slice(0, maxRows).map((row) => (
             <div key={row.key} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 text-xs font-bold">
               <div className="min-w-0 truncate text-neutral-800" title={row.key}>{row.key}</div>
               <div className="font-mono text-neutral-500">{formatInteger(row.count ?? row.calls)}</div>
@@ -882,6 +900,8 @@ function providerLabel(value: string): string {
     tavily: 'Tavily',
     brave: 'Brave',
     wikimedia: 'Wiki',
+    api_calls: 'API Calls',
+    pulse_runs: 'Pulse Runs',
     'google-ai-studio': 'Gemini',
     'workers-ai': 'Workers AI',
   }
@@ -902,7 +922,11 @@ function providerColor(value: string, index: number): Pick<MatrixEngine, 'color'
     groq: { color: '#f97316', highlight: '#fdba74' },
     tavily: { color: '#8b5cf6', highlight: '#ddd6fe' },
     brave: { color: '#fb923c', highlight: '#fed7aa' },
+    wikimedia: { color: '#6366f1', highlight: '#c7d2fe' },
+    api_calls: { color: '#14b8a6', highlight: '#99f6e4' },
+    pulse_runs: { color: '#e11d48', highlight: '#fda4af' },
     'google-ai-studio': { color: '#0ea5e9', highlight: '#7dd3fc' },
+    'workers-ai': { color: '#f59e0b', highlight: '#fde68a' },
   }
   return known[value] ?? colors[index % colors.length]
 }

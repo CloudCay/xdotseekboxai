@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, BarChart3, Database, FlaskConical, KeyRound, Lock, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Activity, BarChart3, ChevronDown, Database, FlaskConical, KeyRound, Lock, RefreshCw, ShieldCheck } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 const LEGACY_API_KEY_STORAGE_KEYS = [
@@ -319,8 +319,8 @@ export function WhalesEditionPanel({
   }, [cleanSymbol, requestSnapshot, selectedLabKeys])
 
   return (
-    <div className="rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 p-4 backdrop-blur-2xl">
-      <div className="flex items-start justify-between gap-3">
+    <details className="group rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 p-4 backdrop-blur-2xl open:border-cyan-400/30">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-cyan-100">
             <Database className="h-3.5 w-3.5" />
@@ -332,11 +332,14 @@ export function WhalesEditionPanel({
             X.SeekBoxAI.
           </p>
         </div>
-        <div className={`rounded-2xl border px-3 py-2 text-center ${biasClass(biasTone)}`}>
-          <div className="text-[10px] font-black uppercase tracking-widest">Bias</div>
-          <div className="text-sm font-black capitalize">{biasTone}</div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className={`rounded-2xl border px-3 py-2 text-center ${biasClass(biasTone)}`}>
+            <div className="text-[10px] font-black uppercase tracking-widest">Bias</div>
+            <div className="text-sm font-black capitalize">{biasTone}</div>
+          </div>
+          <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" />
         </div>
-      </div>
+      </summary>
 
       <div className="mt-4 space-y-3">
         <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-3">
@@ -731,7 +734,7 @@ export function WhalesEditionPanel({
           </p>
         </div>
       )}
-    </div>
+    </details>
   )
 }
 
