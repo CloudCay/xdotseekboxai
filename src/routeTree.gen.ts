@@ -27,6 +27,7 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as CleanseekXRouteImport } from './routes/cleanseek-x'
 import { Route as CleanseekRouteImport } from './routes/cleanseek'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as ArenaRouteImport } from './routes/arena'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
@@ -148,6 +149,11 @@ const CleanseekRoute = CleanseekRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArenaRoute = ArenaRouteImport.update({
+  id: '/arena',
+  path: '/arena',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountRoute = AccountRouteImport.update({
@@ -315,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/account': typeof AccountRoute
+  '/arena': typeof ArenaRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
@@ -367,6 +374,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/account': typeof AccountRoute
+  '/arena': typeof ArenaRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
@@ -420,6 +428,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/account': typeof AccountRoute
+  '/arena': typeof ArenaRoute
   '/checkout': typeof CheckoutRoute
   '/cleanseek': typeof CleanseekRoute
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
@@ -474,6 +483,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/account'
+    | '/arena'
     | '/checkout'
     | '/cleanseek'
     | '/cleanseek-x'
@@ -526,6 +536,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/account'
+    | '/arena'
     | '/checkout'
     | '/cleanseek'
     | '/cleanseek-x'
@@ -578,6 +589,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/account'
+    | '/arena'
     | '/checkout'
     | '/cleanseek'
     | '/cleanseek-x'
@@ -631,6 +643,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
   AccountRoute: typeof AccountRoute
+  ArenaRoute: typeof ArenaRoute
   CheckoutRoute: typeof CheckoutRoute
   CleanseekRoute: typeof CleanseekRoute
   CleanseekXRoute: typeof CleanseekXRouteWithChildren
@@ -802,6 +815,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/arena': {
+      id: '/arena'
+      path: '/arena'
+      fullPath: '/arena'
+      preLoaderRoute: typeof ArenaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/account': {
@@ -1061,6 +1081,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
   AccountRoute: AccountRoute,
+  ArenaRoute: ArenaRoute,
   CheckoutRoute: CheckoutRoute,
   CleanseekRoute: CleanseekRoute,
   CleanseekXRoute: CleanseekXRouteWithChildren,

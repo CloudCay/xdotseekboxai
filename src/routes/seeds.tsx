@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { ArrowUpRight, BookmarkPlus, MapPin, Music, Search, Tags, Trash2, UsersRound } from 'lucide-react'
+import { ArrowUpRight, BookmarkPlus, MapPin, Music, Radio, Search, Tags, Trash2, UsersRound } from 'lucide-react'
 import { XSiteHeader } from '../components/XSiteHeader'
 import { cleanseekHref } from '../lib/cleanseekUrl'
 import {
@@ -30,7 +30,7 @@ const KIND_LABELS: Record<SeedCollectionKind | 'all', string> = {
 }
 
 type SearchWhen = 'today' | 'weekend' | '7d' | '30d'
-type SearchOutput = 'pulse' | 'voices' | 'events' | 'brief' | 'compare'
+type SearchOutput = 'pulse' | 'voices' | 'events' | 'arena' | 'brief' | 'compare'
 
 type CustomSearchState = {
   what: string
@@ -68,6 +68,11 @@ const OUTPUT_OPTIONS: Array<{ id: SearchOutput; label: string; prompt: string }>
     id: 'events',
     label: 'Events',
     prompt: 'Return upcoming events, venues, dates when available, source links, and audience momentum.',
+  },
+  {
+    id: 'arena',
+    label: 'Arena',
+    prompt: 'Compare Grok-style X pulse, grounded analysis, sentiment, velocity, voices, and model divergence.',
   },
   {
     id: 'brief',
@@ -112,6 +117,7 @@ function SeedsRoute() {
     autorun: false,
     path: '/cleanseek-x',
   })
+  const arenaHref = arenaHrefFromSearch(customSearch)
 
   useEffect(() => {
     setWatchlist(loadWatchlist())
@@ -229,7 +235,7 @@ function SeedsRoute() {
               ))}
             </div>
 
-            <div className="mt-5 grid gap-2 sm:grid-cols-3">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <a href={liveHref} className="inline-flex min-h-12 items-center justify-center gap-2 border border-neutral-950 bg-neutral-950 px-4 py-3 text-sm font-black text-white hover:bg-neutral-800">
                 <Search className="h-4 w-4" />
                 Search live
@@ -237,6 +243,10 @@ function SeedsRoute() {
               <a href={voicesHref} className="inline-flex min-h-12 items-center justify-center gap-2 border border-neutral-300 bg-white px-4 py-3 text-sm font-black text-neutral-900 hover:border-neutral-950">
                 <UsersRound className="h-4 w-4" />
                 Find voices
+              </a>
+              <a href={arenaHref} className="inline-flex min-h-12 items-center justify-center gap-2 border border-red-300 bg-red-50 px-4 py-3 text-sm font-black text-red-950 hover:border-red-700">
+                <Radio className="h-4 w-4" />
+                Open arena
               </a>
               <button
                 type="button"
@@ -299,6 +309,7 @@ function SeedCard({ seed, onWatch }: { seed: SeedCollection; onWatch: () => void
     autorun: false,
     path: '/cleanseek-x',
   })
+  const arenaHref = arenaHrefFromSearch(customSearchFromSeed(seed))
 
   return (
     <article className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
@@ -333,7 +344,7 @@ function SeedCard({ seed, onWatch }: { seed: SeedCollection; onWatch: () => void
         ))}
       </div>
 
-      <div className="mt-5 grid gap-2 sm:grid-cols-3">
+      <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <a href={searchHref} className="inline-flex items-center justify-center gap-2 border border-neutral-950 bg-neutral-950 px-4 py-3 text-sm font-black text-white hover:bg-neutral-800">
           <Search className="h-4 w-4" />
           Search live
@@ -342,6 +353,10 @@ function SeedCard({ seed, onWatch }: { seed: SeedCollection; onWatch: () => void
           <Music className="h-4 w-4" />
           Find voices
           <ArrowUpRight className="h-4 w-4" />
+        </a>
+        <a href={arenaHref} className="inline-flex items-center justify-center gap-2 border border-red-300 bg-red-50 px-4 py-3 text-sm font-black text-red-950 hover:border-red-700">
+          <Radio className="h-4 w-4" />
+          Arena
         </a>
         <button
           type="button"
@@ -522,6 +537,16 @@ function optionLabel<T extends string>(options: Array<{ id: T; label: string }>,
 function watchlistKey(search: CustomSearchState): string {
   const cleaned = cleanCustomSearch(search)
   return [cleaned.what, cleaned.where, cleaned.when, cleaned.output].join('|').toLowerCase()
+}
+
+function arenaHrefFromSearch(search: CustomSearchState): string {
+  const cleaned = cleanCustomSearch(search)
+  const params = new URLSearchParams()
+  if (cleaned.what) params.set('topic', cleaned.what)
+  if (cleaned.where) params.set('where', cleaned.where)
+  params.set('tone', cleaned.output === 'brief' ? 'clean' : 'witty')
+  const qs = params.toString()
+  return qs ? `/arena?${qs}` : '/arena'
 }
 
 function loadWatchlist(): WatchlistItem[] {

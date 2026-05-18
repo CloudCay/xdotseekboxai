@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BarChart3,
   Cpu,
-  DollarSign,
   ExternalLink,
   Loader2,
   MessageSquare,
@@ -70,7 +69,6 @@ type GatewaySummaryRow = {
   key: string
   calls?: number
   count?: number
-  cost_usd: number
   avg_latency_ms?: number | null
   in_tok?: number
   out_tok?: number
@@ -79,7 +77,6 @@ type GatewaySummaryRow = {
 type GatewayStatsPayload = {
   totals: {
     calls: number
-    cost_usd: number
     input_tokens: number
     output_tokens: number
     errors: number
@@ -92,28 +89,14 @@ type GatewayStatsPayload = {
   as_of: string | null
 }
 
-type GatewayCostRollup = {
-  total_cost_usd: number
-  total_calls: number
-  total_pulses: number
-  total_images: number
-  rows: GatewaySummaryRow[]
-}
-
 type GatewayLogSnapshot = {
   generatedAt: string
   source: {
-    mode: 'cloudflare-admin-costs' | 'cloudflare-public-stats'
+    mode: 'cloudflare-public-stats'
     statsWindow: string
-    costWindow: string | null
     adminRollups: boolean
   }
   stats: GatewayStatsPayload | null
-  costs: {
-    endpoint: GatewayCostRollup | null
-    provider: GatewayCostRollup | null
-    app: GatewayCostRollup | null
-  } | null
 }
 
 export function XIntelShell({
@@ -698,16 +681,16 @@ export function MatrixLab() {
   const { snapshot, previous, loading, error, autoRefresh, setAutoRefresh, refresh } = useGatewayLogMonitor()
   const matrixEngines = useMemo(() => buildGatewayEngines(snapshot, previous), [previous, snapshot])
   const totals = snapshot?.stats?.totals ?? null
-  const endpointRows = snapshot?.costs?.endpoint?.rows ?? []
-  const providerRows = snapshot?.costs?.provider?.rows ?? snapshot?.stats?.by_provider ?? []
-  const appRows = snapshot?.costs?.app?.rows ?? snapshot?.stats?.by_app ?? []
+  const providerRows = snapshot?.stats?.by_provider ?? []
+  const appRows = snapshot?.stats?.by_app ?? []
+  const statsWindow = snapshot?.source.statsWindow ?? '1h'
 
   return (
     <XIntelShell
       active="matrix"
       eyebrow="CF log monitor"
       title="Watch the SeekBox API logs resolve in real time."
-      description="Matrix now polls the deployed gateway for sanitized Supabase-backed log summaries: call volume, spend, providers, endpoints, latency, and error counts."
+      description="Matrix now polls the deployed gateway for public-safe Supabase-backed log summaries: call volume, providers, apps, latency, and error counts."
     >
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
@@ -716,7 +699,7 @@ export function MatrixLab() {
               <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">Live gateway</div>
               <h2 className="mt-2 text-2xl font-black tracking-tight">api_calls pulse</h2>
               <div className="mt-1 text-xs font-bold text-neutral-500">
-                {snapshot ? `Updated ${formatClock(snapshot.generatedAt)} · ${snapshot.source.adminRollups ? 'admin cost rollups enabled' : 'public stats only'}` : 'Waiting for first snapshot'}
+                {snapshot ? `Updated ${formatClock(snapshot.generatedAt)} · public stats only` : 'Waiting for first snapshot'}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -741,15 +724,13 @@ export function MatrixLab() {
           </div>
           <Matrix engines={matrixEngines} height={340} doneMessage="Gateway quiet. Logs current." />
           {error ? <ErrorCard message={error} compact /> : null}
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <GatewayMetric icon={<BarChart3 className="h-4 w-4" />} label="Calls" value={formatInteger(totals?.calls)} />
-            <GatewayMetric icon={<DollarSign className="h-4 w-4" />} label="Cost" value={formatMoney(totals?.cost_usd)} />
-            <GatewayMetric icon={<AlertCircle className="h-4 w-4" />} label="Errors" value={formatInteger(totals?.errors)} />
-            <GatewayMetric icon={<Activity className="h-4 w-4" />} label="P95" value={formatMs(totals?.p95_latency_ms)} />
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <GatewayMetric icon={<BarChart3 className="h-4 w-4" />} label={`Calls ${statsWindow}`} value={formatInteger(totals?.calls)} />
+            <GatewayMetric icon={<AlertCircle className="h-4 w-4" />} label={`Errors ${statsWindow}`} value={formatInteger(totals?.errors)} />
+            <GatewayMetric icon={<Activity className="h-4 w-4" />} label={`P95 ${statsWindow}`} value={formatMs(totals?.p95_latency_ms)} />
           </div>
         </div>
         <div className="flex flex-col gap-4">
-          <LogRollupPanel title="Endpoints" rows={endpointRows} emptyText="Admin endpoint rollups need SBX_ADMIN_TOKEN on the server." />
           <LogRollupPanel title="Providers" rows={providerRows} maxRows={30} />
           <LogRollupPanel title="Apps" rows={appRows} />
         </div>
@@ -785,7 +766,7 @@ function useGatewayLogMonitor() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/gateway-logs?window=1h&cost_window=24h', { cache: 'no-store' })
+      const response = await fetch('/api/gateway-logs?window=1h', { cache: 'no-store' })
       if (!response.ok) throw new Error(`Gateway monitor failed (${response.status}).`)
       const next = (await response.json()) as GatewayLogSnapshot
       setPrevious(latestRef.current)
@@ -821,7 +802,7 @@ function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: Gate
     return [
       { id: 'gateway', name: 'Gateway', model: 'waiting', color: '#0ea5e9', highlight: '#7dd3fc', status: snapshot ? 'done' : 'thinking' },
       { id: 'supabase', name: 'Supa', model: 'api_calls', color: '#10b981', highlight: '#86efac', status: snapshot ? 'done' : 'idle' },
-      { id: 'costs', name: 'Costs', model: 'rollups', color: '#a78bfa', highlight: '#ddd6fe', status: snapshot?.costs ? 'done' : 'idle' },
+      { id: 'latency', name: 'Latency', model: 'p95', color: '#a78bfa', highlight: '#ddd6fe', status: snapshot ? 'done' : 'idle' },
     ]
   }
 
@@ -831,7 +812,7 @@ function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: Gate
     return {
       id: row.key,
       name: providerLabel(row.key),
-      model: `${formatInteger(calls)} uses · ${formatMoney(row.cost_usd)}`,
+      model: `${formatInteger(calls)} uses`,
       ...providerColor(row.key, index),
       status: calls > previousCalls ? 'thinking' : 'done',
     }
@@ -839,7 +820,7 @@ function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: Gate
 }
 
 function gatewayProviderRows(snapshot: GatewayLogSnapshot | null): GatewaySummaryRow[] {
-  return snapshot?.costs?.provider?.rows?.length ? snapshot.costs.provider.rows : snapshot?.stats?.by_provider ?? []
+  return snapshot?.stats?.by_provider ?? []
 }
 
 function rowVolume(row: GatewaySummaryRow | undefined): number {
@@ -878,10 +859,9 @@ function LogRollupPanel({
       {rows.length ? (
         <div className="flex flex-col divide-y divide-neutral-200">
           {rows.slice(0, maxRows).map((row) => (
-            <div key={row.key} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 text-xs font-bold">
+            <div key={row.key} className="grid grid-cols-[1fr_auto] items-center gap-3 py-2 text-xs font-bold">
               <div className="min-w-0 truncate text-neutral-800" title={row.key}>{row.key}</div>
               <div className="font-mono text-neutral-500">{formatInteger(row.count ?? row.calls)}</div>
-              <div className="font-mono text-neutral-950">{formatMoney(row.cost_usd)}</div>
             </div>
           ))}
         </div>
@@ -900,10 +880,10 @@ function providerLabel(value: string): string {
     tavily: 'Tavily',
     brave: 'Brave',
     wikimedia: 'Wiki',
-    api_calls: 'API Calls',
-    pulse_runs: 'Pulse Runs',
+    api_calls: 'API',
+    pulse_runs: 'Pulse',
     'google-ai-studio': 'Gemini',
-    'workers-ai': 'Workers AI',
+    'workers-ai': 'Workers',
   }
   return labels[value] ?? value.replace(/[-_]+/g, ' ').replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
 }
@@ -933,10 +913,6 @@ function providerColor(value: string, index: number): Pick<MatrixEngine, 'color'
 
 function formatInteger(value: number | null | undefined): string {
   return Math.round(Number(value) || 0).toLocaleString()
-}
-
-function formatMoney(value: number | null | undefined): string {
-  return `$${(Number(value) || 0).toFixed(4)}`
 }
 
 function formatMs(value: number | null | undefined): string {
