@@ -37,12 +37,15 @@ import { ensureAccount } from '../lib/ensureAccount'
 import { optionalEnv } from '../lib/env'
 import { IconNavButton } from '../components/IconNav'
 import { XSiteHeader } from '../components/XSiteHeader'
+import { AnonSplashGate } from '../components/AnonSplashGate'
 import { CLEANSEEK_QUERY_MAX_CHARS, compactCleanseekQuery } from '../lib/cleanseekUrl'
 import { bestPostCount, formatCompactNumber, metricBasisLabel, type PulseRunMetrics } from '../lib/pulseMetrics'
 import {
+  ANON_SESSION_SEARCH_CAP,
   getAccountProfileSummary,
   getLocalAccountProfileSummary,
   incrementSessionSearchCount,
+  readSessionSearchCount,
   type AccountProfileSummary,
 } from '../lib/accountProfileSummary'
 import {
@@ -3160,6 +3163,8 @@ export function CleanSeekLite({
   const [showSentPrompt, setShowSentPrompt] = useState<boolean>(false)
   const [resultActionNotice, setResultActionNotice] = useState<string | null>(null)
   const [authUserId, setAuthUserId] = useState<string | null>(null)
+  const [authChecked, setAuthChecked] = useState<boolean>(() => !isSupabaseConfigured)
+  const [anonGateOpen, setAnonGateOpen] = useState<boolean>(false)
   const [profileSummary, setProfileSummary] = useState<AccountProfileSummary>(() => getLocalAccountProfileSummary())
   const [personalizationSeed, setPersonalizationSeed] = useState<PersonalizationSeed>(() => loadPersonalizationSeed())
   const abortRef = useRef<AbortController | null>(null)
@@ -3176,6 +3181,9 @@ export function CleanSeekLite({
   const searchInputMaxCharacters = profileSummary.searchInputMax ?? UI_SEARCH_QUERY_MAX_CHARS
   const responseLengthMaxWords = profileSummary.responseLengthMax
   const maxAllowedResponseLengthLevel = bestResponseLengthForLimit(responseLengthMaxWords) ?? RESPONSE_LENGTH_LEVELS.length - 1
+  const currentPathname = useRouterState({ select: (state) => state.location.pathname })
+  const [signInReturnTo, setSignInReturnTo] = useState<string>('/cleanseek-x')
+  const closeAnonGate = useCallback(() => setAnonGateOpen(false), [])
 
   const flushStreamFrame = useCallback(() => {
     streamRafRef.current = null
@@ -3211,6 +3219,11 @@ export function CleanSeekLite({
     const nextLevel = bestResponseLengthForLimit(responseLengthMaxWords) ?? DEFAULT_PROMPT_MODS.responseLength
     setPromptMods((current) => ({ ...current, responseLength: nextLevel }))
   }, [promptMods.responseLength, promptMods.responseLengthEnabled, responseLengthMaxWords])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setSignInReturnTo(`${window.location.pathname}${window.location.search}`)
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -3437,7 +3450,10 @@ export function CleanSeekLite({
 
   useEffect(() => {
     const sb = isSupabaseConfigured ? supabase : null
-    if (!sb || typeof window === 'undefined') return
+    if (!sb || typeof window === 'undefined') {
+      setAuthChecked(true)
+      return
+    }
 
     let cancelled = false
 
@@ -3457,6 +3473,7 @@ export function CleanSeekLite({
       const summary = await getAccountProfileSummary({ supabase: sb, user: u as any })
       if (!cancelled) {
         setProfileSummary(summary)
+        setAuthChecked(true)
       }
     }
 
@@ -3631,6 +3648,14 @@ export function CleanSeekLite({
     if (!BACKEND_URL) return
     const raw = (opts?.queryOverride ?? query).trim()
     if (!raw || isSearching) return
+    if (!authUserId && readSessionSearchCount() >= ANON_SESSION_SEARCH_CAP) {
+      setStreamError(null)
+      setAnonGateOpen(true)
+      setProfileSummary((prev) =>
+        prev.signedIn ? prev : getLocalAccountProfileSummary({ sessionSearchCount: readSessionSearchCount() }),
+      )
+      return
+    }
     if (raw.length > searchInputMaxCharacters) {
       setStreamError(
         `This prompt is ${raw.length.toLocaleString()} characters. ${profileSummary.roleLabel} allows ${searchInputMaxCharacters.toLocaleString()} search characters.`,
@@ -4509,7 +4534,7 @@ export function CleanSeekLite({
   }, [BACKEND_URL, isSearching, query])
 
   const isMobile = variant === 'mobile'
-  const isRabbitHole = typeof window !== 'undefined' && window.location.pathname.endsWith('/rabbitholex')
+  const isRabbitHole = currentPathname.endsWith('/rabbitholex')
   const isXmarks = layout === 'xmarks'
   const isTicker = layout === 'ticker'
   const isThreeColumnCleanseek = variant === 'desktop' && !isRabbitHole && !isXmarks && !isTicker
@@ -4528,8 +4553,6 @@ export function CleanSeekLite({
         ? 'Tickers'
         : 'multi-model search'
   const headerActive = rawPlayground ? 'xmarks' : isXmarks ? 'xmarks' : isTicker ? 'ticker' : 'search'
-  const signInReturnTo =
-    typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/cleanseek-x'
   const workspaceActions = (
     <>
       {!disableGrokLive ? (
@@ -4592,6 +4615,15 @@ export function CleanSeekLite({
 
   return (
     <div className="min-h-screen bg-[#f7f8f4] text-neutral-950">
+      <AnonSplashGate
+        authChecked={authChecked}
+        signedIn={Boolean(authUserId || profileSummary.signedIn)}
+        limitOpen={anonGateOpen}
+        searchCount={readSessionSearchCount()}
+        searchLimit={ANON_SESSION_SEARCH_CAP}
+        returnTo={signInReturnTo}
+        onLimitClose={closeAnonGate}
+      />
       <XSiteHeader
         active={headerActive}
         title={pageTitle}
