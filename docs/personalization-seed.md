@@ -9,12 +9,26 @@ Users can have a lightweight personalization seed before the full persona system
 ## Inputs
 
 - Account role from `accounts.role_id`, `accounts.role`, or `accounts.granted_role`
+- Numeric access level from `role_definitions.level`
 - Optional user profile note from the Account page
 - Optional default lens from the Account page
 - Optional per-search persona text from CleanSeek-X prompt modifiers
 - The raw search query
 
-## Levels
+## Role Levels
+
+The database owns the numeric access order through `role_definitions.level`.
+
+- `1`: anon visitor access
+- `2`: free/trial signed-in access
+- `3`: starter plan access
+- `4`: paid core plan access, including power, family, and business
+- `8`: advisor/manual collaborator access
+- `10`: admin and superadmin operator access
+
+Role name still matters where the product needs a precise distinction, for example `admin` versus `superadmin`.
+
+## Personalization Levels
 
 - `base`: anon, trial, free, starter, power
 - `advisor`: trusted collaborator/advisor access

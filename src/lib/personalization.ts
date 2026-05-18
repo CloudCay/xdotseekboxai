@@ -45,6 +45,7 @@ export type PersonalizationContext = {
     enabled: boolean
     level: PersonalizationLevel
     roleId: string
+    roleLevel: number | null
     preferredLens: string | null
     hasProfileNote: boolean
     hasExplicitPersona: boolean
@@ -78,11 +79,14 @@ const HISTORY_CLASS_LABELS: Record<SearchHistoryClass, string> = {
   general_research: 'General research',
 }
 
-export function personalizationLevelForRole(roleId: string | null | undefined): PersonalizationLevel {
+export function personalizationLevelForRole(roleId: string | null | undefined, roleLevel?: number | null): PersonalizationLevel {
   const role = normalizeRole(roleId)
+  const numericLevel = normalizeRoleLevel(roleLevel)
   if (role === 'superadmin' || role === 'god') return 'superadmin'
   if (role === 'admin') return 'admin'
   if (role === 'advisor') return 'advisor'
+  if (numericLevel !== null && numericLevel >= 10) return 'admin'
+  if (numericLevel !== null && numericLevel >= 8) return 'advisor'
   return 'base'
 }
 
@@ -178,14 +182,15 @@ export function classifySearchHistory(query: string): SearchHistoryClassificatio
 }
 
 export function buildPersonalizationContext(args: {
-  profile: Pick<AccountProfileSummary, 'roleId' | 'roleLabel'> | null
+  profile: Pick<AccountProfileSummary, 'roleId' | 'roleLabel' | 'roleLevel'> | null
   seed?: PersonalizationSeed | null
   query: string
   explicitPersonaText?: string | null
 }): PersonalizationContext {
   const roleId = normalizeRole(args.profile?.roleId) || 'anon'
+  const roleLevel = normalizeRoleLevel(args.profile?.roleLevel)
   const roleLabel = args.profile?.roleLabel || humanizeRole(roleId)
-  const level = personalizationLevelForRole(roleId)
+  const level = personalizationLevelForRole(roleId, roleLevel)
   const seed = normalizePersonalizationSeed(args.seed ?? DEFAULT_PERSONALIZATION_SEED)
   const explicitPersonaText = cleanShortText(args.explicitPersonaText, 1200)
   const profileNote = cleanShortText(seed.profileNote, 800)
@@ -213,6 +218,7 @@ export function buildPersonalizationContext(args: {
       enabled,
       level,
       roleId,
+      roleLevel,
       preferredLens: enabled ? preferredLens : null,
       hasProfileNote: Boolean(profileNote),
       hasExplicitPersona: Boolean(explicitPersonaText),
@@ -249,6 +255,11 @@ function cleanShortText(raw: unknown, max: number): string {
 
 function normalizeRole(raw: string | null | undefined): string {
   return raw?.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') ?? ''
+}
+
+function normalizeRoleLevel(raw: unknown): number | null {
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
 }
 
 function humanizeRole(role: string): string {

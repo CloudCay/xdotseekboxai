@@ -16,6 +16,7 @@ type RoleSummary = {
   id: string
   label: string
   description: string
+  level: number | null
   emoji: string | null
   searchInputMax: number | null
   responseLengthMax: number | null
@@ -42,6 +43,7 @@ export type AccountProfileSummary = {
   displayName: string | null
   avatarInitial: string | null
   roleId: string
+  roleLevel: number | null
   roleLabel: string
   roleDescription: string
   roleEmoji: string | null
@@ -70,6 +72,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'superadmin',
     label: 'Super Admin',
     description: 'Unrestricted access to all features and settings',
+    level: 10,
     emoji: null,
     searchInputMax: null,
     responseLengthMax: null,
@@ -78,6 +81,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'god',
     label: 'God',
     description: 'Operator bypass role with full access',
+    level: 10,
     emoji: null,
     searchInputMax: null,
     responseLengthMax: null,
@@ -86,6 +90,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'admin',
     label: 'Admin',
     description: 'Full features with minor guardrails',
+    level: 10,
     emoji: null,
     searchInputMax: null,
     responseLengthMax: null,
@@ -94,6 +99,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'advisor',
     label: 'Advisor',
     description: 'Trusted collaborator access with Power features',
+    level: 8,
     emoji: null,
     searchInputMax: 1000,
     responseLengthMax: null,
@@ -102,6 +108,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'power',
     label: 'Power',
     description: 'Advanced features with full model and analysis access',
+    level: 4,
     emoji: null,
     searchInputMax: 1000,
     responseLengthMax: 1500,
@@ -110,6 +117,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'starter',
     label: 'Starter',
     description: '$5/mo plan with starter search access',
+    level: 3,
     emoji: null,
     searchInputMax: 250,
     responseLengthMax: 500,
@@ -118,6 +126,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'restricted',
     label: 'Restricted',
     description: 'Minimal demo-level access',
+    level: 1,
     emoji: null,
     searchInputMax: 100,
     responseLengthMax: 250,
@@ -126,6 +135,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'anon',
     label: 'Anon',
     description: 'Pre-signup access before an account is created',
+    level: 1,
     emoji: null,
     searchInputMax: 100,
     responseLengthMax: 250,
@@ -134,6 +144,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'trial',
     label: 'Trial',
     description: 'Signed-up evaluation tier assigned during account setup',
+    level: 2,
     emoji: null,
     searchInputMax: 250,
     responseLengthMax: 500,
@@ -142,6 +153,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'free',
     label: 'Free',
     description: 'Free-tier signed-in account',
+    level: 2,
     emoji: null,
     searchInputMax: 100,
     responseLengthMax: 250,
@@ -150,6 +162,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'family',
     label: 'Family',
     description: 'Family plan access',
+    level: 4,
     emoji: null,
     searchInputMax: 1000,
     responseLengthMax: 1500,
@@ -158,6 +171,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     id: 'business',
     label: 'Business',
     description: 'Business plan access',
+    level: 4,
     emoji: null,
     searchInputMax: 1000,
     responseLengthMax: null,
@@ -185,6 +199,11 @@ function parseCount(raw: string | null): number {
 function parsePositiveLimit(raw: unknown): number | null {
   const n = typeof raw === 'number' ? raw : Number(raw)
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
+}
+
+function parseRoleLevel(raw: unknown): number | null {
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
 }
 
 export function readSessionSearchCount(key = SESSION_SEARCH_COUNT_KEY): number {
@@ -245,6 +264,7 @@ function fallbackRoleSummary(roleId: string): RoleSummary {
       id: roleId,
       label: humanizeRoleId(roleId),
       description: `${humanizeRoleId(roleId)} access`,
+      level: null,
       emoji: null,
       searchInputMax: null,
       responseLengthMax: null,
@@ -289,7 +309,8 @@ function daysLeft(iso: string | null): number | null {
 }
 
 function buildTooltipLines(summary: Omit<AccountProfileSummary, 'tooltipLines'>): string[] {
-  const lines = [`${summary.roleLabel}: ${summary.roleDescription}`]
+  const levelText = summary.roleLevel !== null ? ` · level ${summary.roleLevel}` : ''
+  const lines = [`${summary.roleLabel}${levelText}: ${summary.roleDescription}`]
   if (summary.searchesLeft !== null && summary.searchesLimit !== null && summary.searchWindowLabel) {
     lines.push(
       `${summary.searchesLeft} search${summary.searchesLeft === 1 ? '' : 'es'} left ${summary.searchWindowLabel} (${summary.searchesLimit} max)`,
@@ -343,6 +364,7 @@ export function getLocalAccountProfileSummary(args: {
     displayName: getDisplayName(user),
     avatarInitial: getAvatarInitial(user, safeRoleId),
     roleId: safeRoleId,
+    roleLevel: role.level,
     roleLabel: role.label,
     roleDescription: role.description,
     roleEmoji: role.emoji,
@@ -423,29 +445,41 @@ async function fetchMonthlySearches(supabase: SupabaseLike, uid: string): Promis
 }
 
 async function fetchRoleSummary(supabase: SupabaseLike, roleId: string): Promise<RoleSummary> {
-  try {
-    const res = await supabase
-      .from('role_definitions')
-      .select('role_id,label,description,emoji,searchinputmax,responselengthmax')
-      .eq('role_id', roleId)
-      .maybeSingle()
-    if (!res.error && res.data) {
-      const row = res.data as Record<string, unknown>
-      const fallback = fallbackRoleSummary(roleId)
-      return {
-        id: roleId,
-        label: typeof row.label === 'string' && row.label.trim() ? row.label.trim() : fallback.label,
-        description:
-          typeof row.description === 'string' && row.description.trim()
-            ? row.description.trim()
-            : fallback.description,
-        emoji: typeof row.emoji === 'string' && row.emoji.trim() ? row.emoji.trim() : null,
-        searchInputMax: parsePositiveLimit(row.searchinputmax) ?? fallback.searchInputMax,
-        responseLengthMax: parsePositiveLimit(row.responselengthmax) ?? fallback.responseLengthMax,
+  const selects = [
+    'role_id,label,level,description,emoji,searchinputmax,responselengthmax',
+    'role_id,label,description,emoji,searchinputmax,responselengthmax',
+  ]
+  for (const select of selects) {
+    try {
+      const res = await supabase
+        .from('role_definitions')
+        .select(select)
+        .eq('role_id', roleId)
+        .maybeSingle()
+      if (res.error) {
+        const msg = String(res.error.message ?? '')
+        if (/42703|column|PGRST/i.test(msg)) continue
+        return fallbackRoleSummary(roleId)
       }
+      if (res.data) {
+        const row = res.data as Record<string, unknown>
+        const fallback = fallbackRoleSummary(roleId)
+        return {
+          id: roleId,
+          label: typeof row.label === 'string' && row.label.trim() ? row.label.trim() : fallback.label,
+          description:
+            typeof row.description === 'string' && row.description.trim()
+              ? row.description.trim()
+              : fallback.description,
+          level: parseRoleLevel(row.level) ?? fallback.level,
+          emoji: typeof row.emoji === 'string' && row.emoji.trim() ? row.emoji.trim() : null,
+          searchInputMax: parsePositiveLimit(row.searchinputmax) ?? fallback.searchInputMax,
+          responseLengthMax: parsePositiveLimit(row.responselengthmax) ?? fallback.responseLengthMax,
+        }
+      }
+    } catch {
+      /* noop */
     }
-  } catch {
-    /* noop */
   }
   return fallbackRoleSummary(roleId)
 }
@@ -531,6 +565,7 @@ export async function getAccountProfileSummary(args: {
     displayName: getDisplayName(user),
     avatarInitial: getAvatarInitial(user, roleId),
     roleId,
+    roleLevel: role.level,
     roleLabel: role.label,
     roleDescription: role.description,
     roleEmoji: role.emoji,
