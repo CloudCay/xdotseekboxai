@@ -210,7 +210,7 @@ export const ROADMAP_FEATURES: RoadmapFeature[] = [
     stage: 'planned',
     access: 'premium',
     area: 'Search',
-    surface: '/pricing, /cleanseek-x',
+    surface: '/plans, /cleanseek-x',
     summary: 'Paid tier with higher limits, full model toggles, synthesizer passes, personas, longer answers, and exportable briefs.',
     next: 'Price against unit economics and keep exports to summaries, PDFs, and citations rather than raw X post dumps.',
     seedVotes: 31,

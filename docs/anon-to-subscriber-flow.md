@@ -10,14 +10,15 @@ There is no separate "sign up" page. The sign-up path is the same as sign-in:
 
 - `/signin` creates or resumes a Supabase user through magic link, Google OAuth, or X OAuth.
 - `ensureAccount()` creates or updates the `accounts` row after authentication.
-- `/pricing` explains the paid plan and links to `/checkout`.
-- `/account` shows profile/plan state and also links directly to `/checkout`.
+- `/plans` explains the paid plan and links to `/checkout`.
+- `/pricing` is kept as a compatibility redirect to `/plans`.
+- `/account` shows profile/plan state and links unpaid users to `/plans`.
 - `/checkout` immediately creates a Stripe Checkout Session for signed-in users and redirects to Stripe.
 - Stripe sends lifecycle events to `https://api.seekbox.ai/v1/payments/webhook`.
 - The API webhook writes `user_subscriptions` and updates the account role/state.
 - `/account?upgraded=1&session_id={CHECKOUT_SESSION_ID}` polls briefly so the new subscription appears after checkout.
 
-The surprising behavior is intentional in the current code: clicking `Start checkout` from `/account` sends a signed-in user straight through the Stripe handoff because `/checkout` is an auto-start route, not a plan-review page.
+Important UX note: `/checkout` is still an auto-start route. The app should send users there only after an explicit plan CTA, because signed-in users are redirected immediately to Stripe.
 
 ## Public Entry Points
 
@@ -25,10 +26,11 @@ The surprising behavior is intentional in the current code: clicking `Start chec
 | --- | --- | --- |
 | Anonymous | Header account badge | Shows `Anonymous` and links to `/signin?returnTo=<current-path>`. |
 | Anonymous | `/signin` | User can create/resume an account with magic link, Google, or X. |
-| Anonymous or signed-in | `/pricing` | Shows the current paid plan and links to `/checkout?plan=power-live-x-monthly`. |
+| Anonymous or signed-in | `/plans` | Shows the current paid plan and links to `/checkout?plan=power-live-x-monthly`. |
+| Anonymous or signed-in | `/pricing` | Redirects to `/plans` for older links. |
 | Anonymous | `/checkout` | Shows an error state with a sign-in link to `/signin?returnTo=/checkout`. |
 | Signed-in | `/checkout` | Calls the server checkout function and redirects immediately to Stripe Checkout. |
-| Signed-in | `/account` | Shows account state and a `Start checkout` button. |
+| Signed-in | `/account` | Shows account state and a `View plans` button for unpaid users. |
 | Post-payment | `/account?upgraded=1&session_id={CHECKOUT_SESSION_ID}` | Polls for webhook-written subscription state and then strips the query params. |
 
 ## Current Paid Plan
@@ -65,7 +67,7 @@ Important behavior:
 
 - If a user does not exist yet, Supabase can create one during magic-link/OAuth auth.
 - There is no separate "create account" form before Stripe.
-- `returnTo` should be a safe relative path, e.g. `/checkout`, `/pricing`, `/cleanseek-x`.
+- `returnTo` should be a safe relative path, e.g. `/checkout`, `/plans`, `/cleanseek-x`.
 
 ### `ensureAccount()`
 
@@ -85,9 +87,9 @@ Where it runs:
 - `/checkout` before Stripe session creation.
 - Search/profile summary hydration paths.
 
-### `/pricing`
+### `/plans`
 
-File: `src/routes/pricing.tsx`
+File: `src/routes/plans.tsx`
 
 Purpose:
 
@@ -101,6 +103,15 @@ Current behavior:
 - If the visitor is not signed in, `/checkout` will ask them to sign in.
 - The page copy says: "You'll be asked to sign in before checkout."
 
+### `/pricing`
+
+File: `src/routes/pricing.tsx`
+
+Purpose:
+
+- Compatibility route for older public links.
+- Redirects to `/plans`.
+
 ### `/account`
 
 File: `src/routes/account.tsx`
@@ -113,11 +124,11 @@ Purpose:
 
 Current behavior:
 
-- The top CTA is `Start checkout` for unpaid users.
-- That CTA links directly to `/checkout`.
-- For paid/trialing users, the label becomes `Manage / upgrade`, but it still links to `/checkout` today.
+- The top CTA is `View plans` for unpaid users.
+- That CTA links to `/plans`.
+- For paid/trialing users, the label becomes `Manage / upgrade`; today it still points at the plan surface rather than a dedicated billing portal.
 
-This is why the account page can feel like it "just sends me through Stripe." The `/account` CTA skips `/pricing` and enters the auto-start checkout route.
+This avoids the earlier surprise where `/account` skipped the plan-review surface and entered the auto-start checkout route.
 
 ### `/checkout`
 
@@ -194,9 +205,9 @@ https://ruffled-snail.vibecode.run/api/stripe/webhook
 
 ## End-to-End Funnel
 
-### Path A: Anonymous visitor chooses pricing first
+### Path A: Anonymous visitor chooses plans first
 
-1. Visitor opens `/pricing`.
+1. Visitor opens `/plans`.
 2. Visitor clicks `Start checkout`.
 3. App opens `/checkout?plan=power-live-x-monthly`.
 4. If no Supabase session exists, `/checkout` shows "Please sign in first."
@@ -218,7 +229,7 @@ https://ruffled-snail.vibecode.run/api/stripe/webhook
 2. App opens `/signin?returnTo=<current-path>`.
 3. Visitor authenticates.
 4. `ensureAccount()` creates/updates the account on the next account-aware surface.
-5. Visitor opens `/pricing` or `/account`.
+5. Visitor opens `/plans` or `/account`.
 6. Visitor clicks `Start checkout`.
 7. `/checkout` redirects directly to Stripe.
 8. Webhook/account confirmation follows the same flow as Path A.
@@ -226,20 +237,21 @@ https://ruffled-snail.vibecode.run/api/stripe/webhook
 ### Path C: Signed-in trial user upgrades from account
 
 1. User opens `/account`.
-2. User clicks `Start checkout`.
-3. App opens `/checkout`.
-4. `/checkout` auto-starts Stripe Checkout.
-5. Webhook/account confirmation follows the same flow as Path A.
+2. User clicks `View plans`.
+3. User reviews `/plans`.
+4. User clicks `Start checkout`.
+5. App opens `/checkout`.
+6. `/checkout` auto-starts Stripe Checkout.
+7. Webhook/account confirmation follows the same flow as Path A.
 
 ## What May Need Product Cleanup
 
 Current behavior works, but the UX can be clearer:
 
-1. Rename `/account` CTA from `Start checkout` to `View pricing` when the user is unpaid, and send it to `/pricing`.
-2. Add a secondary `Start checkout` button on `/pricing` as the explicit Stripe handoff.
-3. Make `/checkout` say "Preparing secure Stripe checkout..." so users understand it is an auto-redirect route.
-4. Add a signed-out `/account` state that links to `/signin?returnTo=/account` instead of only showing "Not signed in."
-5. Add "Create free account" copy to `/signin`, since that route is also sign-up.
+1. Make `/checkout` say "Preparing secure Stripe checkout..." so users understand it is an auto-redirect route.
+2. Add a signed-out `/account` state that links to `/signin?returnTo=/account` instead of only showing "Not signed in."
+3. Add "Create free account" copy to `/signin`, since that route is also sign-up.
+4. Add a dedicated billing portal route later if `Manage / upgrade` should manage an existing Stripe subscription instead of returning to `/plans`.
 
 ## Operational Checklist
 

@@ -162,7 +162,7 @@ export const XDOT_ROUTE_SUPPORT: HelperRouteSupport[] = [
   {
     id: 'account_signin',
     label: 'Account and sign-in',
-    routes: ['/account', '/signin', '/pricing', '/checkout', '/success'],
+    routes: ['/account', '/signin', '/plans', '/pricing', '/checkout', '/success'],
     description: 'Auth, roles, subscriptions, profile badge, personalization seed, and checkout support.',
     support: [
       'Help users understand anon, trial, advisor, admin, and superadmin states.',

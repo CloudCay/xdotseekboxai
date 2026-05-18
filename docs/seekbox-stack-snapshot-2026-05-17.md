@@ -9,7 +9,7 @@ SeekBox is currently a family of related apps around one core idea: a user-facin
 
 | Domain | Role | Near-term owner |
 | --- | --- | --- |
-| `seekbox.ai` | Canonical main SeekBox product: search, account, billing, library, uploads, business/pricing, and general product surface | `seekbox-main-react` first, then whatever replaces the legacy/mobile web stack |
+| `seekbox.ai` | Canonical main SeekBox product: search, account, billing, library, uploads, business/plans, and general product surface | `seekbox-main-react` first, then whatever replaces the legacy/mobile web stack |
 | `x.seekbox.ai` | Canonical X/Pulse intelligence product: CleanSeek X, Pulse, voices, topics, labs, industry/ticker signal pages | `xdotseekboxai` |
 | `api.seekbox.ai` | Production SeekBox API gateway: provider secrets, search/chat routing, pulse/news/voice jobs, payments, auth helpers, image/file/music enrichment, admin endpoints | Cloudflare Worker `seekbox-api` |
 
@@ -104,14 +104,14 @@ Current uncommitted xdot areas include:
 | `/labs` and `/labs/*` | X Intel tools: Matrix, X Battle, Post Room, Anti-Echo |
 | `/seeds`, `/seed-lab` | Prompt seed and collection surfaces |
 | `/xraw`, `/xmarks`, `/ticker` | Raw playground, saved X marks, market/ticker surface |
-| `/pricing`, `/account`, `/checkout`, `/success`, `/signin` | Billing/account/auth surfaces |
+| `/plans`, `/pricing`, `/account`, `/checkout`, `/success`, `/signin` | Billing/account/auth surfaces. `/pricing` redirects to `/plans`. |
 | `/second-opinion` | Second-opinion extension/product support |
 | `/helper`, `/seekly` | Seekly/helper support surfaces |
 
 Billing funnel note: the current anonymous-to-subscriber route map is documented in
 [`docs/anon-to-subscriber-flow.md`](./anon-to-subscriber-flow.md). In short, `/signin` is both sign-in and sign-up,
-`/pricing` explains the plan, `/checkout` auto-starts Stripe for signed-in users, and `/account` also exposes a direct
-checkout CTA.
+`/plans` explains the plan, `/pricing` redirects there for compatibility, `/checkout` auto-starts Stripe for signed-in
+users, and `/account` sends unpaid users to the plan surface first.
 
 ### Server Routes And Server Functions
 
@@ -188,7 +188,7 @@ Main assets and capabilities observed:
 - Main multi-provider search via `src/searchApi.ts`.
 - Provider set: ChatGPT, Claude, Gemini, Groq, Grok, Tavily, Brave, Wikipedia, ChatGPT Search, Grok Search.
 - Prompt modifiers: comprehension level, tone, reasoning style, flags, audience persona, perspective, location.
-- Account, pricing, business checkout, library, search history, shared sessions.
+- Account, plans, business checkout, library, search history, shared sessions.
 - File upload handoff through `/v1/files/*`, with Cloudflare/R2-oriented upload docs in code comments.
 - Supabase-backed account/session/subscription/profile hydration.
 - Pulse/industry read support from `public_pulse_runs` or `pulse_runs`.

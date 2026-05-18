@@ -22,6 +22,7 @@ import { Route as SecondOpinionRouteImport } from './routes/second-opinion'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as PulseRouteImport } from './routes/pulse'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PlansRouteImport } from './routes/plans'
 import { Route as HelperRouteImport } from './routes/helper'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as CleanseekXRouteImport } from './routes/cleanseek-x'
@@ -124,6 +125,11 @@ const PulseRoute = PulseRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlansRoute = PlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelperRoute = HelperRouteImport.update({
@@ -327,6 +333,7 @@ export interface FileRoutesByFullPath {
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
   '/helper': typeof HelperRoute
+  '/plans': typeof PlansRoute
   '/pricing': typeof PricingRoute
   '/pulse': typeof PulseRoute
   '/roadmap': typeof RoadmapRoute
@@ -380,6 +387,7 @@ export interface FileRoutesByTo {
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
   '/helper': typeof HelperRoute
+  '/plans': typeof PlansRoute
   '/pricing': typeof PricingRoute
   '/pulse': typeof PulseRoute
   '/roadmap': typeof RoadmapRoute
@@ -434,6 +442,7 @@ export interface FileRoutesById {
   '/cleanseek-x': typeof CleanseekXRouteWithChildren
   '/faq': typeof FaqRoute
   '/helper': typeof HelperRoute
+  '/plans': typeof PlansRoute
   '/pricing': typeof PricingRoute
   '/pulse': typeof PulseRoute
   '/roadmap': typeof RoadmapRoute
@@ -489,6 +498,7 @@ export interface FileRouteTypes {
     | '/cleanseek-x'
     | '/faq'
     | '/helper'
+    | '/plans'
     | '/pricing'
     | '/pulse'
     | '/roadmap'
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/cleanseek-x'
     | '/faq'
     | '/helper'
+    | '/plans'
     | '/pricing'
     | '/pulse'
     | '/roadmap'
@@ -595,6 +606,7 @@ export interface FileRouteTypes {
     | '/cleanseek-x'
     | '/faq'
     | '/helper'
+    | '/plans'
     | '/pricing'
     | '/pulse'
     | '/roadmap'
@@ -649,6 +661,7 @@ export interface RootRouteChildren {
   CleanseekXRoute: typeof CleanseekXRouteWithChildren
   FaqRoute: typeof FaqRoute
   HelperRoute: typeof HelperRoute
+  PlansRoute: typeof PlansRoute
   PricingRoute: typeof PricingRoute
   PulseRoute: typeof PulseRoute
   RoadmapRoute: typeof RoadmapRoute
@@ -780,6 +793,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plans': {
+      id: '/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof PlansRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/helper': {
@@ -1087,6 +1107,7 @@ const rootRouteChildren: RootRouteChildren = {
   CleanseekXRoute: CleanseekXRouteWithChildren,
   FaqRoute: FaqRoute,
   HelperRoute: HelperRoute,
+  PlansRoute: PlansRoute,
   PricingRoute: PricingRoute,
   PulseRoute: PulseRoute,
   RoadmapRoute: RoadmapRoute,

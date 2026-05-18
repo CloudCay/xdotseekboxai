@@ -443,9 +443,9 @@ function AccountPage() {
               Same account standard as the main SeekBox app, with X.SeekBoxAI workspaces and history surfaced first.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <a href="/checkout" className="inline-flex items-center gap-2 bg-neutral-950 px-4 py-2 text-sm font-black text-white">
+              <a href="/plans" className="inline-flex items-center gap-2 bg-neutral-950 px-4 py-2 text-sm font-black text-white">
                 <CreditCard className="h-4 w-4" />
-                {isPaid ? 'Manage / upgrade' : 'Start checkout'}
+                {isPaid ? 'Manage / upgrade' : 'View plans'}
               </a>
               <button
                 onClick={() => setRefreshTick((t) => t + 1)}
