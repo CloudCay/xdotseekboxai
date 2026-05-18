@@ -12,25 +12,25 @@ export const DEFAULT_XMARKS_PRESETS: XmarksPreset[] = [
   {
     id: 'topic-ai-agents',
     kind: 'topic',
-    label: 'AI agents: what shipped this week',
+    label: 'AI agents: X room read',
     query:
-      'What shipped this week in AI agents (frameworks, releases, benchmarks)? Summarize what matters and why. Include 5-10 concrete bullets + who/what to watch next.',
+      'Search X for the current AI agents conversation: shipped products, framework releases, benchmarks, strong opinions, repeated voices, dissent, and what to watch next.',
     source: 'default',
   },
   {
     id: 'topic-markets-risk',
     kind: 'topic',
-    label: 'Markets: today’s narrative + risks',
+    label: 'Markets: narrative and dissent',
     query:
-      'What is the current market narrative today? List the top drivers, risks, and what could invalidate the consensus.',
+      'Search X for today’s market narrative: top drivers, crowded consensus, dissent, catalysts, and what could invalidate the current read.',
     source: 'default',
   },
   {
     id: 'topic-cyber',
     kind: 'topic',
-    label: 'Cyber: top incidents + mitigations',
+    label: 'Cyber: incident chatter',
     query:
-      'What are the top cyber incidents and vulnerabilities from the last 7 days? Provide brief impact, affected products, and pragmatic mitigations.',
+      'Search X for cyber incidents and vulnerabilities in the last 7 days: affected products, credible responders, mitigations, uncertainty, and links worth opening.',
     source: 'default',
   },
   {
@@ -38,7 +38,7 @@ export const DEFAULT_XMARKS_PRESETS: XmarksPreset[] = [
     kind: 'person',
     label: 'Elon Musk',
     query:
-      'What are the most important things Elon Musk said/did in the last 7 days across X? Quote 2-3 notable posts if available; then summarize themes and implications.',
+      'Search X for the current conversation around @elonmusk: notable posts or references, themes, strongest pushback, and implications.',
     source: 'default',
   },
   {
@@ -46,7 +46,7 @@ export const DEFAULT_XMARKS_PRESETS: XmarksPreset[] = [
     kind: 'person',
     label: 'Satya Nadella',
     query:
-      'What are the most important public statements or moves by Satya Nadella in the last 7 days? Summarize themes and implications for Microsoft and the market.',
+      'Search X for the current conversation around Satya Nadella and Microsoft: recent statements, product moves, recurring voices, dissent, and implications.',
     source: 'default',
   },
   {
@@ -54,7 +54,7 @@ export const DEFAULT_XMARKS_PRESETS: XmarksPreset[] = [
     kind: 'industry',
     label: 'Semiconductors',
     query:
-      'Semiconductors: what changed in the last 7 days (earnings, guidance, supply chain, geopolitics)? Provide a crisp summary and key watch items.',
+      'Search X for the semiconductor industry pulse: earnings, guidance, supply chain, geopolitics, AI accelerator chatter, dissent, and watch items.',
     source: 'default',
   },
   {
@@ -62,7 +62,7 @@ export const DEFAULT_XMARKS_PRESETS: XmarksPreset[] = [
     kind: 'industry',
     label: 'B2B SaaS',
     query:
-      'B2B SaaS: what are the key trends and notable moves in the last 7 days (pricing, churn, AI features, winners/losers)? Provide actionable takeaways.',
+      'Search X for the B2B SaaS pulse: pricing, churn, AI features, winners and losers, founder/operator sentiment, dissent, and actionable takeaways.',
     source: 'default',
   },
 ]
@@ -105,4 +105,3 @@ export function saveXmarksUserPicksToLocalStorage(picks: XmarksPreset[]) {
     /* noop */
   }
 }
-

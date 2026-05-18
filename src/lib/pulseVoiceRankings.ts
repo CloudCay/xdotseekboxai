@@ -81,6 +81,11 @@ export function normalizeXHandle(value: string | null | undefined): string | nul
   return candidate
 }
 
+export function voiceProfileHref(value: string | null | undefined): string {
+  const handle = normalizeXHandle(value)
+  return handle ? `/voices/${encodeURIComponent(handle.toLowerCase())}` : '/voices'
+}
+
 export function extractHandleFromSocialUrl(value: string | null | undefined): string | null {
   const raw = value?.trim()
   if (!raw) return null
@@ -255,7 +260,7 @@ function finalizeVoice(voice: MutableVoice): PulseVoiceRanking {
     scopeType: voice.scopeType,
     scopeValue: voice.scopeValue,
     source,
-    rankScore: clamp(score, 1, 999),
+    rankScore: Math.max(1, Math.round(score)),
     heatScore: clamp(voice.heatScore + recency, 1, 100),
     noveltyScore: novelty,
     seenCount: voice.seenCount,

@@ -22,6 +22,7 @@ import {
 } from '../lib/siteTheme'
 import { SeeklyOverlay } from '../components/seekly/SeeklyOverlay'
 import { LegalFooter } from '../components/LegalFooter'
+import { getAuthErrorMessageFromLocation, returnToWithoutAuthError } from '../lib/authErrors'
 
 import '../styles.css'
 
@@ -68,8 +69,8 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<SiteThemeMode>(() => readSiteTheme())
-  const [font, setFont] = useState<SiteFontScale>(() => readSiteFontScale())
+  const [theme, setTheme] = useState<SiteThemeMode>('light')
+  const [font, setFont] = useState<SiteFontScale>(0)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -80,6 +81,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     applySiteThemeToDocument(storedTheme)
     applySiteFontToDocument(storedFont)
     setReady(true)
+  }, [])
+
+  useEffect(() => {
+    const authError = getAuthErrorMessageFromLocation()
+    if (!authError || window.location.pathname === '/signin') return
+    const target = new URL('/signin', window.location.origin)
+    target.searchParams.set('returnTo', returnToWithoutAuthError())
+    target.searchParams.set('authError', authError)
+    window.location.replace(`${target.pathname}${target.search}`)
   }, [])
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-type SeekBoxLogoProps = {
+export type SeekBoxLogoProps = {
   tone?: 'dark' | 'light'
   size?: 'sm' | 'md' | 'lg'
   className?: string

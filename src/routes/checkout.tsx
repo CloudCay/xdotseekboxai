@@ -4,18 +4,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { ensureAccount } from '../lib/ensureAccount'
 import { createCheckoutSession } from '../server/stripe.functions'
 import { SeekBoxLogo } from '../components/SeekBoxLogo'
-
-// Stripe TEST MODE — SeekBoxAi Power with Grok X Live (monthly)
-// NOTE: Test-mode price IDs have changed more than once. This site defaults
-// to the legacy test price so checkout works with sk_test keys; override with
-// VITE_STRIPE_PRICESET=test_current when the backend/test catalog is updated.
-const GROKX_PRICE_BY_SET: Record<'test_legacy' | 'test_current', string> = {
-  test_legacy: 'price_1TTf7OAghz6CNDMAjyhVsGkZ',
-  test_current: 'price_1TTWUTAghz6CNDMATSskXYmY',
-}
-const STRIPE_PRICE_GROK_X_MONTHLY =
-  GROKX_PRICE_BY_SET[((import.meta as any).env?.VITE_STRIPE_PRICESET as 'test_legacy' | 'test_current') ?? 'test_legacy'] ??
-  GROKX_PRICE_BY_SET.test_legacy
+import { pricingPlanForId } from '../lib/pricingCatalog'
 
 export const Route = createFileRoute('/checkout')({
   component: CheckoutPage,
@@ -28,6 +17,10 @@ function CheckoutPage() {
   const origin = useMemo(() => {
     if (typeof window === 'undefined') return ''
     return window.location.origin
+  }, [])
+  const selectedPlan = useMemo(() => {
+    if (typeof window === 'undefined') return pricingPlanForId(null)
+    return pricingPlanForId(new URLSearchParams(window.location.search).get('plan'))
   }, [])
 
   useEffect(() => {
@@ -64,11 +57,12 @@ function CheckoutPage() {
           data: {
             userId,
             email,
-            priceId: STRIPE_PRICE_GROK_X_MONTHLY,
+            priceId: selectedPlan.priceId,
             // Include the Stripe substitution token so the backend can pass it
             // through to Stripe and we can confirm status on return.
             successUrl: `${origin}/account?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `${origin}/cleanseek-x`,
+            planId: selectedPlan.id,
           },
         } as any)
         if (cancelled) return
@@ -90,7 +84,13 @@ function CheckoutPage() {
       <div className="max-w-lg w-full rounded-3xl border border-slate-700/60 bg-[#0A1128]/70 backdrop-blur-2xl p-8">
         <div className="flex items-center gap-3">
           <SeekBoxLogo tone="dark" size="md" />
-          <div className="text-2xl font-black tracking-tight">Checkout</div>
+          <div>
+            <div className="text-2xl font-black tracking-tight">Checkout</div>
+            <div className="mt-1 text-xs font-bold text-slate-400">
+              {selectedPlan.title} · {selectedPlan.displayAmount}/{selectedPlan.interval}
+              {selectedPlan.discountAmount ? ` · ${selectedPlan.discountAmount} coupon` : ''}
+            </div>
+          </div>
         </div>
         {status === 'loading' || status === 'starting' ? (
           <div className="mt-4 text-slate-300">

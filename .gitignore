@@ -8,9 +8,11 @@ dist/
 # Vite / tooling caches
 .vite/
 .turbo/
+.tanstack/tmp/
 
 # Logs / misc
 *.log
+*.swp
 .DS_Store
 
 # Env (never commit secrets)
