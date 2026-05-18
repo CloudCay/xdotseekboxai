@@ -56,6 +56,30 @@
   [headers.values]
     Content-Type = "application/manifest+json; charset=utf-8"
 
+[[redirects]]
+  from = "/api/search/stream"
+  to = "https://api.seekbox.ai/api/search/stream"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/legacy/search/stream"
+  to = "https://ruffled-snail.vibecode.run/api/search/stream"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/v1/chat"
+  to = "https://api.seekbox.ai/v1/chat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/v1/search"
+  to = "https://api.seekbox.ai/v1/search"
+  status = 200
+  force = true
+
 [dev]
   command = "npm run dev"
   targetPort = 3000

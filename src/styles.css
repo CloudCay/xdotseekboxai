@@ -1,5 +1,13 @@
 @import "tailwindcss" source("./");
 
+.xsite-header-actions {
+  scrollbar-width: none;
+}
+
+.xsite-header-actions::-webkit-scrollbar {
+  display: none;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Global theme body chrome (set via <html data-theme="…"> from __root.tsx)   */
 /* -------------------------------------------------------------------------- */

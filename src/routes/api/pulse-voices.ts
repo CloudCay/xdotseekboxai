@@ -33,6 +33,11 @@ const PUBLIC_VOICE_SELECT = [
 ].join(',')
 
 const BLOCKED_PUBLIC_STATUSES = new Set(['error', 'failed', 'failure', 'cancelled', 'canceled', 'running', 'pending', 'queued', 'in_progress'])
+const PUBLIC_CACHE_HEADERS = {
+  'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'public, max-age=0, must-revalidate',
+  'netlify-cdn-cache-control': 'public, durable, max-age=60, stale-while-revalidate=600',
+}
 
 export const Route = createFileRoute('/api/pulse-voices')({
   server: {
@@ -86,10 +91,7 @@ function publicVoice(voice: PulseVoiceRanking): PulseVoiceRanking {
 function json(data: unknown): Response {
   return new Response(JSON.stringify(data), {
     status: 200,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-    },
+    headers: PUBLIC_CACHE_HEADERS,
   })
 }
 
@@ -174,74 +176,73 @@ function fetchPulseRowsFromTable(args: {
 
 function sanitizePersistedVoices(value: unknown): PulseVoiceRanking[] {
   if (!Array.isArray(value)) return []
-  return value
-    .map((row) => {
-      const obj = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
-      const handle = cleanHandle(obj.handle)
-      const scopeType = cleanString(obj.scope_type, 40) ?? 'industry'
-      const scopeValue = cleanString(obj.scope_value, 96) ?? 'global'
-      if (!handle) return null
-      const source = cleanSource(obj.source)
-      return {
-        handle: handle.toLowerCase(),
-        displayHandle: cleanString(obj.display_handle, 24) ?? handle,
-        scopeKey: `${scopeType}:${scopeValue}`,
-        scopeType,
-        scopeValue,
-        source,
-        rankScore: cleanNumber(obj.rank_score, 0, 1000),
-        heatScore: cleanNumber(obj.heat_score, 0, 100),
-        noveltyScore: cleanNumber(obj.novelty_score, 0, 100),
-        seenCount: cleanNumber(obj.seen_count, 0, 10000),
-        seedCount: cleanNumber(obj.seed_count, 0, 10000),
-        citationCount: cleanNumber(obj.citation_count, 0, 10000),
-        summaryMentionCount: cleanNumber(obj.summary_mention_count, 0, 10000),
-        firstSeenAt: cleanString(obj.first_seen_at, 80) ?? new Date().toISOString(),
-        lastSeenAt: cleanString(obj.last_seen_at, 80) ?? new Date().toISOString(),
-        sampleUrls: cleanUrlArray(obj.sample_urls),
-        sampleContexts: [],
-      } satisfies PulseVoiceRanking
+  const voices: PulseVoiceRanking[] = []
+  for (const row of value) {
+    const obj = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+    const handle = cleanHandle(obj.handle)
+    const scopeType = cleanString(obj.scope_type, 40) ?? 'industry'
+    const scopeValue = cleanString(obj.scope_value, 96) ?? 'global'
+    if (!handle) continue
+    const source = cleanSource(obj.source)
+    voices.push({
+      handle: handle.toLowerCase(),
+      displayHandle: cleanString(obj.display_handle, 24) ?? handle,
+      scopeKey: `${scopeType}:${scopeValue}`,
+      scopeType,
+      scopeValue,
+      source,
+      rankScore: cleanNumber(obj.rank_score, 0, 1_000_000),
+      heatScore: cleanNumber(obj.heat_score, 0, 100),
+      noveltyScore: cleanNumber(obj.novelty_score, 0, 100),
+      seenCount: cleanNumber(obj.seen_count, 0, 10000),
+      seedCount: cleanNumber(obj.seed_count, 0, 10000),
+      citationCount: cleanNumber(obj.citation_count, 0, 10000),
+      summaryMentionCount: cleanNumber(obj.summary_mention_count, 0, 10000),
+      firstSeenAt: cleanString(obj.first_seen_at, 80) ?? new Date().toISOString(),
+      lastSeenAt: cleanString(obj.last_seen_at, 80) ?? new Date().toISOString(),
+      sampleUrls: cleanUrlArray(obj.sample_urls),
+      sampleContexts: [],
     })
-    .filter((voice): voice is PulseVoiceRanking => Boolean(voice))
+  }
+  return voices
 }
 
 function sanitizePulseRows(value: unknown): PulseRowLike[] {
   if (!Array.isArray(value)) return []
-  return value
-    .map((row) => {
-      const obj = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
-      const summary = cleanString(obj.summary, 12_000)
-      const status = cleanString(obj.status, 80)
-      if (!summary || (status && BLOCKED_PUBLIC_STATUSES.has(status.toLowerCase()))) return null
-      return {
-        id: cleanString(obj.id, 120) ?? crypto.randomUUID(),
-        scope_type: cleanString(obj.scope_type, 80),
-        scope_value: cleanString(obj.scope_value, 140),
-        handles: cleanStringArray(obj.handles, 60, 80),
-        summary,
-        citations: cleanCitationArray(obj.citations),
-        tags: cleanStringArray(obj.tags, 40, 80),
-        created_at: cleanString(obj.created_at, 80) ?? new Date().toISOString(),
-      } satisfies PulseRowLike
+  const rows: PulseRowLike[] = []
+  for (const row of value) {
+    const obj = row && typeof row === 'object' ? (row as Record<string, unknown>) : {}
+    const summary = cleanString(obj.summary, 12_000)
+    const status = cleanString(obj.status, 80)
+    if (!summary || (status && BLOCKED_PUBLIC_STATUSES.has(status.toLowerCase()))) continue
+    rows.push({
+      id: cleanString(obj.id, 120) ?? crypto.randomUUID(),
+      scope_type: cleanString(obj.scope_type, 80),
+      scope_value: cleanString(obj.scope_value, 140),
+      handles: cleanStringArray(obj.handles, 60, 80),
+      summary,
+      citations: cleanCitationArray(obj.citations),
+      tags: cleanStringArray(obj.tags, 40, 80),
+      created_at: cleanString(obj.created_at, 80) ?? new Date().toISOString(),
     })
-    .filter((row): row is PulseRowLike => Boolean(row))
+  }
+  return rows
 }
 
 function cleanCitationArray(value: unknown): Array<{ index?: number | null; url?: string | null }> {
   if (!Array.isArray(value)) return []
-  return value
-    .slice(0, 24)
-    .map((item, index) => {
-      const obj = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
-      const url = cleanPublicUrl(obj.url)
-      if (!url) return null
-      const rawIndex = typeof obj.index === 'number' ? obj.index : Number(obj.index)
-      return {
-        index: Number.isFinite(rawIndex) && rawIndex > 0 ? Math.round(rawIndex) : index + 1,
-        url,
-      }
+  const citations: Array<{ index?: number | null; url?: string | null }> = []
+  for (const [index, item] of value.slice(0, 24).entries()) {
+    const obj = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
+    const url = cleanPublicUrl(obj.url)
+    if (!url) continue
+    const rawIndex = typeof obj.index === 'number' ? obj.index : Number(obj.index)
+    citations.push({
+      index: Number.isFinite(rawIndex) && rawIndex > 0 ? Math.round(rawIndex) : index + 1,
+      url,
     })
-    .filter((citation): citation is { index?: number | null; url?: string | null } => Boolean(citation))
+  }
+  return citations
 }
 
 function cleanScopeParam(value: string | null, max: number): string | null {

@@ -1,12 +1,24 @@
 import { createServerFn } from '@tanstack/react-start'
 
+const DEFAULT_PAYMENTS_API_URL = 'https://api.seekbox.ai'
+
 function normalizeBaseUrl(raw: string | undefined): string {
-  const v = (raw ?? '').trim().replace(/\/$/, '')
-  if (!v) throw new Error('EXPO_PUBLIC_BACKEND_URL environment variable is not set')
+  const v = (raw ?? DEFAULT_PAYMENTS_API_URL).trim().replace(/\/$/, '')
+  if (!v) throw new Error('Payments API URL is not set')
   if (!/^https?:\/\//i.test(v)) {
-    throw new Error(`EXPO_PUBLIC_BACKEND_URL must include https:// (got: ${v})`)
+    throw new Error(`Payments API URL must include https:// (got: ${v})`)
   }
   return v
+}
+
+function paymentsApiUrl(): string {
+  return normalizeBaseUrl(
+    process.env.VITE_PAYMENTS_API_URL ??
+      process.env.EXPO_PUBLIC_PAYMENTS_API_URL ??
+      process.env.VITE_API_URL ??
+      process.env.EXPO_PUBLIC_API_URL ??
+      DEFAULT_PAYMENTS_API_URL,
+  )
 }
 
 export const createCheckoutSession = createServerFn({ method: 'POST' })
@@ -20,11 +32,16 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     if (!payload?.successUrl) throw new Error('Invalid checkout payload (missing successUrl)')
     if (!payload?.cancelUrl) throw new Error('Invalid checkout payload (missing cancelUrl)')
 
-    const BACKEND_URL = normalizeBaseUrl(process.env.EXPO_PUBLIC_BACKEND_URL)
+    const PAYMENTS_API_URL = paymentsApiUrl()
 
-    const res = await fetch(`${BACKEND_URL}/api/stripe/create-checkout-session`, {
+    const res = await fetch(`${PAYMENTS_API_URL}/v1/payments/checkout-session`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-App': 'x.seekboxai.com',
+        'X-Feature': 'checkout',
+        'X-User-Id': payload.userId,
+      },
       body: JSON.stringify({
         priceId: payload.priceId,
         userId: payload.userId,
@@ -48,4 +65,3 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
 
     return { url }
   })
-

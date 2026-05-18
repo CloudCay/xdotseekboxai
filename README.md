@@ -42,6 +42,7 @@ Set these in Netlify (**Site configuration → Environment variables**):
 |----------|---------|
 | `EXPO_PUBLIC_BACKEND_URL` | SeekBox API base URL (e.g. `https://ruffled-snail.vibecode.run`). Used by server functions for `/api/accounts/upsert` and Stripe checkout. |
 | `EXPO_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile **site key** (public). Same name as SeekBox so you can reuse one variable across sites. When unset, the Turnstile widget is skipped. |
+| `TWELVE_DATA_API_KEY` | Server-only Twelve Data key for the `/ticker` quote panel. `TWELVE_API_KEY` is also supported for older environments. |
 
 **Turnstile hostname allowlist:** in the Cloudflare Turnstile widget settings, add every hostname users will load checkout from (e.g. `localhost`, `seekboxai-dev.netlify.app`, `x.seekboxai.com`).
 

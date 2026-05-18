@@ -189,7 +189,8 @@ export function SeeklyOverlay() {
           type="button"
           aria-label="Close Seekly backdrop"
           onClick={() => helperStore.setOpen(false)}
-          className="fixed inset-0 z-[140] bg-black/35"
+          className="fixed inset-0 z-[140] cursor-default"
+          style={{ backgroundColor: 'transparent' }}
         />
       )}
 

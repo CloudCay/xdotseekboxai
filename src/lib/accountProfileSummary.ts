@@ -17,6 +17,8 @@ type RoleSummary = {
   label: string
   description: string
   emoji: string | null
+  searchInputMax: number | null
+  responseLengthMax: number | null
 }
 
 type AccountRow = {
@@ -56,6 +58,8 @@ export type AccountProfileSummary = {
   monthlySearches: number | null
   searchesLimit: number | null
   searchesLeft: number | null
+  searchInputMax: number | null
+  responseLengthMax: number | null
   searchWindowLabel: 'this session' | 'this month' | null
   hasSubscription: boolean
   tooltipLines: string[]
@@ -67,86 +71,138 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     label: 'Super Admin',
     description: 'Unrestricted access to all features and settings',
     emoji: null,
+    searchInputMax: null,
+    responseLengthMax: null,
   },
   god: {
     id: 'god',
     label: 'God',
     description: 'Operator bypass role with full access',
     emoji: null,
+    searchInputMax: null,
+    responseLengthMax: null,
   },
   admin: {
     id: 'admin',
     label: 'Admin',
     description: 'Full features with minor guardrails',
     emoji: null,
+    searchInputMax: null,
+    responseLengthMax: null,
   },
   advisor: {
     id: 'advisor',
     label: 'Advisor',
-    description: 'Trusted collaborator access with Pro features',
+    description: 'Trusted collaborator access with Power features',
     emoji: null,
+    searchInputMax: 1000,
+    responseLengthMax: null,
+  },
+  power: {
+    id: 'power',
+    label: 'Power User',
+    description: 'Advanced features with full model and analysis access',
+    emoji: null,
+    searchInputMax: 1000,
+    responseLengthMax: 1500,
   },
   power_user: {
     id: 'power_user',
     label: 'Power User',
-    description: 'Advanced features with full engine and analysis access',
+    description: 'Advanced features with full model and analysis access',
     emoji: null,
+    searchInputMax: 1000,
+    responseLengthMax: 1500,
   },
   starter: {
     id: 'starter',
     label: 'Starter',
     description: '$5/mo plan with starter search access',
     emoji: null,
+    searchInputMax: 250,
+    responseLengthMax: 500,
   },
   standard: {
     id: 'standard',
     label: 'Standard',
     description: 'Core search with basic customization',
     emoji: null,
+    searchInputMax: 100,
+    responseLengthMax: 250,
   },
   restricted: {
     id: 'restricted',
     label: 'Restricted',
     description: 'Minimal demo-level access',
     emoji: null,
+    searchInputMax: 100,
+    responseLengthMax: 250,
   },
   anon: {
     id: 'anon',
     label: 'Anon',
     description: 'Pre-signup access before an account is created',
     emoji: null,
+    searchInputMax: 100,
+    responseLengthMax: 250,
   },
   trial: {
     id: 'trial',
     label: 'Trial',
     description: 'Signed-up evaluation tier assigned during account setup',
     emoji: null,
+    searchInputMax: 250,
+    responseLengthMax: 500,
   },
   free: {
     id: 'free',
     label: 'Free',
     description: 'Free-tier signed-in account',
     emoji: null,
+    searchInputMax: 100,
+    responseLengthMax: 250,
+  },
+  family: {
+    id: 'family',
+    label: 'Family',
+    description: 'Family plan access',
+    emoji: null,
+    searchInputMax: 1000,
+    responseLengthMax: 1500,
+  },
+  business: {
+    id: 'business',
+    label: 'Business',
+    description: 'Business plan access',
+    emoji: null,
+    searchInputMax: 1000,
+    responseLengthMax: null,
   },
 }
 
 const PLAN_TO_ROLE: Record<string, string> = {
   trial: 'trial',
-  free: 'standard',
-  standard: 'standard',
+  free: 'free',
+  standard: 'free',
   starter: 'starter',
-  power: 'power_user',
-  power_user: 'power_user',
-  pro: 'power_user',
-  business: 'power_user',
-  enterprise: 'power_user',
-  grokx: 'power_user',
-  grok_x: 'power_user',
+  power: 'power',
+  power_user: 'power',
+  pro: 'power',
+  family: 'family',
+  business: 'business',
+  enterprise: 'business',
+  grokx: 'power',
+  grok_x: 'power',
 }
 
 function parseCount(raw: string | null): number {
   const n = Number.parseInt(raw ?? '0', 10)
   return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+function parsePositiveLimit(raw: unknown): number | null {
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
 }
 
 export function readSessionSearchCount(key = SESSION_SEARCH_COUNT_KEY): number {
@@ -204,6 +260,8 @@ function fallbackRoleSummary(roleId: string): RoleSummary {
       label: humanizeRoleId(roleId),
       description: `${humanizeRoleId(roleId)} access`,
       emoji: null,
+      searchInputMax: null,
+      responseLengthMax: null,
     }
   )
 }
@@ -314,6 +372,8 @@ export function getLocalAccountProfileSummary(args: {
     monthlySearches: null,
     searchesLimit,
     searchesLeft,
+    searchInputMax: role.searchInputMax,
+    responseLengthMax: role.responseLengthMax,
     searchWindowLabel: safeRoleId === 'anon' ? 'this session' : safeRoleId === 'trial' ? 'this month' : null,
     hasSubscription: false,
   })
@@ -379,19 +439,22 @@ async function fetchRoleSummary(supabase: SupabaseLike, roleId: string): Promise
   try {
     const res = await supabase
       .from('role_definitions')
-      .select('role_id,label,description,emoji')
+      .select('role_id,label,description,emoji,searchinputmax,responselengthmax')
       .eq('role_id', roleId)
       .maybeSingle()
     if (!res.error && res.data) {
       const row = res.data as Record<string, unknown>
+      const fallback = fallbackRoleSummary(roleId)
       return {
         id: roleId,
-        label: typeof row.label === 'string' && row.label.trim() ? row.label.trim() : fallbackRoleSummary(roleId).label,
+        label: typeof row.label === 'string' && row.label.trim() ? row.label.trim() : fallback.label,
         description:
           typeof row.description === 'string' && row.description.trim()
             ? row.description.trim()
-            : fallbackRoleSummary(roleId).description,
+            : fallback.description,
         emoji: typeof row.emoji === 'string' && row.emoji.trim() ? row.emoji.trim() : null,
+        searchInputMax: parsePositiveLimit(row.searchinputmax) ?? fallback.searchInputMax,
+        responseLengthMax: parsePositiveLimit(row.responselengthmax) ?? fallback.responseLengthMax,
       }
     }
   } catch {
@@ -497,6 +560,8 @@ export async function getAccountProfileSummary(args: {
     monthlySearches,
     searchesLimit,
     searchesLeft,
+    searchInputMax: role.searchInputMax,
+    responseLengthMax: role.responseLengthMax,
     searchWindowLabel: roleId === 'anon' ? 'this session' : roleId === 'trial' ? 'this month' : null,
     hasSubscription: Boolean(subscriptionPlan || subscriptionStatus),
   })

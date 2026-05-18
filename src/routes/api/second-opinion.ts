@@ -89,6 +89,9 @@ type SupabaseUser = {
   email: string | null
 }
 
+const SEARCH_BACKEND_QUERY_MAX_CHARS = 2_000
+const CONTEXT_PLACEHOLDER = '__SEEKBOX_SECOND_OPINION_CONTEXT__'
+
 function cleanRequest(body: Record<string, unknown>): CleanSecondOpinionRequest {
   const mode = body.mode === 'compare' ? 'compare' : 'quick'
   const url = cleanUrl(body.url)
@@ -148,7 +151,7 @@ function parseProviderList(value: unknown, fallback: string[]): string[] {
 
 function buildSecondOpinionPrompt(payload: CleanSecondOpinionRequest): string {
   const context = payload.selectedText || payload.pageText
-  return [
+  const promptShell = [
     'You are X.SeekBoxAI Second Opinions: a quiet browser utility that gives another read before the user trusts a page.',
     'Do not be breathless. Do not pretend certainty. Do not give legal, medical, financial, or safety-critical advice.',
     payload.question ? `User question: ${payload.question}` : 'User question: Give me a second opinion on this page.',
@@ -156,11 +159,29 @@ function buildSecondOpinionPrompt(payload: CleanSecondOpinionRequest): string {
     `URL: ${payload.url}`,
     payload.canonicalUrl ? `Canonical URL: ${payload.canonicalUrl}` : '',
     payload.selectedText ? 'The user selected this text, so prioritize it over the whole page.' : 'No text was selected, so use the page excerpt.',
-    `Context:\n${context}`,
+    `Context:\n${CONTEXT_PLACEHOLDER}`,
     'Answer with four short sections: Bottom line, What seems solid, What to question, What I would ask next.',
   ]
     .filter(Boolean)
     .join('\n\n')
+
+  const contextBudget = Math.max(
+    200,
+    SEARCH_BACKEND_QUERY_MAX_CHARS - promptShell.length + CONTEXT_PLACEHOLDER.length,
+  )
+  const prompt = promptShell.replace(CONTEXT_PLACEHOLDER, truncateWithNotice(context, contextBudget))
+  return prompt.length <= SEARCH_BACKEND_QUERY_MAX_CHARS
+    ? prompt
+    : truncateWithNotice(prompt, SEARCH_BACKEND_QUERY_MAX_CHARS)
+}
+
+function truncateWithNotice(value: string, max: number): string {
+  const text = value.trim()
+  if (text.length <= max) return text
+
+  const notice = '\n\n[Context truncated to fit the Search backend limit.]'
+  if (max <= notice.length) return text.slice(0, max)
+  return `${text.slice(0, max - notice.length).trimEnd()}${notice}`
 }
 
 async function runSearchStream(args: {

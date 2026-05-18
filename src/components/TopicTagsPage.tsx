@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Activity, AlertTriangle, ArrowRight, ExternalLink, Hash, Newspaper, Search, TrendingUp } from 'lucide-react'
+import { cleanseekHref } from '../lib/cleanseekUrl'
 import { canonicalizeIndustrySlug, getIndustryPage } from '../lib/industryCatalog'
 import { inferPulseTopicTags, pulseTopicLabel, pulseTopicSlug } from '../lib/pulseTopics'
-import { openSourcePopup } from '../lib/sourcePopup'
-import { SeekBoxLogo } from './SeekBoxLogo'
+import { PulseCitationLink } from './PulseCitationLink'
+import { XSiteHeader } from './XSiteHeader'
 
 type PulseCitation = {
   index?: number | null
@@ -283,59 +284,19 @@ function TopicBriefCard({ brief }: { brief: TopicBrief }) {
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-3">
         <span className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Sources</span>
         {brief.citations.slice(0, 4).map((citation, index) => (
-          <a
-            key={`${brief.row.id}-${citation.url ?? index}`}
-            href={citation.url ?? '#'}
-            onClick={(event) => sourceClick(event, citation.url)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-[#fbfbf7] px-2.5 py-1 text-[10px] font-black text-neutral-700 hover:border-neutral-950"
-          >
-            [{citation.index ?? index + 1}]
-            <ExternalLink className="h-3 w-3" />
-          </a>
+          <CitationLink key={`${brief.row.id}-${citation.url ?? index}`} citation={citation} index={index} />
         ))}
       </div>
     </article>
   )
 }
 
+function CitationLink({ citation, index }: { citation: PulseCitation; index: number }) {
+  return <PulseCitationLink citation={citation} index={index} />
+}
+
 function TopicHeader({ active }: { active: 'topics' | 'none' }) {
-  return (
-    <header className="border-b border-neutral-300 bg-[#fbfbf7]">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-        <a href="/" className="flex items-center gap-3">
-          <SeekBoxLogo tone="light" size="md" />
-          <div>
-            <div className="text-xl font-black tracking-tight">X.SeekBoxAI Pulse</div>
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">topic desk</div>
-          </div>
-        </a>
-        <nav className="flex flex-wrap gap-2 text-sm font-black">
-          <a href="/pulse" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Reader
-          </a>
-          <a href="/industries" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Industries
-          </a>
-          <a
-            href="/topics"
-            className={`rounded-lg px-4 py-2 ${
-              active === 'topics' ? 'bg-neutral-950 text-white' : 'border border-neutral-300 bg-white text-neutral-800'
-            }`}
-          >
-            Topics
-          </a>
-          <a href="/labs" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Intel
-          </a>
-          <a href="/cleanseek-x" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-neutral-800">
-            Search live
-          </a>
-        </nav>
-      </div>
-    </header>
-  )
+  return <XSiteHeader active={active === 'topics' ? 'topics' : 'none'} title="X.SeekBoxAI Pulse" eyebrow="topic desk" />
 }
 
 async function loadRowsFromApi(): Promise<PulseRow[]> {
@@ -367,7 +328,6 @@ function buildTopicIndex(rows: PulseRow[]): TopicSummary[] {
         } satisfies TopicSummary)
       existing.count += 1
       existing.citations += brief.citations.length
-      existing.heat = Math.max(existing.heat, brief.heat)
       existing.freshest = newerDate(existing.freshest, row.created_at)
       existing.briefs.push(brief)
       existing.industries = mergeIndustry(existing.industries, brief.industryLabel, brief.industryHref)
@@ -375,13 +335,14 @@ function buildTopicIndex(rows: PulseRow[]): TopicSummary[] {
     }
   }
 
-  return Array.from(topics.values())
+  const sortedTopics = Array.from(topics.values())
     .map((topic) => ({
       ...topic,
       briefs: topic.briefs.sort((a, b) => b.heat - a.heat || new Date(b.row.created_at).getTime() - new Date(a.row.created_at).getTime()),
       industries: topic.industries.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
     }))
-    .sort((a, b) => b.count - a.count || b.citations - a.citations || b.heat - a.heat)
+
+  return scoreTopics(sortedTopics).sort((a, b) => b.heat - a.heat || b.count - a.count || b.citations - a.citations)
 }
 
 function topicTagsForRow(row: PulseRow): string[] {
@@ -395,7 +356,7 @@ function briefFromRow(row: PulseRow): TopicBrief {
   const citations = (row.citations ?? []).filter((citation) => citation.url)
   const headline = firstSentence(sections[0] ?? summary) || `${industry.label} pulse is moving`
   const dek = firstSentence(sections[1] ?? sections[0] ?? summary) || 'A cached source trail is ready for review.'
-  const heat = heatScore(row, citations.length)
+  const heat = briefHeatScore(row, citations.length)
   return {
     row,
     industryLabel: industry.label,
@@ -462,11 +423,67 @@ function labelScope(raw: string): string {
   return spaced.replace(/\b\w/g, (m) => m.toUpperCase()).replace(/\bAi\b/g, 'AI').replace(/\bSaas\b/g, 'SaaS')
 }
 
-function heatScore(row: PulseRow, citationCount: number): number {
+function briefHeatScore(row: PulseRow, citationCount: number): number {
   const ageHours = Math.max(0, (Date.now() - new Date(row.created_at).getTime()) / 3600000)
-  const freshness = Math.max(0, 24 - ageHours)
-  const summaryWeight = Math.min(((row.summary ?? '').length / 3000) * 18, 18)
-  return Math.round(Math.min(99, Math.max(10, 30 + citationCount * 5 + freshness + summaryWeight)))
+  const freshness = 30 * Math.exp(-ageHours / 48)
+  const citationSignal = Math.min(30, Math.log1p(citationCount) * 12)
+  const summaryDepth = Math.min(14, Math.sqrt((row.summary ?? '').length / 3200) * 14)
+  const movement = movementSignal(row.summary)
+  return clampRound(8 + freshness + citationSignal + summaryDepth + movement, 8, 96)
+}
+
+function scoreTopics(topics: TopicSummary[]): TopicSummary[] {
+  const rawScores = topics.map((topic) => topicMomentumScore(topic))
+  const min = Math.min(...rawScores)
+  const max = Math.max(...rawScores)
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return topics
+  if (max - min < 1) {
+    return topics.map((topic, index) => ({
+      ...topic,
+      heat: clampRound(58 + Math.min(topic.count, 8) * 3 - index, 15, 92),
+    }))
+  }
+
+  return topics.map((topic, index) => {
+    const relative = (rawScores[index] - min) / (max - min)
+    const rankBoost = topics.length > 1 ? (1 - index / (topics.length - 1)) * 8 : 0
+    return {
+      ...topic,
+      heat: clampRound(24 + relative * 67 + rankBoost, 12, 99),
+    }
+  })
+}
+
+function topicMomentumScore(topic: TopicSummary): number {
+  const topBriefs = topic.briefs.slice(0, 3)
+  const topBriefHeat = average(topBriefs.map((brief) => brief.heat)) || 0
+  const overallBriefHeat = average(topic.briefs.map((brief) => brief.heat)) || topBriefHeat
+  const activity = Math.log1p(topic.count) * 18
+  const evidence = Math.log1p(topic.citations) * 15
+  const breadth = Math.log1p(topic.industries.length) * 14
+  const freshness = freshnessScore(topic.freshest)
+
+  return topBriefHeat * 0.42 + overallBriefHeat * 0.18 + activity + evidence + breadth + freshness * 0.28
+}
+
+function freshnessScore(createdAt: string): number {
+  const ageHours = Math.max(0, (Date.now() - new Date(createdAt).getTime()) / 3600000)
+  return 40 * Math.exp(-ageHours / 72)
+}
+
+function movementSignal(summary: string | null): number {
+  const text = summary ?? ''
+  const matches = text.match(/\b(new|launch|launched|release|released|surge|spike|breakthrough|risk|warning|pushback|dissent|negative|positive|mixed|debate|shift|trend|gaining|accelerate|scrutiny)\b/gi)
+  return Math.min(matches?.length ?? 0, 10)
+}
+
+function average(values: number[]): number {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0
+}
+
+function clampRound(value: number, min: number, max: number): number {
+  return Math.round(Math.min(max, Math.max(min, value)))
 }
 
 function newerDate(a: string, b: string): string {
@@ -483,14 +500,7 @@ function summarizeTopics(topics: TopicSummary[]) {
 
 function searchUrl(topic: TopicSummary): string {
   const query = `${topic.label} across X industry conversations. Include recent posts, industry differences, dissent, and citations.`
-  return `/cleanseek-x?q=${encodeURIComponent(query)}&latest=1&preset=web&autorun=1`
-}
-
-function sourceClick(event: MouseEvent<HTMLAnchorElement>, url: string | null | undefined) {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
-  if (!url) return
-  event.preventDefault()
-  openSourcePopup(url)
+  return cleanseekHref({ query, latest: true, preset: 'web', autorun: true })
 }
 
 function formatAge(createdAt: string): string {
