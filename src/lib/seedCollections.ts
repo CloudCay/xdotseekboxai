@@ -22,7 +22,7 @@ export type SeedCollection = {
   outputDefaults: {
     view: SeedOutputView
     tone: string
-    depth: 'quick' | 'standard' | 'deep'
+    depth: 'quick' | 'balanced' | 'deep'
   }
 }
 
@@ -41,7 +41,7 @@ export const SEED_COLLECTIONS: SeedCollection[] = [
     handles: ['cainsballroom', 'thevanguardtul', 'MercuryLoungeOK', 'tulsaworld'],
     locations: [{ label: 'Tulsa, OK', latitude: 36.154, longitude: -95.9928, radius: '25mi' }],
     tags: ['tulsa', 'live-music', 'events', 'venues'],
-    outputDefaults: { view: 'pulse', tone: 'local', depth: 'standard' },
+    outputDefaults: { view: 'pulse', tone: 'local', depth: 'balanced' },
   },
   {
     id: 'charleston-live-music',
@@ -57,7 +57,7 @@ export const SEED_COLLECTIONS: SeedCollection[] = [
     handles: ['chsmusicfarm', 'chspourhouse', 'ExploreCHS'],
     locations: [{ label: 'Charleston, SC', latitude: 32.7765, longitude: -79.9311, radius: '20mi' }],
     tags: ['charleston', 'live-music', 'events', 'venues'],
-    outputDefaults: { view: 'pulse', tone: 'local', depth: 'standard' },
+    outputDefaults: { view: 'pulse', tone: 'local', depth: 'balanced' },
   },
   {
     id: 'porsche-market',
@@ -73,7 +73,7 @@ export const SEED_COLLECTIONS: SeedCollection[] = [
     handles: ['Porsche', 'PorscheRaces', 'bringatrailer', 'CarsAndBids'],
     locations: [],
     tags: ['porsche', 'cars', 'luxury', 'collectors'],
-    outputDefaults: { view: 'brief', tone: 'buyer', depth: 'standard' },
+    outputDefaults: { view: 'brief', tone: 'buyer', depth: 'balanced' },
   },
   {
     id: 'composers-and-classical',
@@ -105,7 +105,7 @@ export const SEED_COLLECTIONS: SeedCollection[] = [
     handles: ['Bandsintown', 'songkick', 'pollstar'],
     locations: [],
     tags: ['live-music', 'concerts', 'venues', 'artists'],
-    outputDefaults: { view: 'leaderboard', tone: 'fan', depth: 'standard' },
+    outputDefaults: { view: 'leaderboard', tone: 'fan', depth: 'balanced' },
   },
   {
     id: 'local-culture-watch',

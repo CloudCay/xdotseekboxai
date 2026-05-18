@@ -16,7 +16,7 @@ Users can have a lightweight personalization seed before the full persona system
 
 ## Levels
 
-- `base`: anon, trial, free, standard, starter, power user
+- `base`: anon, trial, free, starter, power
 - `advisor`: trusted collaborator/advisor access
 - `admin`: admin/operator access
 - `superadmin`: superadmin or god/operator bypass access

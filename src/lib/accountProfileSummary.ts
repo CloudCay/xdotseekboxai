@@ -100,15 +100,7 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
   },
   power: {
     id: 'power',
-    label: 'Power User',
-    description: 'Advanced features with full model and analysis access',
-    emoji: null,
-    searchInputMax: 1000,
-    responseLengthMax: 1500,
-  },
-  power_user: {
-    id: 'power_user',
-    label: 'Power User',
+    label: 'Power',
     description: 'Advanced features with full model and analysis access',
     emoji: null,
     searchInputMax: 1000,
@@ -121,14 +113,6 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
     emoji: null,
     searchInputMax: 250,
     responseLengthMax: 500,
-  },
-  standard: {
-    id: 'standard',
-    label: 'Standard',
-    description: 'Core search with basic customization',
-    emoji: null,
-    searchInputMax: 100,
-    responseLengthMax: 250,
   },
   restricted: {
     id: 'restricted',
@@ -183,10 +167,8 @@ const FALLBACK_ROLE_SUMMARIES: Record<string, RoleSummary> = {
 const PLAN_TO_ROLE: Record<string, string> = {
   trial: 'trial',
   free: 'free',
-  standard: 'free',
   starter: 'starter',
   power: 'power',
-  power_user: 'power',
   pro: 'power',
   family: 'family',
   business: 'business',
@@ -244,12 +226,16 @@ function normalizeRoleId(raw: unknown, email: string | null): string | null {
   const id = normalizeId(raw)
   if (!id) return null
   if (id === 'guest') return email ? 'trial' : 'anon'
+  if (id === 'power_user') return 'power'
+  if (id === 'standard') return 'free'
   if (email && id === 'anon') return 'trial'
   return id
 }
 
 function roleForPlan(plan: string | null): string | null {
   if (!plan) return null
+  if (plan === 'power_user') return 'power'
+  if (plan === 'standard') return 'free'
   return PLAN_TO_ROLE[plan] ?? null
 }
 
@@ -281,7 +267,8 @@ function getAvatarInitial(user: AccountProfileUser | null | undefined, roleId: s
 
 function formatPlanWord(plan: string | null): string | null {
   if (!plan) return null
-  const spaced = plan.replace(/_/g, ' ')
+  const displayPlan = plan === 'power_user' ? 'power' : plan === 'standard' ? 'free' : plan
+  const spaced = displayPlan.replace(/_/g, ' ')
   return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase()
 }
 

@@ -127,7 +127,7 @@ const accountToolGroups: Array<{ title: string; tools: AccountTool[] }> = [
   {
     title: 'Account data',
     tools: [
-      { label: 'Research library', detail: 'Shared account standard from main SeekBox.', icon: Library, comingSoon: true },
+      { label: 'Research library', detail: 'Shared account model from main SeekBox.', icon: Library, comingSoon: true },
       { label: 'Export my data', detail: 'Prepare account/search export flow.', icon: Database, comingSoon: true },
       { label: 'Delete account', detail: 'Danger-zone flow from main SeekBox.', icon: Trash2, comingSoon: true },
       { label: 'Help & feedback', detail: 'Read support notes and report account/search issues.', href: '/faq', icon: HelpCircle },
@@ -440,7 +440,7 @@ function AccountPage() {
               Profile, plan, and search memory in one place.
             </h1>
             <p className="mt-4 max-w-3xl text-sm font-semibold leading-6 text-neutral-600 sm:text-base">
-              Same account standard as the main SeekBox app, with X.SeekBoxAI workspaces and history surfaced first.
+              Same account model as the main SeekBox app, with X.SeekBoxAI workspaces and history surfaced first.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <a href="/plans" className="inline-flex items-center gap-2 bg-neutral-950 px-4 py-2 text-sm font-black text-white">
