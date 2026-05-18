@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BarChart3,
   Cpu,
-  DollarSign,
   ExternalLink,
   Loader2,
   MessageSquare,
@@ -70,7 +69,6 @@ type GatewaySummaryRow = {
   key: string
   calls?: number
   count?: number
-  cost_usd: number
   avg_latency_ms?: number | null
   in_tok?: number
   out_tok?: number
@@ -79,7 +77,6 @@ type GatewaySummaryRow = {
 type GatewayStatsPayload = {
   totals: {
     calls: number
-    cost_usd: number
     input_tokens: number
     output_tokens: number
     errors: number
@@ -92,54 +89,14 @@ type GatewayStatsPayload = {
   as_of: string | null
 }
 
-type GatewayCostRollup = {
-  total_cost_usd: number
-  total_calls: number
-  total_pulses: number
-  total_images: number
-  rows: GatewaySummaryRow[]
-}
-
 type GatewayLogSnapshot = {
   generatedAt: string
   source: {
-    mode: 'cloudflare-admin-costs' | 'cloudflare-public-stats'
+    mode: 'cloudflare-public-stats'
     statsWindow: string
-    costWindow: string | null
     adminRollups: boolean
   }
   stats: GatewayStatsPayload | null
-  costs: {
-    endpoint: GatewayCostRollup | null
-    provider: GatewayCostRollup | null
-    app: GatewayCostRollup | null
-    searchRun: GatewayCostRollup | null
-  } | null
-}
-
-type CostSplitItem = {
-  id: string
-  label: string
-  cost: number
-  count: number
-}
-
-type CostSplit = {
-  windowLabel: string
-  totalCost: number
-  items: CostSplitItem[]
-}
-
-type SearchCost = {
-  windowLabel: string
-  searchSpend: number
-  searchCalls: number
-  avgPerSearchCall: number
-  streamRuns: number
-  avgPerStreamRun: number
-  searchRuns: number
-  avgPerSearchRun: number
-  hasSearchRunData: boolean
 }
 
 export function XIntelShell({
@@ -723,12 +680,9 @@ export function AntiEchoTool() {
 export function MatrixLab() {
   const { snapshot, previous, loading, error, autoRefresh, setAutoRefresh, refresh } = useGatewayLogMonitor()
   const matrixEngines = useMemo(() => buildGatewayEngines(snapshot, previous), [previous, snapshot])
-  const searchCost = useMemo(() => buildSearchCost(snapshot), [snapshot])
-  const costSplit = useMemo(() => buildCostSplit(snapshot), [snapshot])
   const totals = snapshot?.stats?.totals ?? null
-  const endpointRows = snapshot?.costs?.endpoint?.rows ?? []
-  const providerRows = snapshot?.costs?.provider?.rows ?? snapshot?.stats?.by_provider ?? []
-  const appRows = snapshot?.costs?.app?.rows ?? snapshot?.stats?.by_app ?? []
+  const providerRows = snapshot?.stats?.by_provider ?? []
+  const appRows = snapshot?.stats?.by_app ?? []
   const statsWindow = snapshot?.source.statsWindow ?? '1h'
 
   return (
@@ -736,7 +690,7 @@ export function MatrixLab() {
       active="matrix"
       eyebrow="CF log monitor"
       title="Watch the SeekBox API logs resolve in real time."
-      description="Matrix now polls the deployed gateway for sanitized Supabase-backed log summaries: call volume, spend, providers, endpoints, latency, and error counts."
+      description="Matrix now polls the deployed gateway for public-safe Supabase-backed log summaries: call volume, providers, apps, latency, and error counts."
     >
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="border border-neutral-300 bg-white p-5 shadow-[4px_4px_0_rgba(0,0,0,0.05)]">
@@ -745,7 +699,7 @@ export function MatrixLab() {
               <div className="text-[11px] font-black uppercase tracking-[0.22em] text-neutral-500">Live gateway</div>
               <h2 className="mt-2 text-2xl font-black tracking-tight">api_calls pulse</h2>
               <div className="mt-1 text-xs font-bold text-neutral-500">
-                {snapshot ? `Updated ${formatClock(snapshot.generatedAt)} · ${snapshot.source.adminRollups ? 'admin cost rollups enabled' : 'public stats only'}` : 'Waiting for first snapshot'}
+                {snapshot ? `Updated ${formatClock(snapshot.generatedAt)} · public stats only` : 'Waiting for first snapshot'}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -770,17 +724,13 @@ export function MatrixLab() {
           </div>
           <Matrix engines={matrixEngines} height={340} doneMessage="Gateway quiet. Logs current." />
           {error ? <ErrorCard message={error} compact /> : null}
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <GatewayMetric icon={<BarChart3 className="h-4 w-4" />} label={`Calls ${statsWindow}`} value={formatInteger(totals?.calls)} />
-            <GatewayMetric icon={<DollarSign className="h-4 w-4" />} label={`Cost ${statsWindow}`} value={formatMoney(totals?.cost_usd)} />
             <GatewayMetric icon={<AlertCircle className="h-4 w-4" />} label={`Errors ${statsWindow}`} value={formatInteger(totals?.errors)} />
             <GatewayMetric icon={<Activity className="h-4 w-4" />} label={`P95 ${statsWindow}`} value={formatMs(totals?.p95_latency_ms)} />
           </div>
-          <SearchCostPanel searchCost={searchCost} />
-          <CostSplitPanel split={costSplit} />
         </div>
         <div className="flex flex-col gap-4">
-          <LogRollupPanel title="Endpoints" rows={endpointRows} emptyText="Admin endpoint rollups need SBX_ADMIN_TOKEN on the server." />
           <LogRollupPanel title="Providers" rows={providerRows} maxRows={30} />
           <LogRollupPanel title="Apps" rows={appRows} />
         </div>
@@ -816,7 +766,7 @@ function useGatewayLogMonitor() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/gateway-logs?window=1h&cost_window=24h', { cache: 'no-store' })
+      const response = await fetch('/api/gateway-logs?window=1h', { cache: 'no-store' })
       if (!response.ok) throw new Error(`Gateway monitor failed (${response.status}).`)
       const next = (await response.json()) as GatewayLogSnapshot
       setPrevious(latestRef.current)
@@ -852,7 +802,7 @@ function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: Gate
     return [
       { id: 'gateway', name: 'Gateway', model: 'waiting', color: '#0ea5e9', highlight: '#7dd3fc', status: snapshot ? 'done' : 'thinking' },
       { id: 'supabase', name: 'Supa', model: 'api_calls', color: '#10b981', highlight: '#86efac', status: snapshot ? 'done' : 'idle' },
-      { id: 'costs', name: 'Costs', model: 'rollups', color: '#a78bfa', highlight: '#ddd6fe', status: snapshot?.costs ? 'done' : 'idle' },
+      { id: 'latency', name: 'Latency', model: 'p95', color: '#a78bfa', highlight: '#ddd6fe', status: snapshot ? 'done' : 'idle' },
     ]
   }
 
@@ -862,7 +812,7 @@ function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: Gate
     return {
       id: row.key,
       name: providerLabel(row.key),
-      model: `${formatInteger(calls)} uses · ${formatMoney(row.cost_usd)}`,
+      model: `${formatInteger(calls)} uses`,
       ...providerColor(row.key, index),
       status: calls > previousCalls ? 'thinking' : 'done',
     }
@@ -870,83 +820,11 @@ function buildGatewayEngines(snapshot: GatewayLogSnapshot | null, previous: Gate
 }
 
 function gatewayProviderRows(snapshot: GatewayLogSnapshot | null): GatewaySummaryRow[] {
-  return snapshot?.costs?.provider?.rows?.length ? snapshot.costs.provider.rows : snapshot?.stats?.by_provider ?? []
+  return snapshot?.stats?.by_provider ?? []
 }
 
 function rowVolume(row: GatewaySummaryRow | undefined): number {
   return Number(row?.count ?? row?.calls ?? 0) || 0
-}
-
-const SOURCE_BUCKET_KEYS = new Set(['api_calls', 'pulse_runs', 'research_runs', 'images'])
-
-function buildSearchCost(snapshot: GatewayLogSnapshot | null): SearchCost {
-  const endpointRows = snapshot?.costs?.endpoint?.rows ?? []
-  const searchRows = endpointRows.filter((row) => row.key === '/v1/search')
-  const streamRows = endpointRows.filter((row) => row.key === '/api/search/stream')
-  const searchRunRows = (snapshot?.costs?.searchRun?.rows ?? []).filter((row) => row.key.startsWith('search_'))
-  const searchSpend = sumCost(searchRows)
-  const searchCalls = sumVolume(searchRows)
-  const streamRuns = sumVolume(streamRows)
-  const searchRunSpend = sumCost(searchRunRows)
-  const searchRuns = searchRunRows.length
-
-  return {
-    windowLabel: snapshot?.source.costWindow ?? '24h',
-    searchSpend,
-    searchCalls,
-    avgPerSearchCall: searchCalls ? searchSpend / searchCalls : 0,
-    streamRuns,
-    avgPerStreamRun: streamRuns ? searchSpend / streamRuns : 0,
-    searchRuns,
-    avgPerSearchRun: searchRuns ? searchRunSpend / searchRuns : 0,
-    hasSearchRunData: searchRuns > 0,
-  }
-}
-
-function buildCostSplit(snapshot: GatewayLogSnapshot | null): CostSplit {
-  const providerRollup = snapshot?.costs?.provider ?? null
-  const appRollup = snapshot?.costs?.app ?? null
-  const endpointRollup = snapshot?.costs?.endpoint ?? null
-  const providerRows = providerRollup?.rows ?? []
-  const appRows = appRollup?.rows ?? []
-  const endpointRows = endpointRollup?.rows ?? []
-  const totalCost = providerRollup?.total_cost_usd ?? appRollup?.total_cost_usd ?? endpointRollup?.total_cost_usd ?? 0
-  const pulseRow = findRow(providerRows, 'pulse_runs') ?? findRow(endpointRows, '(pulse_runs)')
-  const cronRow = findRow(appRows, 'cron')
-  const providerApiRows = providerRows.filter((row) => !SOURCE_BUCKET_KEYS.has(row.key))
-  const providerApiCost = sumCost(providerApiRows)
-  const providerApiCount = sumVolume(providerApiRows)
-  const cronCost = rowCost(cronRow)
-  const cronCount = rowVolume(cronRow)
-  const nonCronCost = Math.max(0, totalCost - cronCost)
-  const nonCronCount = Math.max(0, sumVolume(appRows) - cronCount)
-
-  return {
-    windowLabel: snapshot?.source.costWindow ?? '24h',
-    totalCost,
-    items: [
-      { id: 'provider-api', label: 'Provider APIs', cost: providerApiCost, count: providerApiCount },
-      { id: 'pulse-runs', label: 'Pulse Runs', cost: rowCost(pulseRow), count: rowVolume(pulseRow) },
-      { id: 'cron-app', label: 'Cron App', cost: cronCost, count: cronCount },
-      { id: 'non-cron-app', label: 'Non-Cron', cost: nonCronCost, count: nonCronCount },
-    ],
-  }
-}
-
-function findRow(rows: GatewaySummaryRow[], key: string): GatewaySummaryRow | undefined {
-  return rows.find((row) => row.key === key)
-}
-
-function rowCost(row: GatewaySummaryRow | undefined): number {
-  return Number(row?.cost_usd ?? 0) || 0
-}
-
-function sumCost(rows: GatewaySummaryRow[]): number {
-  return rows.reduce((sum, row) => sum + rowCost(row), 0)
-}
-
-function sumVolume(rows: GatewaySummaryRow[]): number {
-  return rows.reduce((sum, row) => sum + rowVolume(row), 0)
 }
 
 function GatewayMetric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -957,61 +835,6 @@ function GatewayMetric({ icon, label, value }: { icon: React.ReactNode; label: s
         {label}
       </div>
       <div className="text-2xl font-black tracking-tight text-neutral-950">{value}</div>
-    </div>
-  )
-}
-
-function SearchCostPanel({ searchCost }: { searchCost: SearchCost }) {
-  return (
-    <div className="mt-4 border border-neutral-300 bg-[#fbfbf7] p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Search Cost {searchCost.windowLabel}</div>
-        <Search className="h-4 w-4 text-neutral-500" />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <UnitCostCard label="Avg / Search" value={formatUnitMoney(searchCost.avgPerSearchCall)} detail="/v1/search" />
-        <UnitCostCard label="Search Spend" value={formatMoney(searchCost.searchSpend)} detail={`${formatInteger(searchCost.searchCalls)} calls`} />
-        <UnitCostCard
-          label={searchCost.hasSearchRunData ? 'Search Runs' : 'Stream Runs'}
-          value={formatInteger(searchCost.hasSearchRunData ? searchCost.searchRuns : searchCost.streamRuns)}
-          detail={searchCost.hasSearchRunData ? 'operation ids' : '/api/search/stream'}
-        />
-        <UnitCostCard
-          label={searchCost.hasSearchRunData ? 'Avg / Run' : 'Run Est.'}
-          value={formatUnitMoney(searchCost.hasSearchRunData ? searchCost.avgPerSearchRun : searchCost.avgPerStreamRun)}
-          detail={searchCost.hasSearchRunData ? 'true rollup' : 'search only'}
-        />
-      </div>
-    </div>
-  )
-}
-
-function UnitCostCard({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="border border-neutral-200 bg-white p-3">
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">{label}</div>
-      <div className="mt-2 text-xl font-black tracking-tight text-neutral-950">{value}</div>
-      <div className="mt-1 truncate font-mono text-[11px] font-bold text-neutral-500" title={detail}>{detail}</div>
-    </div>
-  )
-}
-
-function CostSplitPanel({ split }: { split: CostSplit }) {
-  return (
-    <div className="mt-4 border border-neutral-300 bg-[#fbfbf7] p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Cost Split {split.windowLabel}</div>
-        <div className="font-mono text-xs font-black text-neutral-950">{formatMoney(split.totalCost)}</div>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {split.items.map((item) => (
-          <div key={item.id} className="border border-neutral-200 bg-white p-3">
-            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">{item.label}</div>
-            <div className="mt-2 text-xl font-black tracking-tight text-neutral-950">{formatMoney(item.cost)}</div>
-            <div className="mt-1 font-mono text-[11px] font-bold text-neutral-500">{formatInteger(item.count)} uses</div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -1036,10 +859,9 @@ function LogRollupPanel({
       {rows.length ? (
         <div className="flex flex-col divide-y divide-neutral-200">
           {rows.slice(0, maxRows).map((row) => (
-            <div key={row.key} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 text-xs font-bold">
+            <div key={row.key} className="grid grid-cols-[1fr_auto] items-center gap-3 py-2 text-xs font-bold">
               <div className="min-w-0 truncate text-neutral-800" title={row.key}>{row.key}</div>
               <div className="font-mono text-neutral-500">{formatInteger(row.count ?? row.calls)}</div>
-              <div className="font-mono text-neutral-950">{formatMoney(row.cost_usd)}</div>
             </div>
           ))}
         </div>
@@ -1091,15 +913,6 @@ function providerColor(value: string, index: number): Pick<MatrixEngine, 'color'
 
 function formatInteger(value: number | null | undefined): string {
   return Math.round(Number(value) || 0).toLocaleString()
-}
-
-function formatMoney(value: number | null | undefined): string {
-  return `$${(Number(value) || 0).toFixed(4)}`
-}
-
-function formatUnitMoney(value: number | null | undefined): string {
-  const number = Number(value) || 0
-  return `$${number < 0.01 ? number.toFixed(6) : number.toFixed(4)}`
 }
 
 function formatMs(value: number | null | undefined): string {
