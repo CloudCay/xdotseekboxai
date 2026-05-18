@@ -80,6 +80,18 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/v1/payments/*"
+  to = "https://api.seekbox.ai/v1/payments/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/stripe/*"
+  to = "https://api.seekbox.ai/api/stripe/:splat"
+  status = 200
+  force = true
+
 [dev]
   command = "npm run dev"
   targetPort = 3000
