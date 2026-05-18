@@ -108,6 +108,11 @@ Current uncommitted xdot areas include:
 | `/second-opinion` | Second-opinion extension/product support |
 | `/helper`, `/seekly` | Seekly/helper support surfaces |
 
+Billing funnel note: the current anonymous-to-subscriber route map is documented in
+[`docs/anon-to-subscriber-flow.md`](./anon-to-subscriber-flow.md). In short, `/signin` is both sign-in and sign-up,
+`/pricing` explains the plan, `/checkout` auto-starts Stripe for signed-in users, and `/account` also exposes a direct
+checkout CTA.
+
 ### Server Routes And Server Functions
 
 | Area | Current role |
